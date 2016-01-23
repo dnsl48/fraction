@@ -1,0 +1,9 @@
+[package]
+name = "fraction"
+version = "0.1.0"
+authors = ["dnsl48 <dnsl48@gmail.com>"]
+
+description = "Fraction data type with lossless arithmetic that is more precise than float and can be used for hashing"
+keywords = ["fraction"]
+
+license = "GNU LGPL 3"
