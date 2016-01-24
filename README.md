@@ -21,6 +21,7 @@ fn main () {
   fr = fr / Fraction::from (0.5); // 2 / 0.5 = 4
 
   assert_eq! (fr, Fraction::from (4));
+  assert_eq! (4.0f64, fr.to_f64 ());
 }
 ```
 
