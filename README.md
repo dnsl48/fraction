@@ -1,5 +1,17 @@
 # Fraction
 ------
+WARNING: The lib is deprecated. Use [num-rational](https://crates.io/crates/num-rational) instead.
+Also, you may find the whole [num](https://crates.io/crates/num) crate quite useful.
+If you need to keep the values like INF, -INF and NaN, you probably might go with a simple enum like this one:
+```rust
+pub enum FloatValue {
+    Ratio (BigRational),
+    Inf,
+    NegInf,
+    NaN
+}
+```
+------
 [!['LGPLv3 License'](http://img.shields.io/badge/license-LGPLv3-blue.svg)](https://www.gnu.org/licenses/lgpl.html) [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
 ------
 * Fraction data type with lossless arithmetic that is more precise than float and can be used for hashing.
