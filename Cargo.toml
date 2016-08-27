@@ -1,9 +1,9 @@
 [package]
 name = "fraction"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
-description = "Lossless floats that may be used in matching, ordering and hashing"
+description = "Lossless float that may be used in matching, ordering and hashing"
 keywords = ["fraction"]
 
 license = "MIT/Apache-2.0"
