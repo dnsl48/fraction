@@ -16,7 +16,7 @@
 
 ### Changed
 - The codebase has been rewritten and the license has been changed from `LGPL-3` to `MIT/Apache2` dual
-- no more convertions into INFINITY on arithmetic overflows (causing `panic!` instead)
+- no more convertions into INFINITY on arithmetic overflows
 - `fn to_f64` now returns `Option<f64>` instead of `f64` (`num::trait::ToPrimitive` implementation)
 - `From` trait implementation uses `fmt::Display` from now on
 
