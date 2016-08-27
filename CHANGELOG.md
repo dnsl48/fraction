@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.2.1] - 2016-08-28
+### Changed
+- Package description has been changed
+
 
 ## [0.2.0] - 2016-08-28
 ### Added

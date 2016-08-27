@@ -1,5 +1,5 @@
 # Fraction
-Lossless floats that may be used in matching, ordering and hashing
+Lossless float that may be used in matching, ordering and hashing
 ------
 [!['MIT / Apache2 License'](https://img.shields.io/badge/License-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
 ------
@@ -63,6 +63,10 @@ fn main () {
 
 
 # Change Log
+
+## [0.2.1] - 2016-08-28
+### Changed
+- Package description has been changed
 
 
 ## [0.2.0] - 2016-08-28
