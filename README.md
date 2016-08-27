@@ -1,12 +1,13 @@
 # Fraction
+Lossless floats that may be used in matching, ordering and hashing
 ------
-[!['LGPLv3 License'](http://img.shields.io/badge/license-LGPLv3-blue.svg)](https://www.gnu.org/licenses/lgpl.html) [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
+[!['MIT / Apache2 License'](https://img.shields.io/badge/License-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
 ------
-* Fraction data type with lossless arithmetic that is more precise than float and can be used for hashing.
-* The main goal of Fraction is keeping precision that floats cannot do.
-* Fractions do not lose information about numbers and thus can be used for matching, comparisons and hashing (key values for HashMaps).
-* Base arithmetic operators are also available (+ - / *), even though they work slower than for native numbers.
-* Overflow checks are being performed for every arithmetic operation, so that Fraction becomes infinite, negative_infinite or NaN.
+ * The main goal of Fraction is to keep precision that floats cannot do
+ * Fractions can be used for matching and comparisons and thus for hashing
+ * Base arithmetic implemented upon [`num`](http://rust-num.github.io/num/num/index.html) crate (`rational` module)
+ * `Fraction` struct implementation uses two `u64` numbers and arithmetic on stack
+ * `BigFraction` struct implementation uses two limitless `BigUint` numbers and arithmetic on heap
 
 # Examples
 
@@ -59,3 +60,35 @@ fn main () {
   assert_eq! (f14, Fraction::from (0.25)); // 1/4 == 0.25
 }
 ```
+
+
+# Change Log
+
+
+## [0.2.0] - 2016-08-28
+### Added
+- [num crate](https://crates.io/crates/num) is a dependency now
+- `GenericFraction<T>` implemented upon `num::Ratio<T>`
+- `BigFraction` implementation based on `num::BigRational` (using heap)
+- `num::traits::Bounded` trait implemented
+- `fn min_positive_value` implemented
+- `num::traits::ToPrimitive` trait implemented
+- `num::traits::Signed` trait implemented
+- `From<f64>` trait implementation now relies on `format!` macro instead of `f64::fract`
+- `BigFraction` struct using `num::BigUint`
+- `fn format_as_float` for BigFraction has been implemented
+
+### Changed
+- The codebase has been rewritten and the license has been changed from `LGPL-3` to `MIT/Apache2` dual
+- no more convertions into INFINITY on arithmetic overflows (causing `panic!` instead)
+- `fn to_f64` now returns `Option<f64>` instead of `f64` (`num::trait::ToPrimitive` implementation)
+- `From` trait implementation uses `fmt::Display` from now on
+
+### Removed
+- `fn unpack` removed
+- `std::cmp::Ord` implementation removed in regard to `NaN` values
+
+
+## [0.1.0] - 2016-01-24
+### Added
+- Basic implementation
