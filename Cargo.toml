@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless float that may be used in matching, ordering and hashing"

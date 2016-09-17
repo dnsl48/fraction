@@ -64,6 +64,12 @@ fn main () {
 
 # Change Log
 
+## [0.2.2] - 2016-09-17
+### Added
+- `impl From<num::BigInt> for BigFraction`
+- `impl From<num::BigUint> for BigFraction`
+
+
 ## [0.2.1] - 2016-08-28
 ### Changed
 - Package description has been changed

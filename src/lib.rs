@@ -3,7 +3,7 @@ extern crate num;
 use self::num::rational::{Ratio, ParseRatioError};
 use self::num::traits::{/*Float, */Bounded, Zero, One, Signed, Num, ToPrimitive, CheckedMul, CheckedAdd};
 use self::num::integer::Integer;
-use self::num::bigint::BigUint;
+use self::num::bigint::{BigInt, BigUint};
 
 use std::num::FpCategory;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub, AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
@@ -1100,10 +1100,32 @@ generic_fraction_from_float! (f64);
 
 
 
+impl From<BigInt> for BigFraction {
+    fn from (int: BigInt) -> BigFraction {
+        let (sign, numer) = match int.sign () {
+            self::num::bigint::Sign::Minus => (Sign::Minus, int.abs ().to_biguint ().unwrap ()),
+            _ => (Sign::Plus, int.to_biguint ().unwrap ())
+        };
+
+        let frac = BigFraction::new (numer, BigUint::one ());
+
+        if sign == Sign::Minus { -frac } else { frac }
+    }
+}
+
+
+
+impl From<BigUint> for BigFraction {
+    fn from (int: BigUint) -> BigFraction { BigFraction::new (int, BigUint::one ()) }
+}
+
+
+
+
 #[cfg (all (test, not (feature = "dev")))]
 mod tests {
     use super::{Fraction, BigFraction, GenericFraction, Sign};
-    use super::num::{BigUint, Num, Zero};
+    use super::num::{BigInt, BigUint, Num, Zero};
 
     use std::collections::HashMap;
 
@@ -1770,6 +1792,30 @@ mod tests {
         let f = f.ok ().unwrap ();
         assert_eq! (BigUint::from_str_radix (&number, 10).ok ().unwrap (), *f.numer ().unwrap ());
         assert_eq! (BigUint::from (1u8), *f.denom ().unwrap ());
+    }
+
+
+    #[test]
+    fn from_bigint () {
+        let number = BigInt::from (42);
+        let frac = BigFraction::from (number);
+
+        assert_eq! (frac, BigFraction::new (42, 1));
+
+
+        let number = BigInt::from (-44);
+        let frac = BigFraction::from (number);
+
+        assert_eq! (frac, -BigFraction::new (44, 1));
+    }
+
+
+    #[test]
+    fn from_biguint () {
+        let number = BigUint::from (42u32);
+        let frac = BigFraction::from (number);
+
+        assert_eq! (frac, BigFraction::new (42, 1));
     }
 
 
