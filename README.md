@@ -1,7 +1,8 @@
 # Fraction
 Lossless float that may be used in matching, ordering and hashing
 ------
-[!['MIT / Apache2 License'](https://img.shields.io/badge/License-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
+
+[![Current Version is 0.2.2](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
 ------
  * The main goal of Fraction is to keep precision that floats cannot do
  * Fractions can be used for matching and comparisons and thus for hashing
