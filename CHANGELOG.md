@@ -1,5 +1,19 @@
 # Change Log
 
+
+## [0.3.0] - 2016-11-16
+### Changed
+- GenericFraction<T> copy semantic to be applied only when `T: Clone`
+- GenericFraction impl, constructors refactoring (new, new_raw)
+- From<(N, D)> generic implementation (through std::fmt::Display)
+
+
+## [0.2.2] - 2016-09-17
+### Added
+- `impl From<num::BigInt> for BigFraction`
+- `impl From<num::BigUint> for BigFraction`
+
+
 ## [0.2.1] - 2016-08-28
 ### Changed
 - Package description has been changed
