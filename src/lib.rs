@@ -106,12 +106,12 @@ impl BigFraction {
 impl<T: Clone + Integer> GenericFraction<T> {
     fn _new<N, D> (sign: Sign, num: N, den: D) -> GenericFraction<T>
         where
-            T: From<N> + From<D>
+            N: Into<T>, D: Into<T>
     {
         let zero = T::zero ();
 
-        let num = T::from (num);
-        let den = T::from (den);
+        let num: T = num.into ();
+        let den: T = den.into ();
 
         /* TODO: to be decided if we need to panic here, it's not the end of the world */
         // if num < zero { panic! ("Numerator less than zero"); }
@@ -126,14 +126,14 @@ impl<T: Clone + Integer> GenericFraction<T> {
 
     pub fn new<N, D> (num: N, den: D) -> GenericFraction<T>
         where
-            T: From<N> + From<D>
+            N: Into<T>, D: Into<T>
     {
         Self::_new (Sign::Plus, num, den)
     }
 
     pub fn new_neg<N, D> (num: N, den: D) -> GenericFraction<T>
         where
-            T: From<N> + From<D>
+            N: Into<T>, D: Into<T>
     {
         Self::_new (Sign::Minus, num, den)
     }
@@ -172,11 +172,15 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
-    pub fn into_big (self) -> BigFraction where BigUint: From<T> {
+    pub fn into_big (self) -> BigFraction where T: Into<BigUint> {
         match self {
             GenericFraction::NaN => GenericFraction::NaN,
             GenericFraction::Infinity (sign) => GenericFraction::Infinity (sign),
-            GenericFraction::Rational (sign, ratio) => GenericFraction::Rational (sign, Ratio::new (BigUint::from (ratio.numer ().clone ()), BigUint::from (ratio.denom ().clone ())))
+            GenericFraction::Rational (sign, ratio) => {
+                let n: T = ratio.numer ().clone ().into ();
+                let d: T = ratio.denom ().clone ().into ();
+                GenericFraction::Rational (sign, Ratio::new (n, d))
+            }
         }
     }
 }
