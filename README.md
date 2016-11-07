@@ -65,6 +65,20 @@ fn main () {
 
 # Change Log
 
+
+## [0.3.0] - 2016-11-15
+### Added
+- From<(N, D)> generic implementation (through std::fmt::Display)
+
+### Changed
+- GenericFraction<T> copy semantic to be applied only when `T: Clone`
+- GenericFraction impl, constructors refactoring (new, new_raw)
+- `num` upgraded up to `0.1.36` (from `0.1.34`)
+
+### Removed
+- `fn new` does not perform type casting through fmt::Display anymore (that functionality moved out as `From<(N, D)>`)
+
+
 ## [0.2.2] - 2016-09-17
 ### Added
 - `impl From<num::BigInt> for BigFraction`

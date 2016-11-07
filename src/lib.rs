@@ -48,12 +48,18 @@ impl fmt::Display for Sign {
 
 
 
-#[derive (Copy, Clone, Hash, Debug)]
+#[derive (Clone, Hash, Debug)]
 pub enum GenericFraction<T> {
     Rational (Sign, Ratio<T>),
     Infinity (Sign),
     NaN
 }
+
+
+
+impl<T> Copy for GenericFraction<T> where T: Copy {}
+
+
 
 
 pub type Fraction = GenericFraction<u64>;
@@ -98,63 +104,47 @@ impl BigFraction {
 
 
 impl<T: Clone + Integer> GenericFraction<T> {
-    pub fn new<S> (num: S, den: S) -> GenericFraction<T> where S: fmt::Display {
-        let num = format! ("{:+}", num);
+    fn _new<N, D> (sign: Sign, num: N, den: D) -> GenericFraction<T>
+        where
+            T: From<N> + From<D>
+    {
+        let zero = T::zero ();
 
-        let n_sign = if num.starts_with ('-') {
-            Sign::Minus
-        } else if num.starts_with ('+') {
-            Sign::Plus
-        } else {
-            return GenericFraction::NaN
-        };
-
-        let n: Result<T, T::FromStrRadixErr> = T::from_str_radix (&num[1 ..], 10);
-
-        if n.is_err () { return GenericFraction::NaN }
-
-
-        let den = format! ("{:+}", den);
-
-        let d_sign = if den.starts_with ('-') {
-            Sign::Minus
-        } else if den.starts_with ('+') {
-            Sign::Plus
-        } else {
-            return GenericFraction::NaN
-        };
-
-        let d: Result<T, T::FromStrRadixErr> = T::from_str_radix (&den[1 ..], 10);
-
-        if d.is_err () { return GenericFraction::NaN }
-
-        GenericFraction::Rational (if n_sign == d_sign { Sign::Plus } else { Sign::Minus }, Ratio::new (n.ok ().unwrap (), d.ok ().unwrap ()))
-    }
-
-
-    pub fn new_from<S> (num: S, den: S) -> GenericFraction<T> where T: From<S> {
         let num = T::from (num);
         let den = T::from (den);
-        let nil = T::zero ();
-        let sig = if num < nil { Sign::Minus } else { Sign::Plus };
 
-        if den == nil {
-            GenericFraction::Infinity (sig)
+        /* TODO: to be decided if we need to panic here, it's not the end of the world */
+        // if num < zero { panic! ("Numerator less than zero"); }
+        // if den < zero { panic! ("Denominator less than zero"); }
+
+        if den == zero {
+            GenericFraction::Infinity (sign)
         } else {
-            GenericFraction::Rational (sig, Ratio::new (num, den))
+            GenericFraction::Rational (sign, Ratio::new (num, den))
         }
+    }
+
+    pub fn new<N, D> (num: N, den: D) -> GenericFraction<T>
+        where
+            T: From<N> + From<D>
+    {
+        Self::_new (Sign::Plus, num, den)
+    }
+
+    pub fn new_neg<N, D> (num: N, den: D) -> GenericFraction<T>
+        where
+            T: From<N> + From<D>
+    {
+        Self::_new (Sign::Minus, num, den)
     }
 
 
     pub fn new_raw (num: T, den: T) -> GenericFraction<T> {
-        let nil = T::zero ();
-        let sig = if num < nil { Sign::Minus } else { Sign::Plus };
+        GenericFraction::Rational (Sign::Plus, Ratio::new_raw (num, den))
+    }
 
-        if den == nil {
-            GenericFraction::Infinity (sig)
-        } else {
-            GenericFraction::Rational (sig, Ratio::new_raw (num, den))
-        }
+    pub fn new_raw_neg (num: T, den: T) -> GenericFraction<T> {
+        GenericFraction::Rational (Sign::Minus, Ratio::new_raw (num, den))
     }
 
 
@@ -178,6 +168,15 @@ impl<T: Clone + Integer> GenericFraction<T> {
         match *self {
             GenericFraction::Rational (ref s, _) => Some (s),
             _ => None
+        }
+    }
+
+
+    pub fn into_big (self) -> BigFraction where BigUint: From<T> {
+        match self {
+            GenericFraction::NaN => GenericFraction::NaN,
+            GenericFraction::Infinity (sign) => GenericFraction::Infinity (sign),
+            GenericFraction::Rational (sign, ratio) => GenericFraction::Rational (sign, Ratio::new (BigUint::from (ratio.numer ().clone ()), BigUint::from (ratio.denom ().clone ())))
         }
     }
 }
@@ -1121,19 +1120,64 @@ impl From<BigUint> for BigFraction {
 
 
 
+impl<T, N, D> From<(N, D)> for GenericFraction<T>
+    where
+        T: Clone + Integer,
+        N: fmt::Display,
+        D: fmt::Display
+{
+    fn from (pair: (N, D)) -> GenericFraction<T> {
+        let (num, den) = pair;
+
+        let num = format! ("{:+}", num);
+
+        let n_sign = if num.starts_with ('-') {
+            Sign::Minus
+        } else if num.starts_with ('+') {
+            Sign::Plus
+        } else {
+            return GenericFraction::NaN
+        };
+
+        let n: Result<T, T::FromStrRadixErr> = T::from_str_radix (&num[1 ..], 10);
+
+        if n.is_err () { return GenericFraction::NaN }
+
+
+        let den = format! ("{:+}", den);
+
+        let d_sign = if den.starts_with ('-') {
+            Sign::Minus
+        } else if den.starts_with ('+') {
+            Sign::Plus
+        } else {
+            return GenericFraction::NaN
+        };
+
+        let d: Result<T, T::FromStrRadixErr> = T::from_str_radix (&den[1 ..], 10);
+
+        if d.is_err () { return GenericFraction::NaN }
+
+        GenericFraction::Rational (if n_sign == d_sign { Sign::Plus } else { Sign::Minus }, Ratio::new (n.ok ().unwrap (), d.ok ().unwrap ()))
+    }
+}
+
+
+
 
 #[cfg (all (test, not (feature = "dev")))]
 mod tests {
-    use super::{Fraction, BigFraction, GenericFraction, Sign};
-    use super::num::{BigInt, BigUint, Num, Zero};
+    use super::{ Fraction, BigFraction, GenericFraction, Sign };
+    use super::num::{ BigInt, BigUint, Num, Zero };
 
     use std::collections::HashMap;
 
 
+    type Frac = GenericFraction<u8>;
+
+
     #[test]
     fn op_add_assign () {
-        type Frac = GenericFraction<u8>;
-
         let nan = Frac::nan ();
         let nin = Frac::neg_infinity ();
         let pin = Frac::infinity ();
@@ -1164,8 +1208,6 @@ mod tests {
 
     #[test]
     fn op_add () {
-        type Frac = GenericFraction<u8>;
-
         let nan: Frac = GenericFraction::NaN;
         let ninf: Frac = GenericFraction::Infinity (Sign::Minus);
         let pinf: Frac = GenericFraction::Infinity (Sign::Plus);
@@ -1279,8 +1321,6 @@ mod tests {
 
     #[test]
     fn op_sub () {
-        type Frac = GenericFraction<u8>;
-
         let nan: Frac = GenericFraction::NaN;
         let ninf: Frac = GenericFraction::Infinity (Sign::Minus);
         let pinf: Frac = GenericFraction::Infinity (Sign::Plus);
@@ -1332,8 +1372,6 @@ mod tests {
 
     #[test]
     fn op_mul () {
-        type Frac = GenericFraction<u8>;
-
         let nan: Frac = GenericFraction::NaN;
         let ninf: Frac = GenericFraction::Infinity (Sign::Minus);
         let pinf: Frac = GenericFraction::Infinity (Sign::Plus);
@@ -1413,8 +1451,6 @@ mod tests {
 
     #[test]
     fn op_div () {
-        type Frac = GenericFraction<u8>;
-
         let nan: Frac = GenericFraction::NaN;
         let ninf: Frac = GenericFraction::Infinity (Sign::Minus);
         let pinf: Frac = GenericFraction::Infinity (Sign::Plus);
@@ -1495,8 +1531,6 @@ mod tests {
 
     #[test]
     fn op_rem () {
-        type Frac = GenericFraction<u8>;
-
         let nan: Frac = GenericFraction::NaN;
         let ninf: Frac = GenericFraction::Infinity (Sign::Minus);
         let pinf: Frac = GenericFraction::Infinity (Sign::Plus);
@@ -1577,8 +1611,6 @@ mod tests {
 
     #[test]
     fn op_ord () {
-        type Frac = GenericFraction<u8>;
-
         let pin = Frac::infinity ();
         let nin = Frac::neg_infinity ();
         let nil = Frac::zero ();
@@ -1800,13 +1832,13 @@ mod tests {
         let number = BigInt::from (42);
         let frac = BigFraction::from (number);
 
-        assert_eq! (frac, BigFraction::new (42, 1));
+        assert_eq! (frac, BigFraction::from ((42, 1)));
 
 
         let number = BigInt::from (-44);
         let frac = BigFraction::from (number);
 
-        assert_eq! (frac, -BigFraction::new (44, 1));
+        assert_eq! (frac, -BigFraction::from ((44, 1)));
     }
 
 
@@ -1815,7 +1847,7 @@ mod tests {
         let number = BigUint::from (42u32);
         let frac = BigFraction::from (number);
 
-        assert_eq! (frac, BigFraction::new (42, 1));
+        assert_eq! (frac, BigFraction::from ((42, 1)));
     }
 
 
@@ -1827,9 +1859,34 @@ mod tests {
 
         map.insert (f, ());
 
-        assert! (map.contains_key (&Fraction::new (3, 4)));   // 0.75 == 3/4
-        assert! (map.contains_key (&Fraction::new (6, 8)));   // 0.75 == 6/8
-        assert! (map.contains_key (&Fraction::new (12, 16))); // 0.75 == 12/16
+        assert! (map.contains_key (&Fraction::new (3u8, 4u8)));     // 0.75 == 3/4
+        assert! (map.contains_key (&Fraction::new (6u16, 8u16)));   // 0.75 == 6/8
+        assert! (map.contains_key (&Fraction::new (12u32, 16u32))); // 0.75 == 12/16
+        assert! (map.contains_key (&Fraction::new (24u64, 32u64))); // 0.75 == 24/32
+        assert! (map.contains_key (&Fraction::new (48u8, 64u16)));  // 0.75 == 48/64
+
+        assert! (map.contains_key (&Fraction::from ( (3i8, 4i8) )));
+        assert! (map.contains_key (&Fraction::from ( (6i16, 8i16) )));
+        assert! (map.contains_key (&Fraction::from ( (12i32, 16i32) )));
+        assert! (map.contains_key (&Fraction::from ( (24i64, 32i64) )));
+        assert! (map.contains_key (&Fraction::from ( (48i8, 64i16) )));
+
         assert! (! map.contains_key (&Fraction::from (0.5))); // 0.75 != 1/2
+    }
+
+
+    #[test]
+    fn into_big () {
+        let f1 = Fraction::from (0.75);
+        let b1 = f1.into_big ();
+
+        let f2 = Frac::from (0.75);
+        let b2 = f2.into_big ();
+
+        let b3 = BigFraction::from (0.75);
+
+        assert_eq! (b1, b2);
+        assert_eq! (b2, b3);
+        assert_eq! (b1, b3);
     }
 }
