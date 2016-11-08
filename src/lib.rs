@@ -177,8 +177,8 @@ impl<T: Clone + Integer> GenericFraction<T> {
             GenericFraction::NaN => GenericFraction::NaN,
             GenericFraction::Infinity (sign) => GenericFraction::Infinity (sign),
             GenericFraction::Rational (sign, ratio) => {
-                let n: T = ratio.numer ().clone ().into ();
-                let d: T = ratio.denom ().clone ().into ();
+                let n: BigUint = ratio.numer ().clone ().into ();
+                let d: BigUint = ratio.denom ().clone ().into ();
                 GenericFraction::Rational (sign, Ratio::new (n, d))
             }
         }
