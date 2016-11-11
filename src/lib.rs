@@ -6,12 +6,19 @@ use self::num::integer::Integer;
 use self::num::bigint::{BigInt, BigUint};
 
 use std::num::FpCategory;
-use std::ops::{Add, Div, Mul, Neg, Rem, Sub, AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
+use std::ops::{ Add, Div, Mul, Neg, Rem, Sub, AddAssign, DivAssign, MulAssign, RemAssign, SubAssign };
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 
 use std::f64;
 use std::fmt;
 use std::mem;
+
+
+
+
+pub type Fraction = GenericFraction<u64>;
+pub type BigFraction = GenericFraction<BigUint>;
+
 
 
 
@@ -61,52 +68,11 @@ impl<T> Copy for GenericFraction<T> where T: Copy {}
 
 
 
-
-pub type Fraction = GenericFraction<u64>;
-pub type BigFraction = GenericFraction<BigUint>;
-
-
-
-impl BigFraction {
-    pub fn format_as_float (&self) -> Option<String> {
-        let a = self.numer ().unwrap ();
-        let b = self.denom ().unwrap ();
-
-        let (f, r) = a.div_rem (&b);
-
-        let mut x: BigUint = BigUint::from (1u8);
-        let bi10 = BigUint::from (10u8);
-        let bi0 = BigUint::zero ();
-
-        let mut limit = 0;
-
-        loop {
-            limit += 1;
-            if limit > 1000 { // TODO: do something with bad numbers here (eg 3/4)
-                if let Some (a) = a.to_f64 () {
-                    if let Some (b) = b.to_f64 () {
-                        return Some (format! ("{}", a / b));
-                    }
-                }
-                return None
-            }
-            x = x * bi10.clone ();
-            if x < *b { continue; }
-            if x.clone () % b.clone () == bi0 { break; }
-        }
-
-        let l = r * (x / b);
-
-        Some (format! ("{}.{}", f, l))
-    }
-}
-
-
-
 impl<T: Clone + Integer> GenericFraction<T> {
     fn _new<N, D> (sign: Sign, num: N, den: D) -> GenericFraction<T>
         where
-            N: Into<T>, D: Into<T>
+            N: Into<T>,
+            D: Into<T>
     {
         let zero = T::zero ();
 
@@ -126,14 +92,16 @@ impl<T: Clone + Integer> GenericFraction<T> {
 
     pub fn new<N, D> (num: N, den: D) -> GenericFraction<T>
         where
-            N: Into<T>, D: Into<T>
+            N: Into<T>,
+            D: Into<T>
     {
         Self::_new (Sign::Plus, num, den)
     }
 
     pub fn new_neg<N, D> (num: N, den: D) -> GenericFraction<T>
         where
-            N: Into<T>, D: Into<T>
+            N: Into<T>,
+            D: Into<T>
     {
         Self::_new (Sign::Minus, num, den)
     }
@@ -182,6 +150,64 @@ impl<T: Clone + Integer> GenericFraction<T> {
                 GenericFraction::Rational (sign, Ratio::new (n, d))
             }
         }
+    }
+
+
+    pub fn format_as_float (&self) -> Option<String>
+        where
+            T: From<u8> + Into<BigUint> + ToPrimitive + fmt::Display
+    {
+        match *self {
+            GenericFraction::NaN => return Some (format! ("{}", std::f32::NAN)),
+            GenericFraction::Infinity (sign) => match sign {
+                Sign::Plus  => return Some (format! ("{}", std::f32::INFINITY)),
+                Sign::Minus => return Some (format! ("{}", std::f32::NEG_INFINITY))
+            },
+            GenericFraction::Rational (_, _) => ()
+        }
+
+        let a = self.numer ().unwrap ();
+        let b = self.denom ().unwrap ();
+
+        let ma = Mint::from (a.clone ());
+        let mb = Mint::from (b.clone ());
+
+        let (f, mut r) = ma.div_rem (&mb);
+
+        let mut x = Mint::from (1u8);
+        let i10 = Mint::from (10u8);
+        let i0 = Mint::from (0u8);
+
+        let mut limit = 0;
+
+        loop {
+            limit += 1;
+            if limit > 1000 { // TODO: do something with bad numbers here (eg 3/4)
+                if let Some (a) = a.to_f64 () {
+                    if let Some (b) = b.to_f64 () {
+                        return Some (format! ("{}", a / b));
+                    }
+                }
+                return None
+            }
+
+            x *= i10.clone ();
+            if x < mb { continue; }
+            if x.clone () % mb.clone () == i0 { break; }
+        }
+
+        x /= mb;
+        r *= x;
+
+        let r = format! ("{}", r);
+
+        let l = if limit > r.len () {
+            let mut l = String::with_capacity (limit - r.len ());
+            for _ in 0 .. (limit - r.len ()) { l.push ('0') }
+            l
+        } else { String::new () };
+
+        Some (format! ("{}.{}{}", f, l, r))
     }
 }
 
@@ -1169,6 +1195,206 @@ impl<T, N, D> From<(N, D)> for GenericFraction<T>
 
 
 
+#[derive (Clone, Debug)]
+enum Mint {
+    I (u64),
+    B (Option<BigUint>)
+}
+
+
+
+impl Mint {
+    pub fn div_rem (&self, other: &Mint) -> (Mint, Mint) {
+        match *self {
+            Mint::I (s) => match *other {
+                Mint::I (o) => (Mint::I (s / o), Mint::I (s % o)),
+                Mint::B (Some (ref o)) => {
+                    let (a, b) = BigUint::from (s).div_rem (o);
+                    (Mint::B (Some (a)), Mint::B (Some (b)))
+                }
+                _ => unreachable! ()
+            },
+            Mint::B (Some (ref s)) => match *other {
+                Mint::I (o) => {
+                    let (a, b) = s.div_rem (&BigUint::from (o));
+                    (Mint::B (Some (a)), Mint::B (Some (b)))
+                }
+                Mint::B (Some (ref o)) => {
+                    let (a, b) = s.div_rem (o);
+                    (Mint::B (Some (a)), Mint::B (Some (b)))
+                },
+                _ => unreachable! ()
+            },
+            _ => unreachable! ()
+        }
+    }
+
+    fn is_i (&self) -> bool {
+        match *self {
+            Mint::I (_) => true,
+            _ => false
+        }
+    }
+
+    fn get_i (&self) -> u64 {
+        match *self {
+            Mint::I (v) => v,
+            _ => unreachable! ()
+        }
+    }
+
+    fn set_i (&mut self, val: u64) {
+        match *self {
+            Mint::I (ref mut v) => *v = val,
+            _ => unreachable! ()
+        }
+    }
+
+    fn take_b (&mut self) -> BigUint {
+        match *self {
+            Mint::B (ref mut v) => v.take ().unwrap (),
+            _ => unreachable! ()
+        }
+    }
+}
+
+
+
+impl PartialOrd for Mint {
+    fn partial_cmp (&self, other: &Mint) -> Option<Ordering> {
+        match *self {
+            Mint::I (s) => {
+                match *other {
+                    Mint::I (o) => s.partial_cmp (&o),
+                    Mint::B (Some (ref o)) => BigUint::from (s).partial_cmp (o),
+                    _ => unreachable! ()
+                }
+            }
+            Mint::B (Some (ref s)) => {
+                match *other {
+                    Mint::I (o) => s.partial_cmp (&BigUint::from (o)),
+                    Mint::B (Some (ref o)) => s.partial_cmp (o),
+                    _ => unreachable! ()
+                }
+            }
+            _ => unreachable! ()
+        }
+    }
+}
+
+
+
+impl PartialEq for Mint {
+    fn eq (&self, other: &Mint) -> bool {
+        match *self {
+            Mint::I (s) => {
+                match *other {
+                    Mint::I (o) => s.eq (&o),
+                    Mint::B (Some (ref o)) => BigUint::from (s).eq (o),
+                    _ => unreachable! ()
+                }
+            }
+            Mint::B (Some (ref s)) => {
+                match *other {
+                    Mint::I (o) => s.eq (&BigUint::from (o)),
+                    Mint::B (Some (ref o)) => s.eq (o),
+                    _ => unreachable! ()
+                }
+            }
+            _ => unreachable! ()
+        }
+    }
+}
+
+
+
+impl Rem for Mint {
+    type Output = Mint;
+
+    fn rem (mut self, mut oth: Mint) -> Mint {
+        if self.is_i () && oth.is_i () {
+            if let Some (n) = self.get_i ().checked_rem (oth.get_i ()) {
+                Mint::I (n)
+            } else {
+                let bi = BigUint::from (self.get_i ());
+                Mint::B (Some (bi % BigUint::from (oth.get_i ())))
+            }
+        } else {
+            let bi = self.take_b ();
+            Mint::B (Some (bi % if oth.is_i () { BigUint::from (oth.get_i ()) } else { oth.take_b () }))
+        }
+    }
+}
+
+
+
+impl DivAssign<Mint> for Mint {
+    fn div_assign (&mut self, mut oth: Mint) {
+        if self.is_i () && oth.is_i () {
+            if let Some (n) = self.get_i ().checked_div (oth.get_i ()) {
+                self.set_i (n);
+            } else {
+                let mut bi = BigUint::from (self.get_i ());
+                bi = bi / BigUint::from (oth.get_i ());
+                *self = Mint::B (Some (bi));
+            }
+        } else {
+            let mut bi = self.take_b ();
+            bi = bi / if oth.is_i () { BigUint::from (oth.get_i ()) } else { oth.take_b () };
+            *self = Mint::B (Some (bi));
+        }
+    }
+}
+
+
+
+impl MulAssign<Mint> for Mint {
+    fn mul_assign (&mut self, mut oth: Mint) {
+        if self.is_i () && oth.is_i () {
+            if let Some (n) = self.get_i ().checked_mul (oth.get_i ()) {
+                self.set_i (n);
+            } else {
+                let mut bi = BigUint::from (self.get_i ());
+                bi = bi * BigUint::from (oth.get_i ());
+                *self = Mint::B (Some (bi));
+            }
+        } else {
+            let mut bi = self.take_b ();
+            bi = bi * if oth.is_i () { BigUint::from (oth.get_i ()) } else { oth.take_b () };
+            *self = Mint::B (Some (bi));
+        }
+    }
+}
+
+
+
+impl fmt::Display for Mint {
+    fn fmt (&self, ftr: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Mint::I (ref v) => write! (ftr, "{}", v),
+            Mint::B (ref v) => write! (ftr, "{}", v.as_ref ().unwrap ())
+        }
+    }
+}
+
+
+
+impl<T> From<T> for Mint
+    where
+        T: ToPrimitive + Into<BigUint>
+{
+    fn from (val: T) -> Self {
+        if let Some (val) = val.to_u64 () {
+            Mint::I (val.into ())
+        } else {
+            Mint::B (Some (val.into ()))
+        }
+    }
+}
+
+
+
+
 #[cfg (all (test, not (feature = "dev")))]
 mod tests {
     use super::{ Fraction, BigFraction, GenericFraction, Sign };
@@ -1892,5 +2118,64 @@ mod tests {
         assert_eq! (b1, b2);
         assert_eq! (b2, b3);
         assert_eq! (b1, b3);
+    }
+
+
+    #[test]
+    fn format_as_float () {
+        use std::f32;
+
+        let f1 = Frac::from (0.75);
+        let fmt1 = f1.format_as_float ();
+
+        assert! (fmt1.is_some ());
+        assert_eq! ("0.75", fmt1.unwrap ());
+
+
+        let f2 = Fraction::from ((33, 100));
+        let fmt2 = f2.format_as_float ();
+
+        assert! (fmt2.is_some ());
+        assert_eq! ("0.33", fmt2.unwrap ());
+
+
+        let f3 = Fraction::new (456u64, 10000000000u64);
+        let fmt3 = f3.format_as_float ();
+
+        assert! (fmt3.is_some ());
+        assert_eq! ("0.0000000456", fmt3.unwrap ());
+
+
+        let f4 = Fraction::from (f32::INFINITY);
+        let fmt4 = f4.format_as_float ();
+
+        assert! (fmt4.is_some ());
+        assert_eq! ("inf", fmt4.unwrap ());
+
+
+        let f5 = Fraction::from (f32::NEG_INFINITY);
+        let fmt5 = f5.format_as_float ();
+
+        assert! (fmt5.is_some ());
+        assert_eq! ("-inf", fmt5.unwrap ());
+
+
+        let f6 = Fraction::from (f32::NAN);
+        let fmt6 = f6.format_as_float ();
+
+        assert! (fmt6.is_some ());
+        assert_eq! ("NaN", fmt6.unwrap ());
+
+
+        let f7 = BigFraction::new (
+            BigUint::from (42u8),
+            BigUint::from (1000000000000000u64)
+            * BigUint::from (1000000000000000u64)
+            * BigUint::from (1000000000000000u64)
+        );
+        let fmt7 = f7.format_as_float ();
+
+        assert! (fmt7.is_some ());
+        assert_eq! ("0.000000000000000000000000000000000000000000042", fmt7.unwrap ());
     }
 }
