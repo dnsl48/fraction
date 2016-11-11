@@ -74,16 +74,10 @@ impl<T: Clone + Integer> GenericFraction<T> {
             N: Into<T>,
             D: Into<T>
     {
-        let zero = T::zero ();
-
         let num: T = num.into ();
         let den: T = den.into ();
 
-        /* TODO: to be decided if we need to panic here, it's not the end of the world */
-        // if num < zero { panic! ("Numerator less than zero"); }
-        // if den < zero { panic! ("Denominator less than zero"); }
-
-        if den == zero {
+        if den.is_zero () {
             GenericFraction::Infinity (sign)
         } else {
             GenericFraction::Rational (sign, Ratio::new (num, den))
@@ -306,7 +300,7 @@ impl<T: Clone + Integer> Neg for GenericFraction<T> {
             GenericFraction::NaN => self,
             GenericFraction::Infinity (sign) => GenericFraction::Infinity (-sign),
             GenericFraction::Rational (s, r) => {
-                if r == Ratio::zero () {
+                if r.is_zero () {
                     GenericFraction::Rational (Sign::Plus, r)
                 } else {
                     GenericFraction::Rational (s.neg (), r)
@@ -496,7 +490,7 @@ impl<T: Clone + Integer> Mul for GenericFraction<T> {
                 GenericFraction::NaN => other,
                 GenericFraction::Infinity (osign) => GenericFraction::Infinity (if sign == osign { Sign::Plus } else { Sign::Minus }),
                 GenericFraction::Rational (osign, l) => {
-                    if l == Ratio::zero () {
+                    if l.is_zero () {
                         GenericFraction::NaN
                     } else {
                         GenericFraction::Infinity (if sign == osign { Sign::Plus } else { Sign::Minus })
@@ -506,15 +500,14 @@ impl<T: Clone + Integer> Mul for GenericFraction<T> {
             GenericFraction::Rational (sign, l) => match other {
                 GenericFraction::NaN => other,
                 GenericFraction::Infinity (osign) => {
-                    if l == Ratio::zero () {
+                    if l.is_zero () {
                         GenericFraction::NaN
                     } else {
                         GenericFraction::Infinity (if sign == osign { Sign::Plus } else { Sign::Minus })
                     }
                 }
                 GenericFraction::Rational (osign, r) => {
-                    let z = Ratio::zero ();
-                    let s = if l == z || r == z {
+                    let s = if l.is_zero () || r.is_zero () {
                         Sign::Plus
                     } else if sign == osign {
                         Sign::Plus
@@ -538,7 +531,7 @@ impl<T: Clone + Integer> MulAssign for GenericFraction<T> {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity (rs) => GenericFraction::Infinity (if ls == rs { Sign::Plus } else { Sign::Minus }),
                 GenericFraction::Rational (rs, r) => {
-                    if r == Ratio::zero () {
+                    if r.is_zero () {
                         GenericFraction::NaN
                     } else {
                         GenericFraction::Infinity (if ls == rs { Sign::Plus } else { Sign::Minus })
@@ -548,17 +541,16 @@ impl<T: Clone + Integer> MulAssign for GenericFraction<T> {
             GenericFraction::Rational (ls, ref mut l) => match other {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity (rs) => {
-                    if *l == Ratio::zero () {
+                    if l.is_zero () {
                         GenericFraction::NaN
                     } else {
                         GenericFraction::Infinity (if ls == rs { Sign::Plus } else { Sign::Minus })
                     }
                 }
                 GenericFraction::Rational (rs, r) => {
-                    let z = Ratio::zero ();
                     let l_ = mem::replace (l, Ratio::new_raw (T::zero (), T::zero ()));
 
-                    let s = if l_ == z || r == z {
+                    let s = if l_.is_zero () || r.is_zero () {
                         Sign::Plus
                     } else if ls == rs {
                         Sign::Plus
@@ -590,14 +582,12 @@ impl<T: Clone + Integer> Div for GenericFraction<T> {
                 GenericFraction::NaN => other,
                 GenericFraction::Infinity (_) => GenericFraction::Rational (Sign::Plus, Ratio::zero ()),
                 GenericFraction::Rational (osign, r) => {
-                    let z = Ratio::zero ();
-
-                    if l == z && r == z {
+                    if l.is_zero () && r.is_zero () {
                         GenericFraction::NaN
-                    } else if r == z {
+                    } else if r.is_zero () {
                         GenericFraction::Infinity (sign)
-                    } else if l == z {
-                        GenericFraction::Rational (Sign::Plus, z)
+                    } else if l.is_zero () {
+                        GenericFraction::Rational (Sign::Plus, l)
                     } else {
                         GenericFraction::Rational (if sign == osign { Sign::Plus } else { Sign::Minus }, l / r)
                     }
@@ -622,15 +612,14 @@ impl<T: Clone + Integer> DivAssign for GenericFraction<T> {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity (_) => GenericFraction::Rational (Sign::Plus, Ratio::zero ()),
                 GenericFraction::Rational (rs, r) => {
-                    let z = Ratio::zero ();
                     let l_ = mem::replace (l, Ratio::new_raw (T::zero (), T::zero ()));
 
-                    if l_ == z && r == z {
+                    if l_.is_zero () && r.is_zero () {
                         GenericFraction::NaN
-                    } else if r == z {
+                    } else if r.is_zero () {
                         GenericFraction::Infinity (ls)
-                    } else if l_ == z {
-                        GenericFraction::Rational (Sign::Plus, z)
+                    } else if l_.is_zero () {
+                        GenericFraction::Rational (Sign::Plus, l_)
                     } else {
                         GenericFraction::Rational (if ls == rs { Sign::Plus } else { Sign::Minus }, l_.div (r))
                     }
@@ -657,12 +646,10 @@ impl<T: Clone + Integer> Rem for GenericFraction<T> {
                 GenericFraction::NaN => other,
                 GenericFraction::Infinity (_) => GenericFraction::Rational (sign, l),
                 GenericFraction::Rational (_, r) => {
-                    let z = Ratio::zero ();
-
-                    if r == z {
+                    if r.is_zero () {
                         GenericFraction::NaN
                     } else if l == r {
-                        GenericFraction::Rational (Sign::Plus, z)
+                        GenericFraction::Rational (Sign::Plus, Ratio::zero ())
                     } else {
                         GenericFraction::Rational (sign, l % r)
                     }
@@ -687,13 +674,12 @@ impl<T: Clone + Integer> RemAssign for GenericFraction<T> {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity (_) => GenericFraction::Rational (ls, mem::replace (l, Ratio::new_raw (T::zero (), T::zero ()))),
                 GenericFraction::Rational (_, r) => {
-                    let z = Ratio::zero ();
                     let l_ = mem::replace (l, Ratio::new_raw (T::zero (), T::zero ()));
 
-                    if r == z {
+                    if r.is_zero () {
                         GenericFraction::NaN
                     } else if l_ == r {
-                        GenericFraction::Rational (Sign::Plus, z)
+                        GenericFraction::Rational (Sign::Plus, Ratio::zero ())
                     } else {
                         GenericFraction::Rational (ls, l_.rem (r))
                     }

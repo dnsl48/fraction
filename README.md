@@ -66,6 +66,12 @@ fn main () {
 # Change Log
 
 
+## Upcoming release
+### Refactoring
+- `Zero::is_zero` to be used everywhere in math, rather than making new zero vals + comparing with them
+
+
+
 ## [0.3.1] - 2016-11-12
 ### Added
 - `fn format_as_float` implementation for GenericFraction<T> (it was only available for BigFraction before)
