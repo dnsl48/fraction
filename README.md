@@ -69,6 +69,7 @@ fn main () {
 ## [0.3.1] - 2016-11-12
 ### Added
 - `fn format_as_float` implementation for GenericFraction<T> (it was only available for BigFraction before)
+
 ### Changed
 - `Into<T>` to be used in bounds rather than `From<N>`, since it's more flexible (thanks to Alexander Altman for the patch)
 - number of bug fixes within `fn format_as_float` + test coverage
