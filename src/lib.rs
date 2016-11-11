@@ -182,7 +182,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
 
         loop {
             limit += 1;
-            if limit > 1000 { // TODO: do something with bad numbers here (eg 3/4)
+            if limit > 1000 { // TODO: do something with bad numbers here (eg 1/3)
                 if let Some (a) = a.to_f64 () {
                     if let Some (b) = b.to_f64 () {
                         return Some (format! ("{}", a / b));
