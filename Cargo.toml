@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Fraction is a lossless float type implementation that can be used for matching, ordering and hashing"
