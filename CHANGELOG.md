@@ -1,9 +1,14 @@
 # Change Log
 
 
-## Upcoming release
+## [0.3.2] - 2016-11-13
 ### Refactoring
 - `Zero::is_zero` to be used everywhere in math, rather than making new zero vals + comparing with them
+
+### Added
+- `fn new_nan` constructor
+- `fn new_inf` constructor
+- `fn new_inf_neg` constructor
 
 
 ## [0.3.1] - 2016-11-12

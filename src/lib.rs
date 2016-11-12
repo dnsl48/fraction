@@ -110,6 +110,13 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
+    pub fn new_nan () -> GenericFraction<T> { GenericFraction::NaN }
+
+    pub fn new_inf () -> GenericFraction<T> { GenericFraction::Infinity (Sign::Plus) }
+
+    pub fn new_inf_neg () -> GenericFraction<T> { GenericFraction::Infinity (Sign::Minus) }
+
+
     pub fn numer (&self) -> Option<&T> {
         match *self {
             GenericFraction::Rational (_, ref r) => Some (r.numer ()),
