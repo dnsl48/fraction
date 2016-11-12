@@ -1021,10 +1021,25 @@ impl<T: fmt::Display + Eq + One> fmt::Display for GenericFraction<T> {
 
 
 
+macro_rules! generic_fraction_from_uint {
+    ( $($from:ty),* ) => {
+        $(
+        impl<T: Clone + Integer> From<$from> for GenericFraction<T> where $from: Into<T> {
+            fn from (val: $from) -> GenericFraction<T> {
+                GenericFraction::Rational (Sign::Plus, Ratio::new (val.into (), T::one ()))
+            }
+        }
+        )*
+    }
+}
+
+generic_fraction_from_uint! (u8, u16, u32, u64, BigUint);
+
+
 
 macro_rules! generic_fraction_from_int {
-    ($from:ty) => {
-
+    ( $($from:ty),* ) => {
+        $(
         impl<T: Clone + Integer> From<$from> for GenericFraction<T> {
             fn from (val: $from) -> GenericFraction<T> {
                 let src = format! ("{:+}", val);
@@ -1044,27 +1059,17 @@ macro_rules! generic_fraction_from_int {
                 r.ok ().unwrap ()
             }
         }
-
+        )*
     };
 }
 
-
-generic_fraction_from_int! (i8);
-generic_fraction_from_int! (u8);
-generic_fraction_from_int! (i16);
-generic_fraction_from_int! (u16);
-generic_fraction_from_int! (i32);
-generic_fraction_from_int! (u32);
-generic_fraction_from_int! (i64);
-generic_fraction_from_int! (u64);
-generic_fraction_from_int! (isize); 
-generic_fraction_from_int! (usize);
+generic_fraction_from_int! (i8, i16, i32, i64, isize, usize);
 
 
 
 macro_rules! generic_fraction_from_float {
-    ($from:ty) => {
-
+    ( $($from:ty),*) => {
+        $(
         impl<T: Clone + Integer + CheckedAdd + CheckedMul> From<$from> for GenericFraction<T> {
             fn from (val: $from) -> GenericFraction<T> {
                 if val.is_nan () { return GenericFraction::NaN };
@@ -1112,33 +1117,28 @@ macro_rules! generic_fraction_from_float {
                 GenericFraction::Rational (sign, Ratio::new (num, den))
             }
         }
-
+        )*
     };
 }
 
-
-generic_fraction_from_float! (f32);
-generic_fraction_from_float! (f64);
+generic_fraction_from_float! (f32, f64);
 
 
 
-impl From<BigInt> for BigFraction {
-    fn from (int: BigInt) -> BigFraction {
+impl<T> From<BigInt> for GenericFraction<T>
+    where
+        T: Clone + Integer + From<BigUint>
+{
+    fn from (int: BigInt) -> Self {
         let (sign, numer) = match int.sign () {
             self::num::bigint::Sign::Minus => (Sign::Minus, int.abs ().to_biguint ().unwrap ()),
             _ => (Sign::Plus, int.to_biguint ().unwrap ())
         };
 
-        let frac = BigFraction::new (numer, BigUint::one ());
+        let frac = GenericFraction::new (T::from (numer), T::one ());
 
         if sign == Sign::Minus { -frac } else { frac }
     }
-}
-
-
-
-impl From<BigUint> for BigFraction {
-    fn from (int: BigUint) -> BigFraction { BigFraction::new (int, BigUint::one ()) }
 }
 
 

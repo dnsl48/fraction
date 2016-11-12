@@ -66,6 +66,12 @@ fn main () {
 # Change Log
 
 
+## Upcoming release
+### Refactoring
+- More efficient implementation of `From<[unsigned ints]>`
+- More generic implementation of `From<BigInt>`
+
+
 ## [0.3.2] - 2016-11-13
 ### Refactoring
 - `Zero::is_zero` to be used everywhere in math, rather than making new zero vals + comparing with them
