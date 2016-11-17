@@ -1,13 +1,13 @@
 extern crate num;
 
-use self::num::rational::{Ratio, ParseRatioError};
-use self::num::traits::{/*Float, */Bounded, Zero, One, Signed, Num, ToPrimitive, CheckedMul, CheckedAdd};
+use self::num::rational::{ Ratio, ParseRatioError };
+use self::num::traits::{ /*Float, */Bounded, Zero, One, Signed, Num, ToPrimitive, CheckedMul, CheckedAdd };
 use self::num::integer::Integer;
-use self::num::bigint::{BigInt, BigUint};
+use self::num::bigint::{ BigInt, BigUint };
 
 use std::num::FpCategory;
 use std::ops::{ Add, Div, Mul, Neg, Rem, Sub, AddAssign, DivAssign, MulAssign, RemAssign, SubAssign };
-use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
+use std::cmp::{ Eq, PartialEq, PartialOrd, Ordering };
 
 use std::f64;
 use std::fmt;

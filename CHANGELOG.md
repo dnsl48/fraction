@@ -1,7 +1,7 @@
 # Change Log
 
 
-## Upcoming release
+## [0.3.3] - 2016-11-18
 ### Refactoring
 - More efficient implementation of `From<[unsigned ints]>`
 - More generic implementation of `From<BigInt>`
