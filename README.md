@@ -2,8 +2,11 @@
 Lossless float that may be used in matching, ordering and hashing
 ------
 
-[![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction)
+[![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
 ------
+
+More documentation available on [docs.rs](https://docs.rs/fraction/).
+
  * The main goal of Fraction is to keep precision that floats cannot do
  * Fractions can be used for matching and comparisons and thus for hashing
  * Base arithmetic implemented upon [`num`](http://rust-num.github.io/num/num/index.html) crate (`rational` module)
@@ -64,6 +67,17 @@ fn main () {
 
 
 # Change Log
+
+
+## [0.3.4] - 2016-12-11
+### Bugs
+- `fn _new` now returns NaN for 0/0 (was Infinity before)
+- `fn sign` now returns values for GenericFraction::Infinite values too
+- `fn neg_zero` now returns zero with negative sign (was positive before)
+- `fn recip` now handles zero values gracefully (does not panic, returns Infinity)
+
+### Added
+- Lots of documentation
 
 
 ## [0.3.3] - 2016-11-18

@@ -1,3 +1,19 @@
+// #![warn(missing_docs)]
+
+//! Fraction is a lossless float type implementation that can be used for matching, ordering and hashing.
+//!
+//! The main goal of the project is to keep precision that floats cannot do.
+//!
+//! Base arithmetic implemented upon the [num](https://crates.io/crates/num) crate (in particular its [rational](https://crates.io/crates/num-rational) module).
+//!
+//! The main object in the library is [`GenericFraction<T> where T: Integer`](enum.GenericFraction.html).
+//!
+//! However, there are two shortcuts for the two most common use cases:
+//!
+//!  - [`type Fraction = GenericFraction<u64>`](type.Fraction.html)
+//!  - [`type BigFraction = GenericFraction<BigUint>`](type.BigFraction.html)
+
+
 extern crate num;
 
 use self::num::rational::{ Ratio, ParseRatioError };
@@ -16,17 +32,60 @@ use std::mem;
 
 
 
+/// Fraction consisting from two `u64` numbers
+///
+/// Allows to keep and work with fractions on stack.
+///
+/// Be aware of possible stack overflows that might be caused by
+/// exceeding `u64` limits in some math operations, which will make thread to panic.
+///
+/// # Example
+///
+/// ```
+/// use fraction::Fraction;
+///
+/// let first = Fraction::new (1u8, 2u8);
+/// let second = Fraction::new (2u8, 8u8);
+///
+/// assert_eq! (first + second, Fraction::new (3u8, 4u8));
+/// ```
 pub type Fraction = GenericFraction<u64>;
+
+
+
+
+/// Fraction consisting from two `BigUint` numbers
+///
+/// Allows to keep and work with fractions on heap.
+///
+/// BigUint number is based on heap and does not have any limits, which makes
+/// BigFraction safe from stack overflows. However, it comes with a price of
+/// making allocations on every math operation.
+///
+/// # Example
+///
+/// ```
+/// use fraction::BigFraction;
+///
+/// let first = BigFraction::new (2u8, 3u8);
+/// let second = BigFraction::new (1u8, 6u8);
+///
+/// assert_eq! (first + second, BigFraction::new (5u8, 6u8));
+/// ```
 pub type BigFraction = GenericFraction<BigUint>;
 
 
 
-
+/// Sign representation
+///
+/// Fraction keeps its sign represented by the enum,
+/// so that we can use unsigned ints as base data types.
 #[derive (Copy, Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Sign {
     Plus,
     Minus
 }
+
 
 
 
@@ -55,6 +114,38 @@ impl fmt::Display for Sign {
 
 
 
+/// Generic implementation of the fraction type
+///
+/// Even though it is implemented as `enum`, you should not use enum variants explicitly. Use `new`, `new_*` and `from` methods insdead.
+///
+/// Although there are two main specializations of this type ([Fraction](type.Fraction.html) and [BigFraction](type.BigFraction.html)),
+/// you can easily define your own ones.
+///
+/// ```
+/// use fraction::GenericFraction;
+///
+/// type F = GenericFraction<u8>;
+///
+/// let first = F::new (1u8, 2u8);
+/// let second = F::new (2u8, 8u8);
+///
+/// assert_eq! (first + second, F::new (3u8, 4u8));
+/// ```
+///
+///
+/// Since GenericFraction keeps its sign explicitly and independently of the numerics,
+/// it is not recommended to use signed types, although it's completely valid with the cost of target type capacity.
+///
+/// ```
+/// use fraction::GenericFraction;
+///
+/// type F = GenericFraction<i8>;
+///
+/// let first = F::new (1, 2);
+/// let second = F::new (2, 8);
+///
+/// assert_eq! (first + second, F::new (3, 4));
+/// ```
 #[derive (Clone, Hash, Debug)]
 pub enum GenericFraction<T> {
     Rational (Sign, Ratio<T>),
@@ -64,6 +155,7 @@ pub enum GenericFraction<T> {
 
 
 
+/// Copy semantics to be applied for the target type, but only if T also has it.
 impl<T> Copy for GenericFraction<T> where T: Copy {}
 
 
@@ -78,12 +170,29 @@ impl<T: Clone + Integer> GenericFraction<T> {
         let den: T = den.into ();
 
         if den.is_zero () {
-            GenericFraction::Infinity (sign)
+            if num.is_zero () {
+                GenericFraction::NaN
+            } else {
+                GenericFraction::Infinity (sign)
+            }
         } else {
             GenericFraction::Rational (sign, Ratio::new (num, den))
         }
     }
 
+
+    /// Constructs a new fraction with the specified numerator and denominator
+    ///
+    /// The arguments must me either of `T` type, or implement `Into<T>` trait.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u16>;
+    ///
+    /// let f = F::new (1u8, 2u16);
+    /// ```
     pub fn new<N, D> (num: N, den: D) -> GenericFraction<T>
         where
             N: Into<T>,
@@ -92,6 +201,19 @@ impl<T: Clone + Integer> GenericFraction<T> {
         Self::_new (Sign::Plus, num, den)
     }
 
+
+    /// Constructs a new negative fraction with the specified numerator and denominator
+    ///
+    /// The arguments must be either of `T` type, or implement `Into<T>` trait.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u16>;
+    ///
+    /// let f = F::new_neg (1u8, 2u16);
+    /// ```
     pub fn new_neg<N, D> (num: N, den: D) -> GenericFraction<T>
         where
             N: Into<T>,
@@ -101,22 +223,90 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
+    /// Constructs a new fraction without types casting, checking for denom == 0 and reducing numbers.
+    ///
+    /// You must be careful with this function because all the other functionality parts rely on the
+    /// numbers to be reduced. That said, in the normal case 2/4 has to be reduced to 1/2, but it will not
+    /// happen with new_raw.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let f = F::new_raw (1u8, 2u8);
+    /// ```
     pub fn new_raw (num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational (Sign::Plus, Ratio::new_raw (num, den))
     }
 
+
+    /// The same as [fn new_raw](enum.GenericFraction.html#method.new_raw), but produces negative fractions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let f = F::new_raw_neg (1u8, 2u8);
+    /// ```
     pub fn new_raw_neg (num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational (Sign::Minus, Ratio::new_raw (num, den))
     }
 
 
+    /// Constructs NaN value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let nan = F::new_nan ();
+    /// ```
     pub fn new_nan () -> GenericFraction<T> { GenericFraction::NaN }
 
+
+    /// Constructs INF value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let nan = F::new_inf ();
+    /// ```
     pub fn new_inf () -> GenericFraction<T> { GenericFraction::Infinity (Sign::Plus) }
 
+
+    /// Constructs negative INF value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let nan = F::new_inf_neg ();
+    /// ```
     pub fn new_inf_neg () -> GenericFraction<T> { GenericFraction::Infinity (Sign::Minus) }
 
 
+    /// Returns a reference to the numerator value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let fra = F::new (5u8, 6u8);
+    /// assert_eq! (5, *fra.numer ().unwrap ());
+    /// ```
     pub fn numer (&self) -> Option<&T> {
         match *self {
             GenericFraction::Rational (_, ref r) => Some (r.numer ()),
@@ -125,6 +315,17 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
+    /// Returns a reference to the denominator value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let fra = F::new (5u8, 6u8);
+    /// assert_eq! (6, *fra.denom ().unwrap ());
+    /// ```
     pub fn denom (&self) -> Option<&T> {
         match *self {
             GenericFraction::Rational (_, ref r) => Some (r.denom ()),
@@ -133,14 +334,52 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
+    /// Returns a reference to the sign value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::{ GenericFraction, Sign };
+    /// type F = GenericFraction<u8>;
+    ///
+    ///
+    /// let fra = F::new (5u8, 6u8);
+    /// assert_eq! (Sign::Plus, *fra.sign ().unwrap ());
+    ///
+    /// let fra = F::new_neg (5u8, 6u8);
+    /// assert_eq! (Sign::Minus, *fra.sign ().unwrap ());
+    ///
+    ///
+    /// let fra = F::new_inf ();
+    /// assert_eq! (Sign::Plus, *fra.sign ().unwrap ());
+    ///
+    /// let fra = F::new_inf_neg ();
+    /// assert_eq! (Sign::Minus, *fra.sign ().unwrap ());
+    ///
+    ///
+    /// let fra = F::new_nan ();
+    /// assert_eq! (None, fra.sign ());
+    /// ```
     pub fn sign (&self) -> Option<&Sign> {
         match *self {
             GenericFraction::Rational (ref s, _) => Some (s),
+            GenericFraction::Infinity (ref s) => Some (s),
             _ => None
         }
     }
 
 
+    /// Generates a new [BigFraction](type.BigFraction.html) from the current one
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::{ BigFraction, GenericFraction };
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let fra = F::new (5u8, 6u8).into_big ();
+    /// assert_eq! (BigFraction::new (5u8, 6u8), fra);
+    /// ```
     pub fn into_big (self) -> BigFraction where T: Into<BigUint> {
         match self {
             GenericFraction::NaN => GenericFraction::NaN,
@@ -154,6 +393,28 @@ impl<T: Clone + Integer> GenericFraction<T> {
     }
 
 
+    /// Returns a float representation of the fraction
+    ///
+    /// If you have a fraction "1/2", in float it should be "0.5".
+    ///
+    /// Since native floats can lose precision, we try to avoid converting to
+    /// floats as long as possible. However, the current implementation is not
+    /// ideal and still performs casting into native floats in case we have
+    /// a "bad" number, like "1/3", "2/3", "5/6" etc.
+    /// Please, feel free to PR fix if you feel power to solve this issue.
+    ///
+    /// Returns None in case it's a "bad" number and numerator or denominator
+    /// so big that cannot be converted into f64.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! ("0.5", &F::new (1u8, 2u8).format_as_float ().unwrap ());
+    /// assert_eq! ("0.8", &F::new (8u8, 10u8).format_as_float ().unwrap ());
+    /// ```
     pub fn format_as_float (&self) -> Option<String>
         where
             T: From<u8> + Into<BigUint> + ToPrimitive + fmt::Display
@@ -875,22 +1136,131 @@ impl<T: Clone + Integer + PartialEq + ToPrimitive> ToPrimitive for GenericFracti
 
 
 impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
+    /// Returns NaN value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::nan (), F::new (0, 0));
+    /// ```
     pub fn nan () -> Self { GenericFraction::NaN }
 
+
+    /// Returns positive Infinity value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::infinity (), F::new (1, 0));
+    /// ```
     pub fn infinity () -> Self { GenericFraction::Infinity (Sign::Plus) }
 
+
+    /// Returns negative Infinity value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::neg_infinity (), F::new_neg (1, 0));
+    /// ```
     pub fn neg_infinity () -> Self { GenericFraction::Infinity (Sign::Minus) }
 
-    pub fn neg_zero () -> Self { GenericFraction::Rational (Sign::Plus, Ratio::new (T::zero (), T::one ())) }
 
+    /// Returns zero with negative sign
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::neg_zero (), F::new_neg (0, 1));
+    /// ```
+    pub fn neg_zero () -> Self { GenericFraction::Rational (Sign::Minus, Ratio::zero ()) }
+
+
+    /// Returns minimal value greater than zero
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F8 = GenericFraction<u8>;
+    /// type F16 = GenericFraction<u16>;
+    ///
+    /// assert_eq! (F8::min_positive_value (), F8::new (1u8, 255u8));
+    /// assert_eq! (F16::min_positive_value (), F16::new (1u16, 65535u16));
+    /// ```
     pub fn min_positive_value () -> Self where T: Bounded { GenericFraction::Rational (Sign::Plus, Ratio::new (T::one (), T::max_value ())) }
 
+
+    /// Returns true if the value is NaN
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (F::nan ().is_nan ());
+    /// assert! (F::new (0, 0).is_nan ());
+    /// ```
     pub fn is_nan (&self) -> bool { match *self { GenericFraction::NaN => true, _ => false } }
 
+
+    /// Returns true if the value is Infinity (does not matter positive or negative)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (F::infinity ().is_infinite ());
+    /// assert! (F::new (1u8, 0).is_infinite ());
+    /// assert! (F::new_neg (1u8, 0).is_infinite ());
+    /// ```
     pub fn is_infinite (&self) -> bool { match *self { GenericFraction::Infinity (_) => true, _ => false } }
 
+
+    /// Returns true if the value is not Infinity (does not matter positive or negative)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (! F::infinity ().is_finite ());
+    /// assert! (! F::new (1u8, 0).is_finite ());
+    /// assert! (! F::new_neg (1u8, 0).is_finite ());
+    /// ```
     pub fn is_finite (&self) -> bool { match *self { GenericFraction::Infinity (_) => false, _ => true } }
 
+
+    /// Returns true if the number is neither zero, Infinity or NaN
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (! F::nan ().is_normal ());
+    /// assert! (! F::infinity ().is_normal ());
+    /// assert! (! F::neg_infinity ().is_normal ());
+    /// assert! (! F::new (0, 1u8).is_normal ());
+    /// assert! (! F::neg_zero ().is_normal ());
+    /// ```
     pub fn is_normal (&self) -> bool {
         match *self {
             GenericFraction::Rational (_, ref v) => !v.is_zero (),
@@ -899,6 +1269,20 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the floating point category of the number
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::num::FpCategory;
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::nan ().classify (), FpCategory::Nan);
+    /// assert_eq! (F::infinity ().classify (), FpCategory::Infinite);
+    /// assert_eq! (F::new (0, 1u8).classify (), FpCategory::Zero);
+    /// assert_eq! (F::new (1u8, 1u8).classify (), FpCategory::Normal);
+    /// ```
     pub fn classify(&self) -> FpCategory {
         match *self {
             GenericFraction::NaN => FpCategory::Nan,
@@ -909,6 +1293,16 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the largest integer less than or equal to the value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (7u8, 5u8).floor (), F::new (5u8, 5u8));
+    /// ```
     pub fn floor(&self) -> Self {
         match *self {
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.floor ()),
@@ -917,6 +1311,16 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the smallest integer greater than or equal to the value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (7u8, 5u8).ceil (), F::new (10u8, 5u8));
+    /// ```
     pub fn ceil(&self) -> Self {
         match *self {
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.ceil ()),
@@ -925,6 +1329,19 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the nearest integer to the value (.5 goes up)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (7u8, 5u8).round (), F::new (5u8, 5u8));
+    /// assert_eq! (F::new (8u8, 5u8).round (), F::new (10u8, 5u8));
+    /// assert_eq! (F::new (3u8, 2u8).round (), F::new (4u8, 2u8));
+    /// assert_eq! (F::new (1u8, 2u8).round (), F::new (2u8, 2u8));
+    /// ```
     pub fn round(&self) -> Self {
         match *self {
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.round ()),
@@ -933,6 +1350,17 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the integer part of the value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (7u8, 5u8).trunc (), F::new (5u8, 5u8));
+    /// assert_eq! (F::new (8u8, 5u8).trunc (), F::new (5u8, 5u8));
+    /// ```
     pub fn trunc(&self) -> Self {
         match *self {
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.trunc ()),
@@ -941,6 +1369,17 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the fractional part of a number
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (7u8, 5u8).fract (), F::new (2u8, 5u8));
+    /// assert_eq! (F::new (8u8, 5u8).fract (), F::new (3u8, 5u8));
+    /// ```
     pub fn fract(&self) -> Self {
         match *self {
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.fract ()),
@@ -949,6 +1388,20 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns the absolute value of self
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::nan ().abs (), F::nan ());
+    /// assert_eq! (F::infinity ().abs (), F::infinity ());
+    /// assert_eq! (F::neg_infinity ().abs (), F::infinity ());
+    /// assert_eq! (F::new (1u8, 2u8).abs (), F::new (1u8, 2u8));
+    /// assert_eq! (F::new_neg (1u8, 2u8).abs (), F::new (1u8, 2u8));
+    /// ```
     pub fn abs(&self) -> Self {
         match *self {
             GenericFraction::NaN => GenericFraction::NaN,
@@ -958,6 +1411,26 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns a number that represents the sign of self
+    ///
+    ///  * 1.0 if the number is positive, +0.0 or INFINITY
+    ///  * -1.0 if the number is negative, -0.0 or NEG_INFINITY
+    ///  * NAN if the number is NAN
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (1u8, 2u8).signum (), F::new (1u8, 1u8));
+    /// assert_eq! (F::new (0u8, 1u8).signum (), F::new (1u8, 1u8));
+    /// assert_eq! (F::infinity ().signum (), F::new (1u8, 1u8));
+    /// assert_eq! (F::new_neg (1u8, 2u8).signum (), F::new_neg (1u8, 1u8));
+    /// assert_eq! (F::neg_zero ().signum (), F::new_neg (1u8, 1u8));
+    /// assert_eq! (F::neg_infinity ().signum (), F::new_neg (1u8, 1u8));
+    /// assert_eq! (F::nan ().signum (), F::nan ());
+    /// ```
     pub fn signum(&self) -> Self {
         match *self {
             GenericFraction::NaN => GenericFraction::NaN,
@@ -975,6 +1448,18 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns true if the sign is positive
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (F::new (1u8, 2u8).is_sign_positive ());
+    /// assert! (F::infinity ().is_sign_positive ());
+    /// assert! (! F::nan ().is_sign_positive ());
+    /// ```
     pub fn is_sign_positive(&self) -> bool {
         match *self {
             GenericFraction::NaN => false,
@@ -984,6 +1469,19 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// Returns true if the sign is negative
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert! (F::new_neg (1u8, 2u8).is_sign_negative ());
+    /// assert! (F::neg_zero ().is_sign_negative ());
+    /// assert! (F::neg_infinity ().is_sign_negative ());
+    /// assert! (! F::nan ().is_sign_negative ());
+    /// ```
     pub fn is_sign_negative(&self) -> bool {
         match *self {
             GenericFraction::NaN => false,
@@ -993,13 +1491,30 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
     }
 
 
+    /// self.clone () * a + b
+    ///
+    /// Added for interface compatibility with float types
     pub fn mul_add(&self, a: Self, b: Self) -> Self { self.clone () * a + b }
 
 
+    /// Takes the reciprocal (inverse) of the value (1/x)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericFraction;
+    /// type F = GenericFraction<u8>;
+    ///
+    /// assert_eq! (F::new (1u8, 2u8).recip (), F::new (2u8, 1u8));
+    /// assert_eq! (F::new (0u8, 1u8).recip (), F::infinity ());
+    /// assert_eq! (F::infinity ().recip (), F::new (0u8, 1u8));
+    /// assert_eq! (F::nan ().recip (), F::nan ());
+    /// ```
     pub fn recip(&self) -> Self {
         match *self {
             GenericFraction::NaN => GenericFraction::NaN,
             GenericFraction::Infinity (_) => GenericFraction::Rational (Sign::Plus, Ratio::new (T::zero (), T::one ())),
+            GenericFraction::Rational (s, ref r) if r.is_zero () => GenericFraction::Infinity (s),
             GenericFraction::Rational (s, ref r) => GenericFraction::Rational (s, r.recip ())
         }
     }

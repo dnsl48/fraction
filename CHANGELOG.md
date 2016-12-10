@@ -1,6 +1,17 @@
 # Change Log
 
 
+## [0.3.4] - 2016-12-11
+### Bugs
+- `fn _new` now returns NaN for 0/0 (was Infinity before)
+- `fn sign` now returns values for GenericFraction::Infinite values too
+- `fn neg_zero` now returns zero with negative sign (was positive before)
+- `fn recip` now handles zero values gracefully (does not panic, returns Infinity)
+
+### Added
+- Lots of documentation
+
+
 ## [0.3.3] - 2016-11-18
 ### Refactoring
 - More efficient implementation of `From<[unsigned ints]>`
