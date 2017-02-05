@@ -4,7 +4,8 @@ version = "0.3.4"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Fraction is a lossless float type implementation that can be used for matching, ordering and hashing"
-keywords = ["fraction"]
+keywords = ["fractions", "floats", "numerics"]
+categories = ["data-structures"]
 
 license = "MIT/Apache-2.0"
 

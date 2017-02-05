@@ -1,5 +1,3 @@
-// #![warn(missing_docs)]
-
 //! Fraction is a lossless float type implementation that can be used for matching, ordering and hashing.
 //!
 //! The main goal of the project is to keep precision that floats cannot do.
