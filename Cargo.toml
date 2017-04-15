@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Fraction is a lossless float type implementation that can be used for matching, ordering and hashing"
@@ -19,6 +19,6 @@ readme = "README.md"
 
 
 [dependencies.num]
-version = "0.1.36"
+version = "0.1.37"
 default-features = false
 features = ["bigint", "rational"]

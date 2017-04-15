@@ -1,6 +1,11 @@
 # Change Log
 
 
+## [0.3.5] - 2017-04-17
+### Changed
+ - `num` package dependency version updated from "0.1.36" to "0.1.37"
+
+
 ## [0.3.4] - 2016-12-11
 ### Bugs
 - `fn _new` now returns NaN for 0/0 (was Infinity before)
