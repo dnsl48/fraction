@@ -1,6 +1,11 @@
 # Change Log
 
 
+## [0.3.6] - 2017-07-27
+### Bugs
+- `T in GenericFraction<T>` is `Clone + Integer` from now onwards (thanks to Taryn Hill aka Phrohdoh)
+
+
 ## [0.3.5] - 2017-04-17
 ### Changed
  - `num` package dependency version updated from "0.1.36" to "0.1.37"

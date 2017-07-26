@@ -145,7 +145,9 @@ impl fmt::Display for Sign {
 /// assert_eq! (first + second, F::new (3, 4));
 /// ```
 #[derive (Clone, Hash, Debug)]
-pub enum GenericFraction<T> {
+pub enum GenericFraction<T>
+    where T: Clone + Integer
+{
     Rational (Sign, Ratio<T>),
     Infinity (Sign),
     NaN
@@ -154,7 +156,7 @@ pub enum GenericFraction<T> {
 
 
 /// Copy semantics to be applied for the target type, but only if T also has it.
-impl<T> Copy for GenericFraction<T> where T: Copy {}
+impl<T> Copy for GenericFraction<T> where T: Copy + Integer {}
 
 
 
@@ -1522,7 +1524,7 @@ impl<T: Clone + Integer> /*Float for*/ GenericFraction<T> {
 
 
 
-impl<T: fmt::Display + Eq + One> fmt::Display for GenericFraction<T> {
+impl<T: fmt::Display + Eq + One + Clone + Integer> fmt::Display for GenericFraction<T> {
     fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GenericFraction::NaN => write! (f, "NaN"),
