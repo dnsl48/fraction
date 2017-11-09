@@ -68,4 +68,4 @@ fn main () {
 
 # Change Log
 
-Look into [CHANGELOG.md](CHANGELOG.md) for details
+Look into the [CHANGELOG.md](CHANGELOG.md) file for details
