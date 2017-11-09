@@ -1,6 +1,11 @@
 # Change Log
 
 
+## [0.3.7] - 2017-11-10
+### Bugs
+ - Fix comparisons with negative numbers
+
+
 ## [0.3.6] - 2017-07-27
 ### Bugs
 - `T in GenericFraction<T>` is `Clone + Integer` from now onwards (thanks to Taryn Hill aka Phrohdoh)

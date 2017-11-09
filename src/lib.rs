@@ -511,7 +511,13 @@ impl<T: Clone + Integer> PartialEq for GenericFraction<T> {
                 _ => false
             },
             GenericFraction::Rational (ref ls, ref l) => match *other {
-                GenericFraction::Rational (ref rs, ref r) => ls == rs && l.eq (r),
+                GenericFraction::Rational (ref rs, ref r) => {
+                    if ls == rs {
+                        l.eq (r)
+                    } else {
+                        l.is_zero () && r.is_zero ()
+                    }
+                }
                 _ => false
             }
         }
@@ -546,7 +552,12 @@ impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
                 GenericFraction::Infinity (rs) => if rs == Sign::Plus { Some (Ordering::Less) } else { Some (Ordering::Greater) },
                 GenericFraction::Rational (ref rs, ref r) => {
                     if ls == rs {
-                        l.partial_cmp (r)
+                        match *ls {
+                            Sign::Plus => l.partial_cmp (r),
+                            Sign::Minus => r.partial_cmp (l)
+                        }
+                    } else if l.is_zero () && r.is_zero () {
+                        Some (Ordering::Equal)
                     } else if *ls == Sign::Minus {
                         Some (Ordering::Less)
                     } else {
@@ -2685,5 +2696,54 @@ mod tests {
 
         assert! (fmt7.is_some ());
         assert_eq! ("0.000000000000000000000000000000000000000000042", fmt7.unwrap ());
+    }
+
+
+    #[test]
+    fn comparison () {
+        assert_eq! (Frac::zero (), Frac::zero ());
+        assert_eq! (Frac::zero (), Frac::neg_zero ());
+        assert_eq! (Frac::from (0), Frac::zero ());
+        assert_eq! (Frac::from (0), Frac::neg_zero ());
+        assert_eq! (Frac::from (0.5), Frac::new (1u8, 2u8));
+        assert_eq! (Frac::from (-0.5), Frac::new_neg (1u8, 2u8));
+        assert_ne! (Frac::from (-0.5), Frac::new (1u8, 2u8));
+
+        assert! (! (Frac::zero () < Frac::neg_zero ()));
+        assert! (! (Frac::neg_zero () < Frac::zero ()));
+
+        assert! (! (Frac::zero () > Frac::neg_zero ()));
+        assert! (! (Frac::neg_zero () > Frac::zero ()));
+
+        assert! (Frac::neg_zero () < Frac::new (1u8, 2u8));
+        assert! (! (Frac::neg_zero () > Frac::new (1u8, 2u8)));
+
+        assert! (Frac::zero () < Frac::new (1u8, 2u8));
+        assert! (! (Frac::zero () > Frac::new (1u8, 2u8)));
+
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::neg_zero ());
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::zero ());
+
+        assert! (! (Frac::new_neg (1u8, 2u8) > Frac::neg_zero ()));
+        assert! (! (Frac::new_neg (1u8, 2u8) > Frac::zero ()));
+
+        assert_eq! (Frac::new (1u8, 2u8), Frac::new (1u8, 2u8));
+        assert_eq! (Frac::new_neg (1u8, 2u8), Frac::new_neg (1u8, 2u8));
+
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::new (1u8, 2u8));
+        assert! (! (Frac::new (1u8, 2u8) < Frac::new_neg (1u8, 2u8)));
+        assert! (! (Frac::new_neg (1u8, 2u8) < Frac::new_neg (1u8, 2u8)));
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::new_neg (1u8, 4u8));
+
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::neg_zero ());
+        assert! (Frac::new_neg (1u8, 2u8) < Frac::zero ());
+        assert! (! (Frac::neg_zero () < Frac::new_neg (1u8, 2u8)));
+        assert! (! (Frac::zero () < Frac::new_neg (1u8, 2u8)));
+        assert! (Frac::neg_zero () < Frac::new (1u8, 2u8));
+        assert! (Frac::neg_zero () > Frac::new_neg (1u8, 2u8));
+        assert! (Frac::zero () > Frac::new_neg (1u8, 2u8));
+        assert! (Frac::new (1u8, 2u8) > Frac::neg_zero ());
+        assert! (! (Frac::new (1u8, 2u8) < Frac::neg_zero ()));
+        assert! (Frac::zero () < Frac::new (1u8, 2u8));
     }
 }
