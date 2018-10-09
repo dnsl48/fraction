@@ -4,7 +4,7 @@ version = "0.4.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Precise and lossless float replacement"
-keywords = ["decimal", "fraction", "float", "juniper", "numeric", "postgres"]
+keywords = ["decimal", "fraction", "float", "numeric"]
 categories = ["data-structures"]
 
 license = "MIT/Apache-2.0"
