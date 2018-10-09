@@ -14,4 +14,4 @@ matrix:
 script:
   - cargo build --verbose --all --all-features
   - cargo test --verbose --all --all-features
-  - cargo doc --verbose --all --all-features
+  - cargo doc --verbose --all-features --no-deps
