@@ -1,17 +1,23 @@
 # Fraction
-Lossless float that may be used in matching, ordering and hashing
+
+Lossless drop-in replacement for floating types (f32, f64)
 ------
 
 [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
 ------
 
-More documentation available on [docs.rs](https://docs.rs/fraction/).
+The documentation is available on [docs.rs](https://docs.rs/fraction/).
 
- * The main goal of Fraction is to keep precision that floats cannot do
- * Fractions can be used for matching and comparisons and thus for hashing
- * Base arithmetic implemented upon [`num`](http://rust-num.github.io/num/num/index.html) crate (`rational` module)
- * `Fraction` struct implementation uses two `u64` numbers and arithmetic on stack
- * `BigFraction` struct implementation uses two limitless `BigUint` numbers and arithmetic on heap
+# Features
+ - Drop in replacement for floats with the exception for NaN == NaN so that it's hashable
+ - It's hashable, so may be used as values in Sets and keys in dictionaries and hash maps
+ - Fraction type, representing floats as fractions
+ - Decimal type, based on Fraction type, represents floats as decimals
+ - DynaInt implements dinamically growing integer type that perfarms checked math and avoids stack overflows
+ - PostgreSQL integration for Numeric/Decimal type (with no extra memory allocations)
+ - Juniper integration for both fractions and decimals
+ - Generic integer conversions, such as `i8 -> u8`, `usize -> u8` and so on
+ - Lossless division with no allocations and infinite precision
 
 # Examples
 
@@ -28,6 +34,14 @@ fn main () {
   assert_eq! (fr, Fraction::from (4));
   assert_eq! (4.0f64, fr.to_f64 ());
 }
+```
+
+## Decimal
+```rust
+type D = fraction::Decimal;
+
+let result = D::from(0.5) / D::from(0.3);
+assert_eq!(format!("{:.4}", result), "1.6666");
 ```
 
 ## Using as keys for a HashMap
@@ -47,6 +61,16 @@ fn main () {
   assert! (map.contains_key (&Fraction::new (12u64, 16u64))); // 0.75 == 12/16
   assert! (! map.contains_key (&Fraction::from (0.5))); // 0.75 != 1/2
 }
+```
+
+### Generic integer conversion
+```rust
+use fraction::{Sign, GenericFraction};
+
+type F = GenericFraction<u32>;
+
+let fra = F::new_generic(Sign::Plus, 1i8, 42usize).unwrap();
+assert_eq!(fra, F::new(1u32, 42u32));
 ```
 
 ## Comparison

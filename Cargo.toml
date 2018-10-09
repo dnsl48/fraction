@@ -1,10 +1,10 @@
 [package]
 name = "fraction"
-version = "0.3.7"
+version = "0.4.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
-description = "Fraction is a lossless float type implementation that can be used for matching, ordering and hashing"
-keywords = ["fractions", "floats", "numerics"]
+description = "Precise and lossless float replacement"
+keywords = ["decimal", "fraction", "float", "juniper", "numeric", "postgres"]
 categories = ["data-structures"]
 
 license = "MIT/Apache-2.0"
@@ -15,10 +15,34 @@ documentation = "https://docs.rs/fraction/"
 readme = "README.md"
 
 
+exclude = ["src/tests/division/*"]
+
+
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 
+num = { version =  "^0.2", default-features = false }
 
-[dependencies.num]
-version = "0.1.40"
-default-features = false
-features = ["bigint", "rational"]
+byteorder = { version = "^1", optional = true }
+postgres = { version = ">=0.15.2,<0.16", optional = true }
+
+serde = { version = "^1", optional = true }
+serde_derive = { version = "^1", optional = true }
+
+juniper = { version = ">=0.9,<0.11", optional = true }
+
+lazy_static = { version = "1.1.0", optional = true }
+
+
+[features]
+default = ["with-bigint", "with-decimal", "with-dynaint"]
+
+with-bigint = ["num/num-bigint", "num/std", "lazy_static"]
+with-decimal = []
+with-dynaint = []
+
+with-juniper-support = ["juniper"]
+with-postgres-support = ["postgres", "byteorder"]
+with-serde-support = ["serde", "serde_derive", "num/serde"]

@@ -1,0 +1,909 @@
+//! Lossless integer division
+//!  - The algorithm uses stack only, no introduced heap allocations for calculation (although underlying integer type implementation may perform those)
+//!  - Linear complexity, O(n)
+//!  - Abstract from a particular integer implementation, may be used on primitive types (as i32 or u32) as well as complex ones (num::BigInt, num::BigUint)
+//! Thus can be efficiently used on any integer type implementing a bunch of required traits (which all primitive ints and num::bigint implement out of the box).
+//! Although in that case the underlying math will be using heap.
+
+use error::DivisionError;
+use generic::GenericInteger;
+
+use std::fmt::{self, Write};
+
+/// Divide two numbers and produce every single digit of the whole part of the resulting number
+///
+/// Returns `Some(rest of the division result)` or `None` if the division is exact.
+/// If the consumer returns `Ok(false)` stops calculation immediately and returns.
+/// If the consumer returns `Err(_)` the calculation will be stopped and the error will be passed as the result value.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_integral;
+///
+/// let mut result: [u8; 2] = [0; 2];
+/// let mut ptr: usize = 0;
+///
+/// let rest = divide_integral(30, 2, |d| {
+///     result[ptr] = d;
+///     ptr += 1;
+///     Ok(true)
+/// });
+///
+/// assert_eq! ([1, 5], result);
+/// assert_eq! (rest.unwrap(), None);
+/// ```
+///
+/// ```
+/// use fraction::division::divide_integral;
+///
+/// let mut result: u8 = 0;
+///
+/// let rest = divide_integral(30, 2, |d| {
+///     result = d;
+///     Ok(false)
+/// });
+///
+/// assert_eq! (result, 1);
+/// assert_eq! (rest.unwrap(), Some(10));
+/// ```
+pub fn divide_integral<I, Consumer>(
+    mut dividend: I,
+    divisor: I,
+    mut consumer: Consumer,
+) -> Result<Option<I>, DivisionError>
+where
+    Consumer: FnMut(u8) -> Result<bool, DivisionError>,
+    I: Clone + GenericInteger,
+{
+    if divisor.is_zero() {
+        return Err(DivisionError::DivisionByZero);
+    }
+
+    /* === Figuring out the number size === */
+    let mut ptr: I = if dividend == divisor {
+        consumer(1u8)?;
+        return Ok(None);
+    } else if dividend < divisor {
+        consumer(0u8)?;
+
+        let dividend_greater_than_zero =
+            I::_0r().map_or_else(|| dividend > I::_0(), |_0| dividend > *_0);
+
+        return Ok(if dividend_greater_than_zero {
+            Some(dividend)
+        } else {
+            None
+        });
+    } else {
+        let mut ptr: I = I::_1();
+
+        loop {
+            if ptr > dividend {
+                if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
+                    I::_10r().map(|_10| ptr /= _10).or_else(|| {
+                        ptr /= I::_10();
+                        None
+                    });
+                }
+                break;
+            }
+
+            ptr = match I::_10r()
+                .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
+            {
+                Some(n) => n,
+                None => break,
+            };
+        }
+
+        ptr
+    };
+
+    let mut passed_leading_zeroes: bool = false;
+    loop {
+        let digit = dividend.div_floor(&ptr).div_floor(&divisor);
+
+        if I::_0r().map_or_else(|| digit > I::_0(), |_0| digit > *_0) {
+            passed_leading_zeroes = true;
+            dividend -= digit.clone() * &divisor * &ptr;
+        }
+
+        if passed_leading_zeroes {
+            let d: Option<u8> = digit.to_u8();
+            match d {
+                Some(n) => if !consumer(n)? {
+                    return Ok(Some(dividend));
+                },
+                None => unreachable!(),
+            };
+        }
+
+        if I::_1r().map_or_else(|| ptr == I::_1(), |_1| ptr == *_1) {
+            break;
+        }
+
+        I::_10r().map(|_10| ptr /= _10).or_else(|| {
+            ptr /= I::_10();
+            None
+        });
+    }
+
+    let dividend_greater_than_zero =
+        I::_0r().map_or_else(|| dividend > I::_0(), |_0| dividend > *_0);
+
+    Ok(if dividend_greater_than_zero {
+        Some(dividend)
+    } else {
+        None
+    })
+}
+
+/// Produces the fractional part of the decimal from a rest part left after division
+///
+/// Returns `Some(rest of the division result)` or `None` if the division is exact.
+/// If the consumer returns `Ok(false)` stops calculation immediately and returns.
+/// If the consumer returns `Err(_)` the calculation will be stopped and the error will be passed as the result value.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_rem;
+///
+/// let mut result: [u8; 2] = [0; 2];
+/// let mut ptr: usize = 0;
+///
+/// let remainder = divide_rem(3, 4, |state, digit| {
+///     result[ptr] = digit;
+///     ptr += 1;
+///     Ok(Some(state))
+/// }).unwrap();
+///
+/// assert!(remainder.is_none());
+/// assert_eq!(result, [7, 5]);  // 3/4 == 0.75
+/// ```
+#[inline]
+pub fn divide_rem<I, Consumer>(
+    dividend: I,
+    divisor: I,
+    consumer: Consumer,
+) -> Result<Option<I>, DivisionError>
+where
+    Consumer: FnMut(DivideRemState<I>, u8) -> Result<Option<DivideRemState<I>>, DivisionError>,
+    I: Clone + GenericInteger
+{
+    divide_rem_resume(divide_rem_init_state(dividend, divisor), consumer)
+}
+
+/// State object for divide_rem co-routine
+pub struct DivideRemState<I> {
+    pub remainder: I,
+    divisor: I,
+}
+
+/// Builds the initial state for the [divide_rem] co-routine.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::{divide_rem_init_state, divide_rem_resume};
+///
+/// let mut state = Some(divide_rem_init_state(1, 3));
+/// let mut precision = 5;
+///
+/// let mut result: Vec<u8> = Vec::new();
+///
+/// loop {
+///     if precision == 0 { break }
+///     if state.is_none() { break }
+///
+///     divide_rem_resume(state.take().unwrap(), |s, digit| {
+///         precision -= 1;
+///         state = Some(s);
+///         result.push(digit);
+///
+///         Ok(None)
+///     }).ok();
+///
+///     // perform some other operations
+/// }
+///
+/// assert_eq!(result, vec![3, 3, 3, 3, 3]);
+/// ```
+#[inline]
+pub fn divide_rem_init_state<I>(remainder: I, divisor: I) -> DivideRemState<I> {
+    DivideRemState { remainder, divisor }
+}
+
+
+/// [divide_rem] co-routine implementation
+///
+/// See [divide_rem_init_state] docs for an example
+pub fn divide_rem_resume<I, Consumer>(
+    mut state: DivideRemState<I>,
+    mut consumer: Consumer,
+) -> Result<Option<I>, DivisionError>
+where
+    Consumer: FnMut(DivideRemState<I>, u8) -> Result<Option<DivideRemState<I>>, DivisionError>,
+    I: Clone + GenericInteger,
+{
+    loop  {
+        if state.remainder.is_zero() {
+            break;
+        }
+
+        let digit = I::_10r()
+            .map(|_10| {
+                let (rem, digit) = state.remainder.checked_mul(_10)
+                    .map_or_else(
+                        || {
+                                let (reduced_divisor, reduced_divisor_rem) = state.divisor.div_rem(_10);
+
+                                let mut digit = state.remainder.div_floor(&reduced_divisor);
+                                let mut remainder = state.remainder.clone();
+
+                                remainder -= digit.clone() * &reduced_divisor;
+
+                                let mut red_div_rem_diff = (reduced_divisor_rem.clone() * &digit).div_rem(_10);
+
+                                loop {
+                                    if red_div_rem_diff.0 > remainder {
+                                        digit -= I::one();
+                                        remainder += &reduced_divisor;
+                                        red_div_rem_diff = (reduced_divisor_rem.clone() * &digit).div_rem(_10);
+                                    } else { break }
+                                }
+
+                                remainder -= red_div_rem_diff.0;
+                                remainder *= _10;
+
+                                if red_div_rem_diff.1 > remainder {
+                                    digit -= I::one();
+                                    remainder += &state.divisor;
+                                }
+
+                                remainder -= red_div_rem_diff.1;
+
+                                (remainder, digit.to_u8())
+                            },
+                        |mut remainder| {
+                            let digit = remainder.div_floor(&state.divisor);
+                            remainder -= digit.clone() * &state.divisor;
+
+                            (remainder, digit.to_u8())
+                        }
+                    );
+
+                state.remainder = rem;
+                digit
+            })
+            .or_else(
+                || {
+                    let _10 = I::_10();
+
+                    let (rem, digit) = state.remainder.checked_mul(&_10)
+                        .map_or_else(
+                            || {
+                                let (reduced_divisor, reduced_divisor_rem) = state.divisor.div_rem(&_10);
+
+                                let mut digit = state.remainder.div_floor(&reduced_divisor);
+                                let mut remainder = state.remainder.clone();
+
+                                remainder -= digit.clone() * &reduced_divisor;
+
+                                let mut red_div_rem_diff = (reduced_divisor_rem.clone() * &digit).div_rem(&_10);
+
+                                loop {
+                                    if red_div_rem_diff.0 > remainder {
+                                        digit -= I::one();
+                                        remainder += &reduced_divisor;
+                                        red_div_rem_diff = (reduced_divisor_rem.clone() * &digit).div_rem(&_10);
+                                    } else { break }
+                                }
+
+                                remainder -= red_div_rem_diff.0;
+                                remainder *= &_10;
+
+                                if red_div_rem_diff.1 > remainder {
+                                    digit -= I::one();
+                                    remainder += &state.divisor;
+                                }
+
+                                remainder -= red_div_rem_diff.1;
+
+                                (remainder, digit.to_u8())
+                            },
+                            |mut remainder: I| {
+                                let digit = remainder.div_floor(&state.divisor);
+                                remainder -= digit.clone() * &state.divisor;
+
+                                (remainder, digit.to_u8())
+                            }
+                        );
+
+                    state.remainder = rem;
+                    Some(digit)
+                }
+            ).unwrap();
+
+        match digit {
+            Some(n) => {
+                state = if let Some(s) = consumer(state, n)? {
+                    s
+                } else {
+                    return Ok(None);
+                };
+            }
+            None => unreachable!(),
+        };
+    }
+
+    Ok(None)
+}
+
+
+/// Divide a fraction into a [`String`]
+///
+///  - Makes only one allocation for the resulting string
+///  - Linear complexity, O(n)
+///  - Does not round the last digit
+///  - Does not fill the result with redundant zeroes
+///
+/// Calculates the resulting string length first, allocates it,
+/// then makes the division and puts the result into the preallocated
+/// string.
+/// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_to_string;
+///
+/// assert_eq! (divide_to_string(2, 4, 1).unwrap(), "0.5");
+/// assert_eq! (divide_to_string(5, 7, 16).unwrap(), "0.7142857142857142");
+/// assert_eq! (divide_to_string(1, 3, 3).unwrap(), "0.333");
+/// ```
+///
+/// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
+/// [`divide_integral`]: ./fn.divide_integral.html
+/// [`divide_rem`]: ./fn.divide_rem.html
+pub fn divide_to_string<I>(
+    dividend: I,
+    divisor: I,
+    mut precision: usize,
+) -> Result<String, DivisionError>
+where
+    I: Clone + GenericInteger
+{
+    let int_len = {
+        let mut ptr: I = I::_1(); //  1u8.into();
+        let mut len: usize = 0;
+
+        loop {
+            len += 1;
+
+            ptr = match I::_10r()
+                .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
+            {
+                Some(n) => n,
+                None => break,
+            };
+
+            if ptr > dividend {
+                break;
+            }
+        }
+
+        len
+    };
+
+    let mut result = String::with_capacity(int_len + precision + if precision > 0 { 1 } else { 0 });
+
+    let rem = divide_integral(dividend, divisor.clone(), |digit: u8| {
+        match write!(&mut result, "{}", digit) {
+            Ok(()) => Ok(true),
+            Err(e) => Err(DivisionError::from(e)),
+        }
+    })?;
+
+    if precision > 0 {
+        if let Some(dividend) = rem {
+            match write!(&mut result, ".") {
+                Ok(()) => (),
+                Err(e) => return Err(DivisionError::from(e)),
+            };
+
+            divide_rem(dividend, divisor, |state, digit: u8| {
+                match write!(&mut result, "{}", digit) {
+                    Ok(()) => {
+                        precision -= 1;
+                        Ok(if precision > 0 { Some(state) } else { None })
+                    }
+                    Err(e) => Err(DivisionError::from(e)),
+                }
+            })?;
+
+            // Remove trailing zeroes
+            while let Some(c) = result.pop() {
+                if c != '0' {
+                    result.push(c);
+                    break;
+                }
+            }
+
+            // Remove trailing dot
+            if let Some(c) = result.pop() {
+                if c != '.' {
+                    result.push(c);
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+/// Divide a fraction into a [`Vec<u8>`] of ASCII(utf8) chars
+///
+///  - Makes only one allocation for the resulting vector
+///  - Linear complexity, O(n)
+///  - Does not round the last digit
+///  - Does not fill the result with redundant zeroes
+///
+/// Calculates the resulting vector length first, allocates it,
+/// then makes the division and puts the result into the preallocated
+/// vector.
+/// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_to_ascii_vec;
+///
+/// assert_eq! (divide_to_ascii_vec(2, 4, 1).unwrap(), vec![48, 46, 53]);  // "0.5" in ascii
+/// assert_eq! (divide_to_ascii_vec(5, 7, 16).unwrap(), vec![48, 46, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50]);  // "0.7142857142857142" in ascii
+/// assert_eq! (divide_to_ascii_vec(1, 3, 3).unwrap(), vec![48, 46, 51, 51, 51]);  // "0.333" in ascii
+/// ```
+///
+/// [`Vec<u8>`]: https://doc.rust-lang.org/std/vec/struct.Vec.html
+/// [`divide_integral`]: ./fn.divide_integral.html
+/// [`divide_rem`]: ./fn.divide_rem.html
+pub fn divide_to_ascii_vec<I>(
+    dividend: I,
+    divisor: I,
+    mut precision: usize,
+) -> Result<Vec<u8>, DivisionError>
+where
+    I: Clone + GenericInteger,
+{
+    const ZERO: u8 = 48u8;
+    const DOT: u8 = 46u8;
+
+    let int_len = {
+        let _10: I = GenericInteger::_10();
+        let mut ptr: I = GenericInteger::_1();
+        let mut len: usize = 0;
+
+        loop {
+            len += 1;
+
+            ptr = match ptr.checked_mul(&_10) {
+                Some(n) => n,
+                None => break,
+            };
+
+            if ptr > dividend {
+                break;
+            }
+        }
+
+        len
+    };
+
+    let mut result = Vec::with_capacity(int_len + precision + if precision > 0 { 1 } else { 0 });
+
+    let rem = divide_integral(dividend, divisor.clone(), |digit: u8| {
+        result.push(ZERO + digit);
+        Ok(true)
+    })?;
+
+    if precision > 0 {
+        if let Some(dividend) = rem {
+            result.push(DOT);
+
+            divide_rem(dividend, divisor, |state, digit: u8| {
+                result.push(ZERO + digit);
+                precision -= 1;
+                Ok(if precision > 0 { Some(state) } else { None })
+            })?;
+
+            // Remove trailing zeroes
+            while let Some(c) = result.pop() {
+                if c != ZERO {
+                    result.push(c);
+                    break;
+                }
+            }
+
+            // Remove trailing dot
+            if let Some(c) = result.pop() {
+                if c != DOT {
+                    result.push(c);
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+/// Divide a fraction into a [`std::fmt::Formatter`]
+///
+///  - No allocations
+///  - Linear complexity, O(n)
+///  - Does not round the last digit
+///  - Does not fill the result with redundant zeroes
+///
+/// Makes the division and puts the result into the formatter.
+/// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_to_formatter;
+///
+/// use std::fmt;
+///
+/// struct Foo(i32, i32);
+///
+/// impl fmt::Display for Foo {
+///     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+///         let precision = formatter.precision().unwrap_or(2);
+///         match divide_to_formatter(formatter, self.0, self.1, precision) {
+///             Err(_) => Err(fmt::Error),
+///             _ => Ok(())
+///         }
+///     }
+/// }
+///
+/// assert_eq! (format!("{}", Foo(1, 2)), "0.5");
+/// assert_eq! (format!("{:.3}", Foo(1, 3)), "0.333");
+/// assert_eq! (format!("{:.16}", Foo(5, 7)), "0.7142857142857142");
+/// ```
+pub fn divide_to_formatter<I>(
+    formatter: &mut fmt::Formatter,
+    dividend: I,
+    divisor: I,
+    mut precision: usize,
+) -> Result<(), DivisionError>
+where
+    I: Clone + GenericInteger,
+{
+    let rem = divide_integral(dividend, divisor.clone(), |digit: u8| {
+        match write!(formatter, "{}", digit) {
+            Ok(()) => Ok(true),
+            Err(e) => Err(DivisionError::from(e)),
+        }
+    })?;
+
+    if precision > 0 {
+        if let Some(dividend) = rem {
+            let mut dot = false;
+            let mut trailing_zeroes = 0;
+
+            divide_rem(dividend, divisor, |state, digit: u8| {
+                precision -= 1;
+
+                if digit == 0 {
+                    trailing_zeroes += 1;
+                } else {
+                    if !dot {
+                        dot = true;
+                        match write!(formatter, ".") {
+                            Ok(()) => Ok(()),
+                            Err(e) => Err(DivisionError::from(e)),
+                        }?;
+                    }
+
+                    for _ in 0..trailing_zeroes {
+                        trailing_zeroes -= 1;
+                        match write!(formatter, "0") {
+                            Ok(()) => Ok(()),
+                            Err(e) => Err(DivisionError::from(e)),
+                        }?;
+                    }
+
+                    match write!(formatter, "{}", digit) {
+                        Ok(()) => Ok(()),
+                        Err(e) => Err(DivisionError::from(e)),
+                    }?;
+                }
+
+                if precision > 0 {
+                    Ok(Some(state))
+                } else {
+                    Ok(None)
+                }
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use error::DivisionError;
+
+    // mod divide_to_string_u8;
+
+    #[cfg(feature = "with-bigint")]
+    use num::bigint::BigUint;
+    #[cfg(feature = "with-bigint")]
+    use num::Num;
+
+    #[test]
+    fn test_division() {
+        const PRECISION: usize = 64;
+        let data: Vec<(u8, u8, &'static str)> = vec![
+            (1u8, 255u8, "0.0039215686274509803921568627450980392156862745098039215686274509"),
+            (1u8, 254u8, "0.0039370078740157480314960629921259842519685039370078740157480314"),
+            (1u8, 253u8, "0.003952569169960474308300395256916996047430830039525691699604743"),
+            (1u8, 252u8, "0.0039682539682539682539682539682539682539682539682539682539682539"),
+            (1u8, 251u8, "0.0039840637450199203187250996015936254980079681274900398406374501"),
+            (1u8, 250u8, "0.004"),
+            (1u8, 112u8, "0.0089285714285714285714285714285714285714285714285714285714285714"),
+            (1u8, 111u8, "0.009009009009009009009009009009009009009009009009009009009009009"),
+            (1u8, 96u8, "0.0104166666666666666666666666666666666666666666666666666666666666"),
+            (1u8, 92u8, "0.0108695652173913043478260869565217391304347826086956521739130434"),
+            (1u8, 91u8, "0.0109890109890109890109890109890109890109890109890109890109890109"),
+            (1u8, 90u8, "0.0111111111111111111111111111111111111111111111111111111111111111"),
+            (1u8, 9u8, "0.1111111111111111111111111111111111111111111111111111111111111111"),
+            (1u8, 8u8, "0.125"),
+            (1u8, 7u8, "0.1428571428571428571428571428571428571428571428571428571428571428"),
+            (1u8, 6u8, "0.1666666666666666666666666666666666666666666666666666666666666666"),
+            (1u8, 5u8, "0.2"),
+            (1u8, 4u8, "0.25"),
+            (1u8, 3u8, "0.3333333333333333333333333333333333333333333333333333333333333333"),
+            (1u8, 2u8, "0.5"),
+            (1u8, 1u8, "1"),
+
+            (49u8, 255u8, "0.192156862745098039215686274509803921568627450980392156862745098"),
+            (49u8, 254u8, "0.1929133858267716535433070866141732283464566929133858267716535433"),
+            (49u8, 253u8, "0.193675889328063241106719367588932806324110671936758893280632411"),
+            (49u8, 252u8, "0.1944444444444444444444444444444444444444444444444444444444444444"),
+            (49u8, 251u8, "0.1952191235059760956175298804780876494023904382470119521912350597"),
+            (49u8, 250u8, "0.196"),
+            (49u8, 249u8, "0.1967871485943775100401606425702811244979919678714859437751004016"),
+            (49u8, 248u8, "0.1975806451612903225806451612903225806451612903225806451612903225"),
+            (49u8, 247u8, "0.1983805668016194331983805668016194331983805668016194331983805668"),
+            (49u8, 246u8, "0.1991869918699186991869918699186991869918699186991869918699186991"),
+            (49u8, 245u8, "0.2"),
+            (49u8, 69u8, "0.7101449275362318840579710144927536231884057971014492753623188405"),
+            (49u8, 68u8, "0.7205882352941176470588235294117647058823529411764705882352941176"),
+            (49u8, 67u8, "0.7313432835820895522388059701492537313432835820895522388059701492"),
+            (49u8, 66u8, "0.7424242424242424242424242424242424242424242424242424242424242424"),
+            (49u8, 65u8, "0.7538461538461538461538461538461538461538461538461538461538461538"),
+            (49u8, 64u8, "0.765625"),
+            (49u8, 63u8, "0.7777777777777777777777777777777777777777777777777777777777777777"),
+
+            (77u8, 255u8, "0.3019607843137254901960784313725490196078431372549019607843137254"),
+            (77u8, 254u8, "0.3031496062992125984251968503937007874015748031496062992125984251"),
+            (77u8, 253u8, "0.3043478260869565217391304347826086956521739130434782608695652173"),
+            (77u8, 252u8, "0.3055555555555555555555555555555555555555555555555555555555555555"),
+            (77u8, 251u8, "0.3067729083665338645418326693227091633466135458167330677290836653"),
+            (77u8, 250u8, "0.308"),
+            (77u8, 249u8, "0.3092369477911646586345381526104417670682730923694779116465863453"),
+            (77u8, 248u8, "0.3104838709677419354838709677419354838709677419354838709677419354"),
+            (77u8, 231u8, "0.3333333333333333333333333333333333333333333333333333333333333333"),
+            (77u8, 230u8, "0.3347826086956521739130434782608695652173913043478260869565217391"),
+            (77u8, 229u8, "0.3362445414847161572052401746724890829694323144104803493449781659"),
+            (77u8, 228u8, "0.3377192982456140350877192982456140350877192982456140350877192982"),
+            (77u8, 227u8, "0.3392070484581497797356828193832599118942731277533039647577092511"),
+            (77u8, 226u8, "0.3407079646017699115044247787610619469026548672566371681415929203"),
+            (77u8, 225u8, "0.3422222222222222222222222222222222222222222222222222222222222222"),
+            (77u8, 224u8, "0.34375"),
+            (77u8, 223u8, "0.3452914798206278026905829596412556053811659192825112107623318385"),
+            (77u8, 222u8, "0.3468468468468468468468468468468468468468468468468468468468468468"),
+            (77u8, 221u8, "0.3484162895927601809954751131221719457013574660633484162895927601"),
+            (77u8, 220u8, "0.35"),
+        ];
+
+        for i in data.iter() {
+            assert_eq!(divide_to_string(i.0, i.1, PRECISION).unwrap(), i.2);
+        }
+
+        #[cfg(feature = "with-bigint")]
+        {
+            for i in data {
+                assert_eq!(divide_to_string(BigUint::from(i.0), BigUint::from(i.1), PRECISION).unwrap(), i.2);
+            }
+        }
+    }
+
+    #[test]
+    fn test_divide_to_string() {
+        assert_eq!(divide_to_string(0, 5, 5).unwrap(), "0");
+        assert_eq!(divide_to_string(30, 2, 5).unwrap(), "15");
+        assert_eq!(divide_to_string(2, 4, 2).unwrap(), "0.5");
+        assert_eq!(divide_to_string(255u8, 3u8, 5).unwrap(), "85");
+
+        assert_eq!(divide_to_string(155u8, 253u8, 5).unwrap(), "0.61264");
+        assert_eq!(divide_to_string(1u8, 2u8, 1).unwrap(), "0.5");
+
+        assert_eq!(
+            divide_to_string(1, 3, 28).unwrap(),
+            "0.3333333333333333333333333333"
+        );
+        assert_eq!(divide_to_string(806, 31, 0).unwrap(), "26");
+        assert_eq!(divide_to_string(807, 31, 4).unwrap(), "26.0322");
+
+        if let Err(DivisionError::DivisionByZero) = divide_to_string(1, 0, 1) {
+        } else {
+            assert!(false);
+        };
+
+        assert_eq!(divide_to_string(1, 10000, 2).unwrap(), "0");
+
+        #[cfg(feature = "with-bigint")]
+        {
+            let num = "820123456789012345678901234567890123456789";
+            let den = "420420420420240240420240420240420420420";
+            let result = "1950.7222222204153880534352079149419688493160244330759069204925259490806291881834407646199555744655166719234903156227406500953778757619920899563294795746797267246703798051247915744867884912121330007705286911209791422213223230426822190127666529437572025264829201539629594175021000386486667365851813562015885600393107707737453721144405603009059457352854387023006301508907770762997683254372534811586343569328131455924964081595076622200116354403760742833073621862325616259444084808295834752749082040590201012701034118255745516514972270054835928011374231619434684843847682844123336846713100440285930668493675706096464476187809105398269815519780303174023949885603320678109566772031394249633001137109155600514761384776616827086908396960584246277151426685095767130738996420461009015758184659365258827537226581854494195009714400547427050697946126012192691851549545189173091941689299722345297086508711845865506663262915436874050594522308464492248968916100678819937355384703664061966410613989688966690413319849627099468906113991173042101218";
+
+            let asrt1 = divide_to_string(
+                BigUint::from_str_radix(num, 10).ok().unwrap(),
+                BigUint::from_str_radix(den, 10).ok().unwrap(),
+                1024,
+            );
+
+            assert_eq!(&asrt1.ok().unwrap(), result);
+        }
+    }
+
+    #[test]
+    fn test_divide_to_ascii_vec() {
+        assert_eq!(divide_to_ascii_vec(0, 5, 5).unwrap(), vec![48]);
+        assert_eq!(divide_to_ascii_vec(30, 2, 5).unwrap(), vec![49, 53]);
+        assert_eq!(divide_to_ascii_vec(2, 4, 2).unwrap(), vec![48, 46, 53]);
+        assert_eq!(divide_to_ascii_vec(255u8, 3u8, 5).unwrap(), vec![56, 53]);
+        assert_eq!(
+            divide_to_ascii_vec(1000001u64, 10000u64, 3).unwrap(),
+            vec![49, 48, 48]
+        );
+    }
+
+    #[test]
+    fn test_divide_integral() {
+        {
+            let mut r1: [u8; 1] = [0; 1];
+            let mut p1: usize = 0;
+
+            let mut r2: [u8; 2] = [0; 2];
+            let mut p2: usize = 0;
+
+            let mut r3: [u8; 3] = [0; 3];
+            let mut p3: usize = 0;
+
+            let rest1 = divide_integral(2, 4, |d| {
+                r1[p1] = d;
+                p1 += 1;
+                Ok(true)
+            });
+
+            assert_eq!(r1, [0]);
+            assert_eq!(p1, 1);
+            assert_eq!(rest1.unwrap(), Some(2));
+
+            let rest2 = divide_integral(82, 3, |d| {
+                r2[p2] = d;
+                p2 += 1;
+                Ok(true)
+            });
+
+            assert_eq!(r2, [2, 7]);
+            assert_eq!(p2, 2);
+            assert_eq!(rest2.unwrap(), Some(1));
+
+            let rest3 = divide_integral(2020, 4, |d| {
+                r3[p3] = d;
+                p3 += 1;
+                Ok(true)
+            });
+
+            assert_eq!(r3, [5, 0, 5]);
+            assert_eq!(p3, 3);
+            assert_eq!(rest3.unwrap(), None);
+        }
+
+        {
+            let mut result = Vec::new();
+            let rem = divide_integral(255u8, 3u8, |d| {
+                result.push(d);
+                Ok(true)
+            });
+
+            assert_eq!(rem.ok(), Some(None));
+            assert_eq!(result, vec![8, 5]);
+        }
+
+        {
+            let mut result = Vec::new();
+            let rem = divide_integral(255u8, 3u8, |d| {
+                result.push(d);
+                Ok(false)
+            });
+
+            assert_eq!(rem.ok(), Some(Some(15)));
+            assert_eq!(result, vec![8]);
+        }
+    }
+
+    #[test]
+    fn test_divide_rem() {
+        let mut r1: [u8; 1] = [0; 1];
+        let mut p1: usize = 0;
+
+        let mut r2: [u8; 2] = [0; 2];
+        let mut p2: usize = 0;
+
+        let mut r3: [u8; 3] = [0; 3];
+        let mut p3: usize = 0;
+
+        let mut rest1 = None;
+        divide_rem(1, 3, |s, d| {
+            r1[p1] = d;
+            p1 += 1;
+            rest1 = Some(s.remainder);
+            Ok(None)
+        }).ok();
+
+        assert_eq!(r1, [3]);
+        assert_eq!(p1, 1);
+        assert_eq!(rest1, Some(1));
+
+        p1 = 0;
+        let rest1 = divide_rem(1, 2, |s, d| {
+            r1[p1] = d;
+            p1 += 1;
+            Ok(Some(s))
+        });
+
+        assert_eq!(r1, [5]);
+        assert_eq!(p1, 1);
+        assert_eq!(rest1.unwrap(), None);
+
+        let rest2 = divide_rem(500, 2000, |s, d| {
+            r2[p2] = d;
+            p2 += 1;
+            Ok(Some(s))
+        });
+
+        assert_eq!(r2, [2, 5]);
+        assert_eq!(p2, 2);
+        assert_eq!(rest2.unwrap(), None);
+
+        let rest3 = divide_rem(2, 1000, |s, d| {
+            r3[p3] = d;
+            p3 += 1;
+            Ok(Some(s))
+        });
+
+        assert_eq!(r3, [0, 0, 2]);
+        assert_eq!(p3, 3);
+        assert_eq!(rest3.unwrap(), None);
+
+        p3 = 0;
+        let rest3 = divide_rem(502, 1000, |s, d| {
+            r3[p3] = d;
+            p3 += 1;
+            Ok(Some(s))
+        });
+
+        assert_eq!(r3, [5, 0, 2]);
+        assert_eq!(p3, 3);
+        assert_eq!(rest3.unwrap(), None);
+    }
+}

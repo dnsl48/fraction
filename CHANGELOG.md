@@ -1,6 +1,45 @@
 # Change Log
 
 
+## [0.4.0] - 2018-10-10
+### Bugs
+ - `Hash` implementation for `GenericFraction` now returns equal hashes for negative and positive zeroes
+
+### Added
+- Lossless division, fraction decimal representation with infinite precision
+- Decimal type, built on top of Fraction
+- PostgreSQL integration
+- Juniper integration
+- Types with dynamic growth into heap on overflow
+- Generic integer conversions (usize -> i8, i8 -> u8, etc)
+- Examples and documentation for new features
+- Re-exporting the bunch of `num` traits so that the library can be used without explicit dependency on `num`
+
+### Refactoring
+- The lib has been split into modules with separate features
+
+### Modules
+- `convert` module with traits for optimistic convesion
+- `decimal` module with `GenericDecimal` implementation, `Juniper` and `PostgreSQL` integration for it
+- `division` module with lossless infinite division implementation without memory allocation
+- `dynaint` module with `DynaInt` type implementation (dynamically growing integer)
+- `error` module with shared library error types
+- `fraction` module with `GenericFraction` implementation, `Juniper` and `PostgreSQL` integration for it
+- `generic` module with `GenericInteger` trait implementation, generic integer types conversion
+- `prelude` module with some predefined type aliases such as `Fraction` and `Decimal`
+- `tests` module with some tests
+
+### Features
+- `with-bigint` (default), integration with `num::{BigInt, BigUint}` types
+- `with-decimal` (default), `GenericDecimal` type implementation
+- `with-dynaint` (default), `DynaInt` type implementation
+- `with-juniper-support`, `Juniper 0.10` integration
+- `with-postgres-support`, `Postgres 0.15` integration
+
+### Changes
+- `GenericFraction` redundant methods deprecated: `new_nan`, `new_inf`, `new_inf_neg`, `into_big`, `format_as_float`
+
+
 ## [0.3.7] - 2017-11-10
 ### Bugs
  - Fix comparisons with negative numbers
