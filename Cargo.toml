@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Precise and lossless float replacement"
