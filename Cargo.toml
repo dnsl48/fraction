@@ -11,8 +11,10 @@ license = "MIT/Apache-2.0"
 
 homepage = "https://github.com/dnsl48/fraction.git"
 repository = "https://github.com/dnsl48/fraction.git"
-documentation = "https://docs.rs/fraction/"
 readme = "README.md"
+
+# TODO: revert to docs.rs when it gets Rust updated
+documentation = "https://dnsl48.github.io/fraction/target/doc/fraction/index.html"  # "https://docs.rs/fraction/"
 
 
 exclude = ["src/tests/division/*"]

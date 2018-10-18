@@ -29,6 +29,7 @@ use std::mem;
 
 use num::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One, Zero, ToPrimitive, Bounded};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::fmt;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -71,6 +72,20 @@ where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8>,
     G: Copy + GenericInteger
 {}
+
+
+impl<T, G> fmt::Display for DynaInt<T, G>
+where
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + fmt::Display,
+    G: Clone + GenericInteger + fmt::Display,
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DynaInt::S(value) => write!(formatter, "{}", value),
+            DynaInt::__H(value) => write!(formatter, "{}", value)
+        }
+    }
+}
 
 
 impl<T, G> Bounded for DynaInt<T, G>

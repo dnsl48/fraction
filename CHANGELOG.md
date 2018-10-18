@@ -1,6 +1,11 @@
 # Change Log
 
 
+## [0.4.1] - 2018-10-19
+### Added
+ - `DynaInt`, initial `std::fmt::Display` implementation
+
+
 ## [0.4.0] - 2018-10-10
 ### Bugs
  - `Hash` implementation for `GenericFraction` now returns equal hashes for negative and positive zeroes
