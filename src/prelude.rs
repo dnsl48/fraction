@@ -9,7 +9,7 @@
 //! Long story short, you may compose your own types with these:
 //! - [`GenericFraction`] for fractions
 //! - [`GenericDecimal`] for decimals
-//! - [`DynaInt`] for dynamically allocated integers
+//! - [`DynaInt`] integers on stack, but dynamically growing into heap when necessary
 //!
 //! [`GenericFraction`]: super::GenericFraction
 //! [`GenericDecimal`]: super::GenericDecimal
@@ -60,8 +60,9 @@ pub type Fraction = super::GenericFraction<u64>;
 pub type BigFraction = super::GenericFraction<super::BigUint>;
 
 
-/// Fraction using T as the base type for numerator and denominator
+/// Stack allocated, but dynamically growing into heap if necessary
 ///
+/// Fraction using T as the base type for numerator and denominator  
 /// Whenever possible keeps data in T, but on math overflows
 /// automatically casts values into BigUint, which allocates memory on heap.
 ///
@@ -144,7 +145,7 @@ pub type Decimal = super::GenericDecimal<u64, u8>;
 #[cfg(all(feature="with-decimal", feature="with-bigint"))]
 pub type BigDecimal = super::GenericDecimal<super::BigUint, usize>;
 
-/// Dynamically growing decimal
+/// Stack allocated, but dynamically growing into heap if necessary
 ///
 /// Allows to use decimals without memory allocations wherever possible.
 /// For unexpectedly big values performs on heap and doesn't suffer from stack overflows.

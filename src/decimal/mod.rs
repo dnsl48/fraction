@@ -85,14 +85,21 @@ where
                     GenericFraction::NaN => write!(f, "NaN"),
                     GenericFraction::Infinity(sign) => match sign {
                         Sign::Plus => write!(f, "{}", ::std::f32::INFINITY),
-                        Sign::Minus => write!(f, "{}", ::std::f32::NEG_INFINITY)
+                        Sign::Minus => write!(f, "{}", ::std::f32::NEG_INFINITY),
                     },
                     GenericFraction::Rational(sign, ratio) => {
-                        if let Sign::Minus = sign { write!(f, "{}", sign)? };
+                        if let Sign::Minus = sign {
+                            write!(f, "{}", sign)?
+                        };
 
-                        match division::divide_to_formatter(f, ratio.numer().clone(), ratio.denom().clone(), precision) {
-                            Ok(()) => Ok(()),
-                            Err(_) => Err(fmt::Error)
+                        match division::divide_to_writeable(
+                            f,
+                            ratio.numer().clone(),
+                            ratio.denom().clone(),
+                            precision,
+                        ) {
+                            Ok(_) => Ok(()),
+                            Err(_) => Err(fmt::Error),
                         }
                     }
                 }
@@ -114,18 +121,16 @@ where
                 write!(
                     f,
                     "GenericDecimal({} | prec={}; {:?}; {})",
-                    fraction.format_as_decimal(prec)
-                        .map_or_else (
-                            || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
-                            |value| value
-                        ),
+                    fraction.format_as_decimal(prec).map_or_else(
+                        || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
+                        |value| value
+                    ),
                     prec,
                     fraction,
-                    fraction.format_as_decimal(debug_prec)
-                        .map_or_else (
-                            || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
-                            |value| value
-                        )
+                    fraction.format_as_decimal(debug_prec).map_or_else(
+                        || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
+                        |value| value
+                    )
                 )
             }
         }
@@ -411,38 +416,44 @@ where
                             }
 
                             let mut s_state =
-                                Some(division::divide_rem_init_state(srem, sr.denom().clone()));
+                                Some(division::DivisionState::new(srem, sr.denom().clone()));
                             let mut o_state =
-                                Some(division::divide_rem_init_state(orem, or.denom().clone()));
+                                Some(division::DivisionState::new(orem, or.denom().clone()));
 
                             let mut s_digit: u8 = 0;
                             let mut o_digit: u8 = 0;
 
                             let mut precision: usize = 0;
                             loop {
-                                let s_res = division::divide_rem_resume(
+                                s_state = match division::divide_rem_resume(
                                     s_state.take().unwrap(),
-                                    |state, digit| {
-                                        s_state = Some(state);
-                                        s_digit = digit;
-                                        Ok(None)
+                                    |s, d| {
+                                        s_digit = d;
+                                        Ok(Err(s))
                                     },
-                                );
-                                let o_res = division::divide_rem_resume(
-                                    o_state.take().unwrap(),
-                                    |state, digit| {
-                                        o_state = Some(state);
-                                        o_digit = digit;
-                                        Ok(None)
+                                ) {
+                                    Ok(s) => if s.remainder.is_zero() {
+                                        None
+                                    } else {
+                                        Some(s)
                                     },
-                                );
+                                    Err(_) => return false,
+                                };
 
-                                if s_res.is_err() {
-                                    return false;
-                                }
-                                if o_res.is_err() {
-                                    return false;
-                                }
+                                o_state = match division::divide_rem_resume(
+                                    o_state.take().unwrap(),
+                                    |s, d| {
+                                        o_digit = d;
+                                        Ok(Err(s))
+                                    },
+                                ) {
+                                    Ok(s) => if s.remainder.is_zero() {
+                                        None
+                                    } else {
+                                        Some(s)
+                                    },
+                                    Err(_) => return false,
+                                };
 
                                 if s_digit != o_digit {
                                     return false;
@@ -451,41 +462,73 @@ where
                                 precision += 1;
 
                                 if precision == (*sp).into() {
-                                    if sp == op { return true; }
+                                    if sp == op {
+                                        return true;
+                                    }
 
                                     if op > sp {
                                         for _ in 0..(*op - *sp).into() {
                                             if let Some(state) = o_state.take() {
-                                                let div_result = division::divide_rem_resume(state, |state, digit| {
-                                                    o_state = Some(state);
-                                                    o_digit = digit;
-                                                    Ok(None)
-                                                });
-                                                if div_result.is_err() { return false }
+                                                let div_result = division::divide_rem_resume(
+                                                    state,
+                                                    |state, digit| {
+                                                        o_digit = digit;
+                                                        Ok(Err(state))
+                                                    },
+                                                );
+                                                o_state = match div_result {
+                                                    Ok(s) => if s.remainder.is_zero() {
+                                                        None
+                                                    } else {
+                                                        Some(s)
+                                                    },
+                                                    Err(_) => return false,
+                                                };
 
-                                                if o_digit != 0 { return false; }
-                                            } else { return true }
+                                                if o_digit != 0 {
+                                                    return false;
+                                                }
+                                            } else {
+                                                return true;
+                                            }
                                         }
                                         return true;
-                                    } else { return o_state.is_none() }
+                                    } else {
+                                        return o_state.is_none();
+                                    }
                                 }
 
                                 if precision == (*op).into() {
                                     if sp > op {
                                         for _ in 0..(*sp - *op).into() {
                                             if let Some(state) = s_state.take() {
-                                                let div_result = division::divide_rem_resume(state, |state, digit| {
-                                                    s_state = Some(state);
-                                                    s_digit = digit;
-                                                    Ok(None)
-                                                });
-                                                if div_result.is_err() { return false; }
+                                                let div_result = division::divide_rem_resume(
+                                                    state,
+                                                    |state, digit| {
+                                                        s_digit = digit;
+                                                        Ok(Err(state))
+                                                    },
+                                                );
+                                                s_state = match div_result {
+                                                    Ok(s) => if s.remainder.is_zero() {
+                                                        None
+                                                    } else {
+                                                        Some(s)
+                                                    },
+                                                    Err(_) => return false,
+                                                };
 
-                                                if s_digit != 0 { return false; }
-                                            } else { return true }
+                                                if s_digit != 0 {
+                                                    return false;
+                                                }
+                                            } else {
+                                                return true;
+                                            }
                                         }
                                         return true;
-                                    } else { return s_state.is_none() }
+                                    } else {
+                                        return s_state.is_none();
+                                    }
                                 }
 
                                 if s_state.is_none() {
@@ -515,53 +558,66 @@ where
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            GenericDecimal(fraction, precision) => {
-                match fraction {
-                    GenericFraction::NaN => state.write_u8(0u8),
-                    GenericFraction::Infinity(sign) => if let Sign::Plus = sign { state.write_u8(1u8) } else { state.write_u8(2u8) },
-                    GenericFraction::Rational(sign, ratio) => {
-                        if let Sign::Plus = sign { state.write_u8(3u8) } else { state.write_u8(4u8) }
+            GenericDecimal(fraction, precision) => match fraction {
+                GenericFraction::NaN => state.write_u8(0u8),
+                GenericFraction::Infinity(sign) => if let Sign::Plus = sign {
+                    state.write_u8(1u8)
+                } else {
+                    state.write_u8(2u8)
+                },
+                GenericFraction::Rational(sign, ratio) => {
+                    if let Sign::Plus = sign {
+                        state.write_u8(3u8)
+                    } else {
+                        state.write_u8(4u8)
+                    }
 
-                        let num = ratio.numer();
-                        let den = ratio.denom();
+                    let num = ratio.numer();
+                    let den = ratio.denom();
 
-                        let remainder = division::divide_integral(num.clone(), den.clone(), |digit: u8| {
+                    let div_state =
+                        division::divide_integral(num.clone(), den.clone(), |digit: u8| {
                             state.write_u8(digit);
                             Ok(true)
                         }).ok();
 
-                        if !precision.is_zero() {
-                            let mut dot = false;
-                            let mut trailing_zeroes: usize = 0;
+                    if !precision.is_zero() {
+                        let mut dot = false;
+                        let mut trailing_zeroes: usize = 0;
 
-                            if let Some(Some(rem)) = remainder {
+                        if let Some(div_state) = div_state {
+                            if !div_state.remainder.is_zero() {
                                 let mut precision = *precision;
-                                division::divide_rem(rem, den.clone(), |s, digit: u8| {
-                                    precision -= P::one();
+                                division::divide_rem(
+                                    div_state.remainder,
+                                    div_state.divisor,
+                                    |s, digit: u8| {
+                                        precision -= P::one();
 
-                                    if digit == 0 {
-                                        trailing_zeroes += 1;
-                                    } else {
-                                        if !dot {
-                                            dot = true;
-                                            state.write_u8(10u8);
+                                        if digit == 0 {
+                                            trailing_zeroes += 1;
+                                        } else {
+                                            if !dot {
+                                                dot = true;
+                                                state.write_u8(10u8);
+                                            }
+
+                                            if trailing_zeroes > 0 {
+                                                trailing_zeroes = 0;
+                                                state.write_usize(trailing_zeroes);
+                                            }
+
+                                            state.write_u8(digit);
                                         }
 
-                                        if trailing_zeroes > 0 {
-                                            trailing_zeroes = 0;
-                                            state.write_usize(trailing_zeroes);
-                                        }
-
-                                        state.write_u8(digit);
-                                    }
-
-                                    Ok(if precision.is_zero() { None } else { Some(s) })
-                                }).ok();
+                                        Ok(if precision.is_zero() { Err(s) } else { Ok(s) })
+                                    },
+                                ).ok();
                             }
                         }
                     }
                 }
-            }
+            },
         };
     }
 }
@@ -709,19 +765,25 @@ where
                         let num = ratio.numer();
                         let den = ratio.denom();
 
-                        if let Ok(Some(rem)) =
+                        if let Ok(div_state) =
                             division::divide_integral(num.clone(), den.clone(), |_| Ok(true))
                         {
-                            let _1 = P::one();
+                            if !div_state.remainder.is_zero() {
+                                let _1 = P::one();
 
-                            let _result = division::divide_rem(rem, den.clone(), |s, _| {
-                                precision = if let Some(p) = precision.checked_add(&_1) {
-                                    p
-                                } else {
-                                    return Ok(None);
-                                };
-                                Ok(Some(s))
-                            });
+                                let _result = division::divide_rem(
+                                    div_state.remainder,
+                                    div_state.divisor,
+                                    |s, _| {
+                                        precision = if let Some(p) = precision.checked_add(&_1) {
+                                            p
+                                        } else {
+                                            return Ok(Err(s));
+                                        };
+                                        Ok(Ok(s))
+                                    },
+                                );
+                            }
                         }
 
                         precision
@@ -895,7 +957,6 @@ where
         }
     }
 
-
     /// Convert from a GenericFraction
     ///
     /// Automatically calculates precision, so for "bad" numbers
@@ -926,7 +987,6 @@ where
     }
 }
 
-
 impl<T, F, P1, P2> TryToConvertFrom<GenericDecimal<F, P1>> for GenericDecimal<T, P2>
 where
     T: Copy + Integer + TryToConvertFrom<F>,
@@ -938,17 +998,17 @@ where
         Some(match src {
             GenericDecimal(fraction, precision) => GenericDecimal(
                 GenericFraction::try_to_convert_from(fraction)?,
-                P2::try_to_convert_from(precision)?
-            )
+                P2::try_to_convert_from(precision)?,
+            ),
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use prelude::Decimal;
-    use super::{GenericDecimal, One, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
+    use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, GenericDecimal, One};
     use fraction::GenericFraction;
+    use prelude::Decimal;
     use std::hash::{Hash, Hasher};
 
     type D = GenericDecimal<u8, u8>;
@@ -997,14 +1057,20 @@ mod tests {
             assert_eq!(mul, Decimal::from("50159.5403"));
             assert_eq!(hash_it(&mul), hash_it(&Decimal::from("50159.5403")));
             assert_eq!(mul.set_precision(6), Decimal::from("50159.540302"));
-            assert_eq!(hash_it(&mul.set_precision(6)), hash_it(&Decimal::from("50159.540302")));
+            assert_eq!(
+                hash_it(&mul.set_precision(6)),
+                hash_it(&Decimal::from("50159.540302"))
+            );
         }
     }
 
     #[test]
     fn fmt_debug() {
         type F = GenericFraction<u64>;
-        assert_eq!(format!("{:?}", Decimal::one()), format!("GenericDecimal(1 | prec=0; {:?}; 1)", F::one()));
+        assert_eq!(
+            format!("{:?}", Decimal::one()),
+            format!("GenericDecimal(1 | prec=0; {:?}; 1)", F::one())
+        );
     }
 
     // TODO: more tests

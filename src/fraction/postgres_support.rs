@@ -266,7 +266,7 @@ where
     let mut padding = true;
     let mut rpad = 0;
 
-    let rem = divide_integral(numer, denom.clone(), |digit: u8| {
+    let div_state = divide_integral(numer, denom, |digit: u8| {
         if padding && digit == 0 {
             return Ok(true);
         } else {
@@ -344,14 +344,14 @@ where
         ndigit = 0;
     }
 
-    if rem.is_none() && rpad > 0 {
+    if div_state.remainder.is_zero() && rpad > 0 {
         ndigits -= rpad;
         buf.truncate(buffer_offset + 8 + (ndigits as usize) * 2);
     }
 
-    if let Some(rem) = rem {
+    if !div_state.remainder.is_zero() {
         padding = weight < 0; // true;
-        divide_rem(rem, denom, |state, digit: u8| {
+        divide_rem(div_state.remainder, div_state.divisor, |state, digit: u8| {
             let digit: i16 = digit.into();
 
             if digit != 0 {
@@ -384,9 +384,9 @@ where
             }
 
             Ok(if uscale < precision {
-                Some(state)
+                Ok(state)
             } else {
-                None
+                Err(state)
             })
         })?;
 
