@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.5.0] - 2018-11-26
+### Changed
+- Division module API; functions to return division state for later reuse (remainder and divisor)
+
 
 ## [0.4.1] - 2018-10-19
 ### Added

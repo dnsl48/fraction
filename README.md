@@ -1,12 +1,10 @@
 # Fraction
 
-Lossless drop-in replacement for floating types (f32, f64)
+Lossless fractions and decimals; drop-in float replacement
 ------
 
 [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
 ------
-
-The documentation is available on [https://dnsl48.github.io/fraction/target/doc/fraction/index.html](https://dnsl48.github.io/fraction/target/doc/fraction/index.html).
 
 # Features
  - Drop in replacement for floats with the exception for NaN == NaN so that it's hashable
