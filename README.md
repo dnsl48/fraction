@@ -11,7 +11,7 @@ Lossless fractions and decimals; drop-in float replacement
  - It's hashable, so may be used as values in Sets and keys in dictionaries and hash maps
  - Fraction type, representing floats as fractions
  - Decimal type, based on Fraction type, represents floats as decimals
- - DynaInt implements dinamically growing integer type that perfarms checked math and avoids stack overflows
+ - DynaInt implements dinamically growing integer type that performs checked math and avoids stack overflows
  - PostgreSQL integration for Numeric/Decimal type (with no extra memory allocations)
  - Juniper integration for both fractions and decimals
  - Generic integer conversions, such as `i8 -> u8`, `usize -> u8` and so on
