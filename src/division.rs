@@ -650,13 +650,12 @@ where
 mod tests {
     use super::*;
     use error::DivisionError;
+    use num::Zero;
 
     // mod divide_to_string_u8;
 
     #[cfg(feature = "with-bigint")]
-    use num::bigint::BigUint;
-    #[cfg(feature = "with-bigint")]
-    use num::{Num, Zero};
+    use num::{Num, bigint::BigUint};
 
     #[test]
     fn test_division() {

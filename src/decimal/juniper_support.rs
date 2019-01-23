@@ -1,6 +1,7 @@
 use juniper::{
-    meta::MetaType, Executor, FromInputValue, GraphQLType, InputValue, Registry, Selection,
-    ToInputValue, Value,
+    meta::MetaType, Executor, FromInputValue, GraphQLType,
+    InputValue, ParseScalarValue, ParseScalarResult,
+    Registry, parser::ScalarToken, ScalarRefValue, ScalarValue, Selection, ToInputValue, Value,
 };
 
 use generic::GenericInteger;
@@ -9,8 +10,26 @@ use std::fmt;
 
 use super::GenericDecimal;
 
-impl<T, P> GraphQLType for GenericDecimal<T, P>
+impl<S, T, P> ParseScalarValue<S> for GenericDecimal<T, P>
 where
+    S: ScalarValue,
+    for<'a> &'a S: ScalarRefValue<'a>,
+    T: Clone + GenericInteger + From<u8> + fmt::Display,
+    P: Copy + GenericInteger + Into<usize> + From<u8>,
+{
+    fn from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        match value {
+            ScalarToken::String(val) |
+            ScalarToken::Int(val) |
+            ScalarToken::Float(val) => Ok(S::from(val.to_owned()))
+        }
+    }
+}
+
+impl<S, T, P> GraphQLType<S> for GenericDecimal<T, P>
+where
+    S: ScalarValue,
+    for<'a> &'a S: ScalarRefValue<'a>,
     T: Clone + GenericInteger + From<u8> + fmt::Display,
     P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
@@ -21,38 +40,50 @@ where
         Some("Decimal")
     }
 
-    fn meta<'r>(info: &(), registry: &mut Registry<'r>) -> MetaType<'r> {
+    fn meta<'r>(info: &(), registry: &mut Registry<'r, S>) -> MetaType<'r, S>
+    where
+        S: 'r,
+    {
         registry
             .build_scalar_type::<Self>(info)
-            .description("Fraction")
+            .description("Decimal")
             .into_meta()
     }
 
-    fn resolve(&self, _: &(), _: Option<&[Selection]>, _: &Executor<Self::Context>) -> Value {
-        Value::string(format!("{}", self))
+    fn resolve(&self, _: &(), _: Option<&[Selection<S>]>, _: &Executor<Self::Context, S>) -> Value<S> {
+        Value::scalar(S::from(format!("{}", self)))
     }
 }
 
-impl<T, P> ToInputValue for GenericDecimal<T, P>
+impl<S, T, P> ToInputValue<S> for GenericDecimal<T, P>
 where
+    S: ScalarValue,
+    for<'a> &'a S: ScalarRefValue<'a>,
     T: Clone + GenericInteger + fmt::Display + From<u8>,
     P: Copy + Integer + Into<usize>,
 {
-    fn to_input_value(&self) -> InputValue {
+    fn to_input_value(&self) -> InputValue<S> {
         ToInputValue::to_input_value(&format!("{}", self))
     }
 }
 
-impl<T, P> FromInputValue for GenericDecimal<T, P>
+impl<S, T, P> FromInputValue<S> for GenericDecimal<T, P>
 where
+    S: ScalarValue,
+    for<'a> &'a S: ScalarRefValue<'a>,
     T: Clone + GenericInteger,
     P: Copy + GenericInteger + Into<usize> + From<u8>
 {
-    fn from_input_value(value: &InputValue) -> Option<Self> {
-        let val = if let Some(v) = value.as_string_value() {
-            v
-        } else {
-            return None;
+    fn from_input_value(value: &InputValue<S>) -> Option<Self> {
+        let val = match value.as_scalar() {
+            None => return None,
+            Some(scalar) => {
+                let s: Option<&String> = scalar.into();
+                match s {
+                    Some(v) => v,
+                    _ => return None
+                }
+            }
         };
 
         Some(GenericDecimal::from_decimal_str(val).ok())?
@@ -88,7 +119,7 @@ mod tests {
     fn to_input_value() {
         for (s, v) in get_tests() {
             let value = <D as ToInputValue>::to_input_value(&v);
-            let str_value = value.as_string_value();
+            let str_value = value.as_scalar_value::<String>();
 
             assert!(str_value.is_some());
             assert_eq!(s, str_value.unwrap());
@@ -98,7 +129,8 @@ mod tests {
     #[test]
     fn from_input_value() {
         for (s, v) in get_tests() {
-            let value = <D as FromInputValue>::from_input_value(&InputValue::string(s));
+            let value = <D as FromInputValue>::from_input_value(&InputValue::scalar(s.to_owned()));
+
             assert_eq!(value, Some(v));
             assert_eq!(value.unwrap().get_precision(), v.get_precision())
         }
