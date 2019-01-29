@@ -17,6 +17,7 @@ use std::ops::{
 
 use super::{GenericFraction, Sign};
 use division;
+use fraction::display;
 use generic::GenericInteger;
 
 #[cfg(feature = "with-bigint")]
@@ -73,36 +74,18 @@ where
 
 impl<T, P> fmt::Display for GenericDecimal<T, P>
 where
-    T: Clone + GenericInteger + From<u8> + ToPrimitive + fmt::Display,
+    T: Clone + GenericInteger,
     P: Copy + Integer + Into<usize>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GenericDecimal(ref fraction, precision) => {
-                let precision = f.precision().unwrap_or_else(|| precision.into());
-
-                match fraction {
-                    GenericFraction::NaN => write!(f, "NaN"),
-                    GenericFraction::Infinity(sign) => match sign {
-                        Sign::Plus => write!(f, "{}", ::std::f32::INFINITY),
-                        Sign::Minus => write!(f, "{}", ::std::f32::NEG_INFINITY),
-                    },
-                    GenericFraction::Rational(sign, ratio) => {
-                        if let Sign::Minus = sign {
-                            write!(f, "{}", sign)?
-                        };
-
-                        match division::divide_to_writeable(
-                            f,
-                            ratio.numer().clone(),
-                            ratio.denom().clone(),
-                            precision,
-                        ) {
-                            Ok(_) => Ok(()),
-                            Err(_) => Err(fmt::Error),
-                        }
-                    }
-                }
+                let format = display::Format::new(formatter)
+                    .set_precision(Some(
+                        formatter.precision()
+                            .unwrap_or_else(|| precision.into())
+                    ));
+                display::format_fraction(fraction, formatter, &format)
             }
         }
     }
@@ -121,16 +104,10 @@ where
                 write!(
                     f,
                     "GenericDecimal({} | prec={}; {:?}; {})",
-                    fraction.format_as_decimal(prec).map_or_else(
-                        || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
-                        |value| value
-                    ),
+                    format!("{:.1$}", fraction, prec),
                     prec,
                     fraction,
-                    fraction.format_as_decimal(debug_prec).map_or_else(
-                        || "Error!".to_string(), // only allocate the default value if the original couldn't be generated
-                        |value| value
-                    )
+                    format!("{:.1$}", fraction, debug_prec)
                 )
             }
         }
@@ -325,8 +302,6 @@ macro_rules! dec_impl {
             }
         }
     )*}
-
-
 }
 
 dec_impl!(impl_trait_from_float; f32, f64);

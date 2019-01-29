@@ -9,7 +9,7 @@ use error::DivisionError;
 use generic::GenericInteger;
 
 use std::cmp::{Eq, PartialEq};
-use std::fmt::{self, Write};
+use std::fmt::Write;
 
 /// Division state encapsulates remainder and divisor
 #[derive(Clone, Debug)]
@@ -135,9 +135,11 @@ where
         if passed_leading_zeroes {
             let d: Option<u8> = digit.to_u8();
             match d {
-                Some(n) => if !consumer(n)? {
-                    return Ok(DivisionState::new(dividend, divisor));
-                },
+                Some(n) => {
+                    if !consumer(n)? {
+                        return Ok(DivisionState::new(dividend, divisor));
+                    }
+                }
                 None => unreachable!(),
             };
         }
@@ -187,8 +189,10 @@ pub fn divide_rem<I, Consumer>(
     consumer: Consumer,
 ) -> Result<DivisionState<I>, DivisionError>
 where
-    Consumer: FnMut(DivisionState<I>, u8)
-        -> Result<Result<DivisionState<I>, DivisionState<I>>, DivisionError>,
+    Consumer: FnMut(
+        DivisionState<I>,
+        u8,
+    ) -> Result<Result<DivisionState<I>, DivisionState<I>>, DivisionError>,
     I: Clone + GenericInteger,
 {
     divide_rem_resume(DivisionState::new(dividend, divisor), consumer)
@@ -229,8 +233,10 @@ pub fn divide_rem_resume<I, Consumer>(
     mut consumer: Consumer,
 ) -> Result<DivisionState<I>, DivisionError>
 where
-    Consumer: FnMut(DivisionState<I>, u8)
-        -> Result<Result<DivisionState<I>, DivisionState<I>>, DivisionError>,
+    Consumer: FnMut(
+        DivisionState<I>,
+        u8,
+    ) -> Result<Result<DivisionState<I>, DivisionState<I>>, DivisionError>,
     I: Clone + GenericInteger,
 {
     loop {
@@ -285,7 +291,8 @@ where
 
                 state.remainder = rem;
                 digit
-            }).or_else(|| {
+            })
+            .or_else(|| {
                 let _10 = I::_10();
 
                 let (rem, digit) = state.remainder.checked_mul(&_10).map_or_else(
@@ -333,7 +340,8 @@ where
 
                 state.remainder = rem;
                 Some(digit)
-            }).unwrap();
+            })
+            .unwrap();
 
         match digit {
             Some(n) => {
@@ -349,104 +357,82 @@ where
     Ok(state)
 }
 
+
+/// Calculate the max possible length of division in characters (including floating point)
+/// This may be useful for string/vector pre-allocations
+///
+/// # Examples
+/// ```
+/// use fraction::division::division_result_max_char_length;
+///
+/// assert_eq!(division_result_max_char_length(&1, 0), 1);
+/// assert_eq!(division_result_max_char_length(&10, 0), 2);
+/// assert_eq!(division_result_max_char_length(&10, 1), 4);
+/// assert_eq!(division_result_max_char_length(&100, 2), 6);
+/// assert_eq!(division_result_max_char_length(&900, 2), 6);
+/// ```
+pub fn division_result_max_char_length<I>(dividend: &I, precision: usize) -> usize
+where
+    I: Clone + GenericInteger,
+{
+    let mut ptr: I = I::_1();
+    let mut len: usize = 0;
+
+    loop {
+        len += 1;
+
+        ptr = match I::_10r().map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
+        {
+            Some(n) => n,
+            None => break,
+        };
+
+        if ptr > *dividend {
+            break;
+        }
+    }
+
+    len + precision + if precision > 0 { 1 } else { 0 }
+}
+
+
 /// Divide a fraction into a [`String`]
 ///
 ///  - Makes only one allocation for the resulting string
 ///  - Does not round the last digit
-///  - Does not fill the result with redundant zeroes
 ///
 /// Calculates the resulting string length first, allocates it,
 /// then makes the division and puts the result into the preallocated
 /// string.
-/// Uses [`divide_integral`] and [`divide_rem`] functions internally.
 ///
 /// # Examples
 ///
 /// ```
 /// use fraction::division::divide_to_string;
 ///
-/// assert_eq! (divide_to_string(2, 4, 1).unwrap(), "0.5");
-/// assert_eq! (divide_to_string(5, 7, 16).unwrap(), "0.7142857142857142");
-/// assert_eq! (divide_to_string(1, 3, 3).unwrap(), "0.333");
+/// assert_eq! (divide_to_string(2, 4, 2, false).unwrap(), "0.5");
+/// assert_eq! (divide_to_string(2, 4, 2, true).unwrap(), "0.50");
+/// assert_eq! (divide_to_string(5, 7, 16, false).unwrap(), "0.7142857142857142");
+/// assert_eq! (divide_to_string(1, 3, 3, false).unwrap(), "0.333");
+/// assert_eq! (divide_to_string(1, 3, 3, true).unwrap(), "0.333");
 /// ```
 ///
 /// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
 /// [`divide_integral`]: ./fn.divide_integral.html
 /// [`divide_rem`]: ./fn.divide_rem.html
+#[inline]
 pub fn divide_to_string<I>(
     dividend: I,
     divisor: I,
-    mut precision: usize,
+    precision: usize,
+    trail_zeroes: bool
 ) -> Result<String, DivisionError>
 where
     I: Clone + GenericInteger,
 {
-    let int_len = {
-        let mut ptr: I = I::_1();
-        let mut len: usize = 0;
+    let mut result = String::with_capacity(division_result_max_char_length(&dividend, precision));
 
-        loop {
-            len += 1;
-
-            ptr = match I::_10r()
-                .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
-            {
-                Some(n) => n,
-                None => break,
-            };
-
-            if ptr > dividend {
-                break;
-            }
-        }
-
-        len
-    };
-
-    let mut result = String::with_capacity(int_len + precision + if precision > 0 { 1 } else { 0 });
-
-    let div_state = divide_integral(dividend, divisor, |digit: u8| {
-        match write!(&mut result, "{}", digit) {
-            Ok(()) => Ok(true),
-            Err(e) => Err(DivisionError::from(e)),
-        }
-    })?;
-
-    if precision > 0 {
-        if !div_state.remainder.is_zero() {
-            match write!(&mut result, ".") {
-                Ok(()) => (),
-                Err(e) => return Err(DivisionError::from(e)),
-            };
-
-            divide_rem(
-                div_state.remainder,
-                div_state.divisor,
-                |state, digit: u8| match write!(&mut result, "{}", digit) {
-                    Ok(()) => {
-                        precision -= 1;
-                        Ok(if precision > 0 { Ok(state) } else { Err(state) })
-                    }
-                    Err(e) => Err(DivisionError::from(e)),
-                },
-            )?;
-
-            // Remove trailing zeroes
-            while let Some(c) = result.pop() {
-                if c != '0' {
-                    result.push(c);
-                    break;
-                }
-            }
-
-            // Remove trailing dot
-            if let Some(c) = result.pop() {
-                if c != '.' {
-                    result.push(c);
-                }
-            }
-        }
-    }
+    divide_to_writeable(&mut result, dividend, divisor, precision, trail_zeroes)?;
 
     Ok(result)
 }
@@ -455,7 +441,6 @@ where
 ///
 ///  - Makes only one allocation for the resulting vector
 ///  - Does not round the last digit
-///  - Does not fill the result with redundant zeroes
 ///
 /// Calculates the resulting vector length first, allocates it,
 /// then makes the division and puts the result into the preallocated
@@ -467,18 +452,21 @@ where
 /// ```
 /// use fraction::division::divide_to_ascii_vec;
 ///
-/// assert_eq! (divide_to_ascii_vec(2, 4, 1).unwrap(), vec![48, 46, 53]);  // "0.5" in ascii
-/// assert_eq! (divide_to_ascii_vec(5, 7, 16).unwrap(), vec![48, 46, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50]);  // "0.7142857142857142" in ascii
-/// assert_eq! (divide_to_ascii_vec(1, 3, 3).unwrap(), vec![48, 46, 51, 51, 51]);  // "0.333" in ascii
+/// assert_eq! (divide_to_ascii_vec(2, 4, 2, false).unwrap(), vec![48, 46, 53]);  // "0.5" in ascii
+/// assert_eq! (divide_to_ascii_vec(2, 4, 2, true).unwrap(), vec![48, 46, 53, 48]);  // "0.50" in ascii
+/// assert_eq! (divide_to_ascii_vec(5, 7, 16, false).unwrap(), vec![48, 46, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50, 56, 53, 55, 49, 52, 50]);  // "0.7142857142857142" in ascii
+/// assert_eq! (divide_to_ascii_vec(1, 3, 3, false).unwrap(), vec![48, 46, 51, 51, 51]);  // "0.333" in ascii
 /// ```
 ///
 /// [`Vec<u8>`]: https://doc.rust-lang.org/std/vec/struct.Vec.html
 /// [`divide_integral`]: ./fn.divide_integral.html
 /// [`divide_rem`]: ./fn.divide_rem.html
+#[inline]
 pub fn divide_to_ascii_vec<I>(
     dividend: I,
     divisor: I,
-    mut precision: usize,
+    precision: usize,
+    trail_zeroes: bool
 ) -> Result<Vec<u8>, DivisionError>
 where
     I: Clone + GenericInteger,
@@ -486,64 +474,16 @@ where
     const ZERO: u8 = 48u8;
     const DOT: u8 = 46u8;
 
-    let int_len = {
-        let _10: I = GenericInteger::_10();
-        let mut ptr: I = GenericInteger::_1();
-        let mut len: usize = 0;
+    let mut result = Vec::with_capacity(division_result_max_char_length(&dividend, precision));
 
-        loop {
-            len += 1;
-
-            ptr = match ptr.checked_mul(&_10) {
-                Some(n) => n,
-                None => break,
-            };
-
-            if ptr > dividend {
-                break;
-            }
+    divide_to_callback(dividend, divisor, precision, trail_zeroes, |digit| {
+        if digit == 10u8 {
+            result.push(DOT);
+        } else {
+            result.push(ZERO + digit);
         }
-
-        len
-    };
-
-    let mut result = Vec::with_capacity(int_len + precision + if precision > 0 { 1 } else { 0 });
-
-    let div_state = divide_integral(dividend, divisor.clone(), |digit: u8| {
-        result.push(ZERO + digit);
         Ok(true)
     })?;
-
-    if precision > 0 {
-        if !div_state.remainder.is_zero() {
-            result.push(DOT);
-
-            divide_rem(
-                div_state.remainder,
-                div_state.divisor,
-                |state, digit: u8| {
-                    result.push(ZERO + digit);
-                    precision -= 1;
-                    Ok(if precision > 0 { Ok(state) } else { Err(state) })
-                },
-            )?;
-
-            // Remove trailing zeroes
-            while let Some(c) = result.pop() {
-                if c != ZERO {
-                    result.push(c);
-                    break;
-                }
-            }
-
-            // Remove trailing dot
-            if let Some(c) = result.pop() {
-                if c != DOT {
-                    result.push(c);
-                }
-            }
-        }
-    }
 
     Ok(result)
 }
@@ -553,12 +493,24 @@ where
 ///
 ///  - No allocations
 ///  - Does not round the last digit
-///  - Does not fill the result with redundant zeroes
 ///
 /// Makes the division and puts the result into the formatter.
 /// Uses [`divide_integral`] and [`divide_rem`] functions internally.
 ///
 /// # Examples
+///
+/// ```
+/// use fraction::division::{ divide_to_writeable, division_result_max_char_length };
+///
+/// let num = 7;
+/// let denom = 4;
+///
+/// let mut string = String::with_capacity(division_result_max_char_length(&num, 2));
+///
+/// divide_to_writeable(&mut string, num, denom, 2, false).ok();
+///
+/// assert_eq!(string, "1.75");
+/// ```
 ///
 /// ```
 /// use fraction::division::divide_to_writeable;
@@ -570,7 +522,7 @@ where
 /// impl fmt::Display for Foo {
 ///     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 ///         let precision = formatter.precision().unwrap_or(2);
-///         match divide_to_writeable(formatter, self.0, self.1, precision) {
+///         match divide_to_writeable(formatter, self.0, self.1, precision, false) {
 ///             Err(_) => Err(fmt::Error),
 ///             _ => Ok(())
 ///         }
@@ -581,27 +533,90 @@ where
 /// assert_eq! (format!("{:.3}", Foo(1, 3)), "0.333");
 /// assert_eq! (format!("{:.16}", Foo(5, 7)), "0.7142857142857142");
 /// ```
+///
+/// [`std::fmt::Write`]: https://doc.rust-lang.org/std/fmt/trait.Write.html
+/// [`divide_integral`]: ./fn.divide_integral.html
+/// [`divide_rem`]: ./fn.divide_rem.html
+#[inline]
 pub fn divide_to_writeable<I>(
-    target: &mut fmt::Write,
+    writeable: &mut Write,
     dividend: I,
     divisor: I,
-    mut precision: usize,
+    precision: usize,
+    trail_zeroes: bool,
 ) -> Result<I, DivisionError>
 where
     I: Clone + GenericInteger,
 {
+    divide_to_callback(
+        dividend,
+        divisor,
+        precision,
+        trail_zeroes,
+        |digit| write_digit(writeable, digit)
+    )
+}
+
+
+/// Calculate the division result and pass every character into the callback  
+/// Returns the remainder of the division
+///
+/// - Makes no allocations
+///
+/// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// # Callback
+///
+/// Callback receives every digit of the result as a u8 value.
+/// The floating point character (dot) is passed to the callback as `10u8`.
+/// If the callback returns `Ok(true)`, the function keeps on calculation
+/// If the callback returns `Ok(false)`, the function stops calculation and returns the remainder
+/// If the callback returns `Err(_)` the calculation will be stopped and the error will propagate as the result value
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::divide_to_callback;
+///
+/// let mut result = Vec::new();
+///
+/// // calculate 7/4, which is 1.75
+/// divide_to_callback(7, 4, 2, false, |d| { result.push(d as i32); Ok(true) }).ok();
+///
+/// assert_eq!(&result, &[1, 10, 7, 5]);
+/// ```
+pub fn divide_to_callback<I, C>(
+    dividend: I,
+    divisor: I,
+    mut precision: usize,
+    trail_zeroes: bool,
+    mut callback: C
+) -> Result<I, DivisionError>
+where
+    C: FnMut(u8) -> Result<bool, DivisionError>,
+    I: Clone + GenericInteger
+{
+    let mut keep_going = true;
+
     let mut div_state = divide_integral(dividend, divisor, |digit: u8| {
-        match write!(target, "{}", digit) {
-            Ok(()) => Ok(true),
-            Err(e) => Err(DivisionError::from(e)),
+        match callback(digit) {
+            result @ Ok(false) => {
+                keep_going = false;
+                result
+            },
+            result @ _ => result
         }
     })?;
 
-    if precision > 0 {
-        if !div_state.remainder.is_zero() {
-            let mut dot = false;
-            let mut trailing_zeroes = 0;
+    if !keep_going {
+        return Ok(div_state.remainder)
+    }
 
+    if precision > 0 {
+        let mut dot = false;
+        let mut trailing_zeroes = 0;
+
+        if !div_state.remainder.is_zero() {
             div_state = divide_rem(
                 div_state.remainder,
                 div_state.divisor,
@@ -613,24 +628,47 @@ where
                     } else {
                         if !dot {
                             dot = true;
-                            match write!(target, ".") {
-                                Ok(()) => Ok(()),
-                                Err(e) => Err(DivisionError::from(e)),
+
+                            match callback(10u8) {
+                                result @ Ok(false) => {
+                                    keep_going = false;
+                                    result
+                                }
+                                result @ _ => result
                             }?;
+
+                            if !keep_going {
+                                return Ok(Err(state))
+                            }
                         }
 
-                        for _ in 0..trailing_zeroes {
+                        while trailing_zeroes > 0 {
                             trailing_zeroes -= 1;
-                            match write!(target, "0") {
-                                Ok(()) => Ok(()),
-                                Err(e) => Err(DivisionError::from(e)),
+
+                            match callback(0u8) {
+                                result @ Ok(false) => {
+                                    keep_going = false;
+                                    result
+                                }
+                                result @ _ => result
                             }?;
+
+                            if !keep_going {
+                                return Ok(Err(state))
+                            }
                         }
 
-                        match write!(target, "{}", digit) {
-                            Ok(()) => Ok(()),
-                            Err(e) => Err(DivisionError::from(e)),
+                        match callback(digit) {
+                            result @ Ok(false) => {
+                                keep_going = false;
+                                result
+                            }
+                            result @ _ => result
                         }?;
+
+                        if !keep_going {
+                            return Ok(Err(state))
+                        }
                     }
 
                     if precision > 0 {
@@ -641,10 +679,95 @@ where
                 },
             )?;
         }
+
+        if keep_going && trail_zeroes {
+            if !dot {
+                match callback(10u8) {
+                    result @ Ok(false) => {
+                        keep_going = false;
+                        result
+                    }
+                    result @ _ => result
+                }?;
+
+                if !keep_going {
+                    return Ok(div_state.remainder)
+                }
+            }
+
+            while trailing_zeroes > 0 {
+                trailing_zeroes -= 1;
+
+                match callback(0u8) {
+                    result @ Ok(false) => {
+                        keep_going = false;
+                        result
+                    }
+                    result @ _ => result
+                }?;
+
+                if !keep_going {
+                    return Ok(div_state.remainder)
+                }
+            }
+
+            while precision > 0 {
+                precision -= 1;
+
+                match callback(0u8) {
+                    result @ Ok(false) => {
+                        keep_going = false;
+                        result
+                    }
+                    result @ _ => result
+                }?;
+
+                if !keep_going {
+                    return Ok(div_state.remainder)
+                }
+            }
+        }
     }
 
     Ok(div_state.remainder)
 }
+
+
+/// A helper function to use in conjunction with [divide_to_callback]
+///
+/// divide_to_callback passes digits to its callback, this function can
+/// be used to write digits (and dots) into the writeable buffer after
+/// your callback performs its side-effects.
+///
+/// # Examples
+///
+/// ```
+/// use fraction::division::{divide_to_callback, write_digit};
+///
+/// let mut result = String::new();
+/// let mut length = 0;
+///
+/// // calculate 7/4, which is 1.75
+/// divide_to_callback(7, 4, 2, false, |d| { length += 1; write_digit(&mut result, d) }).ok();
+///
+/// assert_eq!(&result, "1.75");
+/// assert_eq!(length, result.len());
+/// ```
+pub fn write_digit(writeable: &mut Write, digit: u8) -> Result<bool, DivisionError>
+{
+    if digit == 10u8 {
+        match writeable.write_char('.') {
+            Ok(_) => Ok(true),
+            Err(e) => Err(DivisionError::from(e)),
+        }
+    } else {
+        match writeable.write_fmt(format_args!("{}", digit)) {
+            Ok(_) => Ok(true),
+            Err(e) => Err(DivisionError::from(e)),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -655,7 +778,7 @@ mod tests {
     // mod divide_to_string_u8;
 
     #[cfg(feature = "with-bigint")]
-    use num::{Num, bigint::BigUint};
+    use num::{bigint::BigUint, Num};
 
     #[test]
     fn test_division() {
@@ -958,11 +1081,11 @@ mod tests {
         ];
 
         for i in data.iter() {
-            assert_eq!(divide_to_string(i.0, i.1, PRECISION).unwrap(), i.2);
+            assert_eq!(divide_to_string(i.0, i.1, PRECISION, false).unwrap(), i.2);
 
             {
                 let mut string: String = String::new();
-                let mut remainder = divide_to_writeable(&mut string, i.0, i.1, PRECISION).unwrap();
+                let mut remainder = divide_to_writeable(&mut string, i.0, i.1, PRECISION, false).unwrap();
 
                 assert_eq!(string, i.2);
                 assert_eq!(remainder.is_zero(), i.3);
@@ -973,7 +1096,7 @@ mod tests {
         {
             for i in data {
                 assert_eq!(
-                    divide_to_string(BigUint::from(i.0), BigUint::from(i.1), PRECISION).unwrap(),
+                    divide_to_string(BigUint::from(i.0), BigUint::from(i.1), PRECISION, false).unwrap(),
                     i.2
                 );
             }
@@ -982,27 +1105,44 @@ mod tests {
 
     #[test]
     fn test_divide_to_string() {
-        assert_eq!(divide_to_string(0, 5, 5).unwrap(), "0");
-        assert_eq!(divide_to_string(30, 2, 5).unwrap(), "15");
-        assert_eq!(divide_to_string(2, 4, 2).unwrap(), "0.5");
-        assert_eq!(divide_to_string(255u8, 3u8, 5).unwrap(), "85");
+        assert_eq!(divide_to_string(0, 5, 5, false).unwrap(), "0");
+        assert_eq!(divide_to_string(0, 5, 5, true).unwrap(), "0.00000");
+        assert_eq!(divide_to_string(30, 2, 5, false).unwrap(), "15");
+        assert_eq!(divide_to_string(30, 2, 5, true).unwrap(), "15.00000");
+        assert_eq!(divide_to_string(2, 4, 2, false).unwrap(), "0.5");
+        assert_eq!(divide_to_string(2, 4, 2, true).unwrap(), "0.50");
+        assert_eq!(divide_to_string(255u8, 3u8, 5, false).unwrap(), "85");
+        assert_eq!(divide_to_string(255u8, 3u8, 5, true).unwrap(), "85.00000");
 
-        assert_eq!(divide_to_string(155u8, 253u8, 5).unwrap(), "0.61264");
-        assert_eq!(divide_to_string(1u8, 2u8, 1).unwrap(), "0.5");
+        assert_eq!(divide_to_string(155u8, 253u8, 5, false).unwrap(), "0.61264");
+        assert_eq!(divide_to_string(1u8, 2u8, 1, false).unwrap(), "0.5");
+        assert_eq!(divide_to_string(1u8, 2u8, 1, true).unwrap(), "0.5");
 
         assert_eq!(
-            divide_to_string(1, 3, 28).unwrap(),
+            divide_to_string(1, 3, 28, false).unwrap(),
             "0.3333333333333333333333333333"
         );
-        assert_eq!(divide_to_string(806, 31, 0).unwrap(), "26");
-        assert_eq!(divide_to_string(807, 31, 4).unwrap(), "26.0322");
+        assert_eq!(
+            divide_to_string(1, 3, 28, true).unwrap(),
+            "0.3333333333333333333333333333"
+        );
+        assert_eq!(divide_to_string(806, 31, 0, false).unwrap(), "26");
+        assert_eq!(divide_to_string(806, 31, 0, true).unwrap(), "26");
+        assert_eq!(divide_to_string(807, 31, 4, false).unwrap(), "26.0322");
+        assert_eq!(divide_to_string(807, 31, 4, true).unwrap(), "26.0322");
 
-        if let Err(DivisionError::DivisionByZero) = divide_to_string(1, 0, 1) {
+        if let Err(DivisionError::DivisionByZero) = divide_to_string(1, 0, 1, false) {
         } else {
             assert!(false);
         };
 
-        assert_eq!(divide_to_string(1, 10000, 2).unwrap(), "0");
+        if let Err(DivisionError::DivisionByZero) = divide_to_string(1, 0, 1, true) {
+        } else {
+            assert!(false);
+        };
+
+        assert_eq!(divide_to_string(1, 10000, 2, false).unwrap(), "0");
+        assert_eq!(divide_to_string(1, 10000, 2, true).unwrap(), "0.00");
 
         #[cfg(feature = "with-bigint")]
         {
@@ -1014,6 +1154,16 @@ mod tests {
                 BigUint::from_str_radix(num, 10).ok().unwrap(),
                 BigUint::from_str_radix(den, 10).ok().unwrap(),
                 1024,
+                false
+            );
+
+            assert_eq!(&asrt1.ok().unwrap(), result);
+
+            let asrt1 = divide_to_string(
+                BigUint::from_str_radix(num, 10).ok().unwrap(),
+                BigUint::from_str_radix(den, 10).ok().unwrap(),
+                1024,
+                true
             );
 
             assert_eq!(&asrt1.ok().unwrap(), result);
@@ -1022,13 +1172,19 @@ mod tests {
 
     #[test]
     fn test_divide_to_ascii_vec() {
-        assert_eq!(divide_to_ascii_vec(0, 5, 5).unwrap(), vec![48]);
-        assert_eq!(divide_to_ascii_vec(30, 2, 5).unwrap(), vec![49, 53]);
-        assert_eq!(divide_to_ascii_vec(2, 4, 2).unwrap(), vec![48, 46, 53]);
-        assert_eq!(divide_to_ascii_vec(255u8, 3u8, 5).unwrap(), vec![56, 53]);
+        assert_eq!(divide_to_ascii_vec(0, 5, 5, false).unwrap(), vec![48]);
+        assert_eq!(divide_to_ascii_vec(0, 5, 5, true).unwrap(), vec![48, 46, 48, 48, 48, 48, 48]);
+        assert_eq!(divide_to_ascii_vec(30, 2, 5, false).unwrap(), vec![49, 53]);
+        assert_eq!(divide_to_ascii_vec(2, 4, 2, false).unwrap(), vec![48, 46, 53]);
+        assert_eq!(divide_to_ascii_vec(2, 4, 2, true).unwrap(), vec![48, 46, 53, 48]);
+        assert_eq!(divide_to_ascii_vec(255u8, 3u8, 5, false).unwrap(), vec![56, 53]);
         assert_eq!(
-            divide_to_ascii_vec(1000001u64, 10000u64, 3).unwrap(),
+            divide_to_ascii_vec(1000001u64, 10000u64, 3, false).unwrap(),
             vec![49, 48, 48]
+        );
+        assert_eq!(
+            divide_to_ascii_vec(1000001u64, 10000u64, 3, true).unwrap(),
+            vec![49, 48, 48, 46, 48, 48, 48]
         );
     }
 
@@ -1115,7 +1271,8 @@ mod tests {
             p1 += 1;
             rest1 = Some(s.remainder);
             Ok(Err(s))
-        }).ok();
+        })
+        .ok();
 
         assert_eq!(r1, [3]);
         assert_eq!(p1, 1);

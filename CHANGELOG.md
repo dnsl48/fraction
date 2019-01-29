@@ -1,5 +1,19 @@
 # Change Log
 
+## [0.6.0] - 2019-02-05
+### Added
+- division::divide_to_callback implementation. Some other functions refactored to be using it internally
+- fraction::display module implementation, Fraction ::std::fmt::Display implementation supporting all the features of the std::fmt::Formatter
+- Decimal ::std::fmt::Display implementation supporting all the features of the std::fmt::Formatter
+
+### Changed
+- Juniper updated to 0.11
+- GenericFraction::format_as_decimal is now deprecated. Use format! macro instead, or division module if you need more control
+- division module functions signatures now have flags for trailing zeroes
+
+### Removed
+- Deprecated functions
+
 ## [0.5.0] - 2018-11-26
 ### Changed
 - Division module API; functions to return division state for later reuse (remainder and divisor)

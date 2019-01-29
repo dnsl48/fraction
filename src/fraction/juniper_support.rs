@@ -6,6 +6,9 @@
 //! * Whole numbers: `+1`, `-2`
 //! * Fractions: `+1/2`, `-3/4`
 
+
+use generic::GenericInteger;
+
 use juniper::{
     meta::MetaType, Executor, FromInputValue, GraphQLType,
     InputValue, ParseScalarValue, ParseScalarResult,
@@ -38,7 +41,7 @@ impl<S, T> GraphQLType<S> for GenericFraction<T>
 where
     S: ScalarValue,
     for<'a> &'a S: ScalarRefValue<'a>,
-    T: Clone + Integer + CheckedAdd + CheckedMul + CheckedSub + Display + 'static,
+    T: Clone + GenericInteger + Display + 'static,
 {
     type Context = ();
     type TypeInfo = ();
@@ -67,10 +70,10 @@ impl<S, T> ToInputValue<S> for GenericFraction<T>
 where
     S: ScalarValue,
     for<'a> &'a S: ScalarRefValue<'a>,
-    T: Clone + Integer + Display,
+    T: Clone + GenericInteger,
 {
     fn to_input_value(&self) -> InputValue<S> {
-        ToInputValue::to_input_value(&self.to_string())
+        ToInputValue::to_input_value(&format!("{:+}", self))
     }
 }
 
