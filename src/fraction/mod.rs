@@ -21,10 +21,7 @@ use std::f64;
 use std::fmt;
 use std::mem;
 
-use division::divide_to_string;
-
-#[cfg(feature = "with-bigint")]
-use prelude::BigFraction;
+pub mod display;
 
 #[cfg(feature = "with-juniper-support")]
 pub mod juniper_support;
@@ -87,13 +84,17 @@ impl Neg for Sign {
 
 impl fmt::Display for Sign {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Sign::Plus => if f.alternate() {
-                Ok(())
-            } else {
-                write!(f, "+")
-            },
-            Sign::Minus => write!(f, "-"),
+        let format = display::Format::new(f);
+        display::format_sign(*self, f, &format)
+    }
+}
+
+
+impl From<Sign> for char {
+    fn from(sign: Sign) -> char {
+        match sign {
+            Sign::Plus => '+',
+            Sign::Minus => '-',
         }
     }
 }
@@ -273,53 +274,6 @@ where
         GenericFraction::Rational(Sign::Minus, Ratio::new_raw(num, den))
     }
 
-    /// Constructs NaN value  
-    /// DEPRECATED! Use [nan](GenericFraction::nan)
-    /// # Examples
-    ///
-    /// ```
-    /// use fraction::GenericFraction;
-    /// type F = GenericFraction<u8>;
-    ///
-    /// let _nan = F::new_nan ();
-    /// ```
-    #[deprecated(note = "Use ::nan()")]
-    pub fn new_nan() -> GenericFraction<T> {
-        GenericFraction::NaN
-    }
-
-    /// Constructs INF value  
-    /// DEPRECATED! Use [infinity](GenericFraction::infinity)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fraction::GenericFraction;
-    /// type F = GenericFraction<u8>;
-    ///
-    /// let _nan = F::new_inf ();
-    /// ```
-    #[deprecated(note = "Use ::infinity()")]
-    pub fn new_inf() -> GenericFraction<T> {
-        GenericFraction::Infinity(Sign::Plus)
-    }
-
-    /// Constructs negative INF value
-    /// DEPRECATED! Use [neg_infinity](GenericFraction::neg_infinity)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fraction::GenericFraction;
-    /// type F = GenericFraction<u8>;
-    ///
-    /// let _nan = F::new_inf_neg ();
-    /// ```
-    #[deprecated(note = "Use ::neg_infinity()")]
-    pub fn new_inf_neg() -> GenericFraction<T> {
-        GenericFraction::Infinity(Sign::Minus)
-    }
-
     /// Returns a reference to the numerator value
     ///
     /// # Examples
@@ -372,14 +326,14 @@ where
     /// assert_eq! (Sign::Minus, fra.sign ().unwrap ());
     ///
     ///
-    /// let fra = F::new_inf ();
+    /// let fra = F::infinity ();
     /// assert_eq! (Sign::Plus, fra.sign ().unwrap ());
     ///
-    /// let fra = F::new_inf_neg ();
+    /// let fra = F::neg_infinity ();
     /// assert_eq! (Sign::Minus, fra.sign ().unwrap ());
     ///
     ///
-    /// let fra = F::new_nan ();
+    /// let fra = F::nan ();
     /// assert_eq! (None, fra.sign ());
     /// ```
     pub fn sign(&self) -> Option<Sign> {
@@ -415,61 +369,9 @@ where
         }
     }
 
-    /// Generates a new [BigFraction](type.BigFraction.html) from the current one
-    /// DEPRECATED! Use BigFraction::from_fraction instead
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fraction::{ BigFraction, GenericFraction };
-    /// type F = GenericFraction<u8>;
-    ///
-    /// let fra = F::new (5u8, 6u8);
-    /// assert_eq! (BigFraction::new (5u8, 6u8), fra.into_big());
-    /// ```
-    #[cfg(feature = "with-bigint")]
-    #[deprecated(note = "Use BigFraction::from_fraction instead")]
-    pub fn into_big(self) -> BigFraction
-    where
-        T: Into<BigUint>,
-    {
-        match self {
-            GenericFraction::NaN => GenericFraction::NaN,
-            GenericFraction::Infinity(sign) => GenericFraction::Infinity(sign),
-            GenericFraction::Rational(sign, ratio) => {
-                let n: BigUint = ratio.numer().clone().into();
-                let d: BigUint = ratio.denom().clone().into();
-                GenericFraction::Rational(sign, Ratio::new(n, d))
-            }
-        }
-    }
-
-    /// Returns a float representation of the fraction with precision up to 64 digits
-    ///
-    /// DEPRECATED! Use [format_as_decimal](GenericFraction::format_as_decimal)
-    ///
-    /// Returns None in case we couldn't write the result into a string,
-    /// e.g. not enough RAM.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fraction::GenericFraction;
-    /// type F = GenericFraction<u8>;
-    ///
-    /// assert_eq! ("0.5", &F::new (1u8, 2u8).format_as_float ().unwrap ());
-    /// assert_eq! ("0.8", &F::new (8u8, 10u8).format_as_float ().unwrap ());
-    /// assert_eq! (&F::new (1u8, 3u8).format_as_float().unwrap(), "0.3333333333333333333333333333333333333333333333333333333333333333");
-    /// ```
-    #[deprecated(note = "Use format_as_decimal instead")]
-    pub fn format_as_float(&self) -> Option<String>
-    where
-        T: Clone + GenericInteger,
-    {
-        self.format_as_decimal(64)
-    }
-
     /// Returns a decimal representation of the fraction
+    ///
+    /// DEPRECATED! Use `format!("{:.1$}", fraction, precision)` instead
     ///
     /// If you have a fraction "1/2", in decimal it should be "0.5".
     ///
@@ -486,30 +388,12 @@ where
     /// assert_eq! ("0.8", &F::new (8u8, 10u8).format_as_decimal (2).unwrap ());
     /// assert_eq! (&F::new (1u8, 3u8).format_as_decimal(32).unwrap(), "0.33333333333333333333333333333333");
     /// ```
+    #[deprecated(note = "Use `format!(\"{:.1$}\", fraction, precision)`")]
     pub fn format_as_decimal(&self, precision: usize) -> Option<String>
     where
         T: Clone + GenericInteger,
     {
-        match *self {
-            GenericFraction::NaN => Some(format!("{}", ::std::f32::NAN)),
-            GenericFraction::Infinity(sign) => match sign {
-                Sign::Plus => Some(format!("{}", ::std::f32::INFINITY)),
-                Sign::Minus => Some(format!("{}", ::std::f32::NEG_INFINITY)),
-            },
-            GenericFraction::Rational(sign, _) => {
-                let a = self.numer().unwrap();
-                let b = self.denom().unwrap();
-
-                if let Ok(result) = divide_to_string(a.clone(), b.clone(), precision) {
-                    Some(match sign {
-                        Sign::Minus => format!("-{}", result),
-                        Sign::Plus => result,
-                    })
-                } else {
-                    None
-                }
-            }
-        }
+        return Some(format!("{:.1$}", &self, precision));
     }
 
     /// Parse a decimal string into a fraction and return the result.
@@ -637,6 +521,7 @@ impl<T: Clone + Integer> PartialEq for GenericFraction<T> {
     }
 }
 
+
 impl<T: Clone + Integer + Hash> Hash for GenericFraction<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -660,6 +545,7 @@ impl<T: Clone + Integer + Hash> Hash for GenericFraction<T> {
         }
     }
 }
+
 
 impl<T: Clone + Integer> Eq for GenericFraction<T> {}
 
@@ -2336,18 +2222,16 @@ impl<T: Clone + Integer> GenericFraction<T> {
         }
     }
 
-    /* ... A lot of stuff here that has not been implemented for Ratio<T> ... */
+    /* ... Some stuff here that has not been implemented for Ratio<T> ... */
 }
 
-impl<T: fmt::Display + Eq + One + Clone + Integer> fmt::Display for GenericFraction<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            GenericFraction::NaN => write!(f, "NaN"),
-            GenericFraction::Infinity(s) => write!(f, "{}inf", s),
-            GenericFraction::Rational(s, ref r) => write!(f, "{}{}", s, r),
-        }
+impl<T: Clone + GenericInteger> fmt::Display for GenericFraction<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        let format = display::Format::new(formatter);
+        display::format_fraction(self, formatter, &format)
     }
 }
+
 
 macro_rules! fraction_from_generic_int {
     ( $($F:ty),* ) => {
@@ -2446,10 +2330,14 @@ where
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "with-bigint")]
-    use super::{BigFraction, BigInt, BigUint};
+    use prelude::{BigFraction};
+
+    #[cfg(feature = "with-bigint")]
+    use super::{BigInt, BigUint};
 
     use super::{
         super::Fraction, Bounded, FpCategory, GenericFraction, Num, One, ParseError, Sign, Signed,
@@ -2896,70 +2784,6 @@ mod tests {
         assert!(Frac::new(1u8, 2u8) > Frac::neg_zero());
         assert!(!(Frac::new(1u8, 2u8) < Frac::neg_zero()));
         assert!(Frac::zero() < Frac::new(1u8, 2u8));
-    }
-
-    #[test]
-    fn format_as_decimal() {
-        use std::f32;
-
-        let f1 = Frac::from(0.75);
-        let fmt1 = f1.format_as_decimal(64);
-
-        assert!(fmt1.is_some());
-        assert_eq!("0.75", fmt1.unwrap());
-
-        let f1_neg = Frac::from(-0.75);
-        let fmt1_neg = f1_neg.format_as_decimal(64);
-
-        assert!(fmt1_neg.is_some());
-        assert_eq!("-0.75", fmt1_neg.unwrap());
-
-        let f2 = Fraction::from((33, 100));
-        let fmt2 = f2.format_as_decimal(64);
-
-        assert!(fmt2.is_some());
-        assert_eq!("0.33", fmt2.unwrap());
-
-        let f3 = Fraction::new(456u64, 10000000000u64);
-        let fmt3 = f3.format_as_decimal(64);
-
-        assert!(fmt3.is_some());
-        assert_eq!("0.0000000456", fmt3.unwrap());
-
-        let f4 = Fraction::from(f32::INFINITY);
-        let fmt4 = f4.format_as_decimal(64);
-
-        assert!(fmt4.is_some());
-        assert_eq!("inf", fmt4.unwrap());
-
-        let f5 = Fraction::from(f32::NEG_INFINITY);
-        let fmt5 = f5.format_as_decimal(64);
-
-        assert!(fmt5.is_some());
-        assert_eq!("-inf", fmt5.unwrap());
-
-        let f6 = Fraction::from(f32::NAN);
-        let fmt6 = f6.format_as_decimal(64);
-
-        assert!(fmt6.is_some());
-        assert_eq!("NaN", fmt6.unwrap());
-
-        #[cfg(feature = "with-bigint")]
-        {
-            let f7 = BigFraction::new(
-                BigUint::from(42u8),
-                BigUint::from(1000000000000000u64)
-                    * BigUint::from(1000000000000000u64)
-                    * BigUint::from(1000000000000000u64),
-            );
-            let fmt7 = f7.format_as_decimal(64);
-
-            assert!(fmt7.is_some());
-            assert_eq!(
-                "0.000000000000000000000000000000000000000000042",
-                fmt7.unwrap()
-            );
-        }
     }
 
     #[test]

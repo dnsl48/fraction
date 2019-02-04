@@ -16,6 +16,18 @@
 //! [`DynaInt`]: super::dynaint
 
 
+pub use super::fraction::GenericFraction;
+
+#[cfg(feature = "with-bigint")]
+pub use super::{BigInt, BigUint};
+
+#[cfg(feature="with-decimal")]
+pub use super::decimal::GenericDecimal;
+
+#[cfg(feature="with-dynaint")]
+pub use super::dynaint::DynaInt;
+
+
 /// Fraction consisting from two `u64` numbers
 ///
 /// Allows to keep and work with fractions on stack.
@@ -33,7 +45,7 @@
 ///
 /// assert_eq! (first + second, Fraction::new (3u8, 4u8));
 /// ```
-pub type Fraction = super::GenericFraction<u64>;
+pub type Fraction = GenericFraction<u64>;
 
 
 /// Fraction consisting from two [`BigUint`] numbers
@@ -57,7 +69,7 @@ pub type Fraction = super::GenericFraction<u64>;
 ///
 /// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
 #[cfg(feature="with-bigint")]
-pub type BigFraction = super::GenericFraction<super::BigUint>;
+pub type BigFraction = GenericFraction<BigUint>;
 
 
 /// Stack allocated, but dynamically growing into heap if necessary
@@ -103,7 +115,7 @@ pub type BigFraction = super::GenericFraction<super::BigUint>;
 /// );
 /// ```
 #[cfg(all(feature="with-bigint", feature="with-dynaint"))]
-pub type DynaFraction<T> = super::GenericFraction<super::dynaint::DynaInt<T, super::BigUint>>;
+pub type DynaFraction<T> = GenericFraction<DynaInt<T, BigUint>>;
 
 
 /// Basic Decimal based on 2 u64 numbers and one u8 for precision.
@@ -125,8 +137,7 @@ pub type DynaFraction<T> = super::GenericFraction<super::dynaint::DynaInt<T, sup
 /// assert_eq!(two / one.set_precision(8), Decimal::from("2.15489761"))
 /// ```
 #[cfg(feature="with-decimal")]
-pub type Decimal = super::GenericDecimal<u64, u8>;
-
+pub type Decimal = GenericDecimal<u64, u8>;
 
 /// Heap allocated [`BigUint`] for numerics and `usize` for precision
 ///
@@ -143,7 +154,7 @@ pub type Decimal = super::GenericDecimal<u64, u8>;
 ///
 /// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
 #[cfg(all(feature="with-decimal", feature="with-bigint"))]
-pub type BigDecimal = super::GenericDecimal<super::BigUint, usize>;
+pub type BigDecimal = GenericDecimal<BigUint, usize>;
 
 /// Stack allocated, but dynamically growing into heap if necessary
 ///
@@ -169,4 +180,4 @@ pub type BigDecimal = super::GenericDecimal<super::BigUint, usize>;
 ///
 /// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
 #[cfg(all(feature="with-decimal", feature="with-bigint", feature="with-dynaint"))]
-pub type DynaDecimal<T, P> = super::GenericDecimal<super::dynaint::DynaInt<T, super::BigUint>, P>;
+pub type DynaDecimal<T, P> = GenericDecimal<DynaInt<T, BigUint>, P>;

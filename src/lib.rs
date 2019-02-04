@@ -12,7 +12,7 @@
 //!
 //! - Drop in replacement for floats with the exception for NaN == NaN so that it's hashable
 //! - It's hashable, so may be used as values in Sets and keys in dictionaries and hash maps
-//! - [Fraction](GenericFraction) type, representing floats as fractions
+//! - [Fraction](GenericFraction) type, representing fractions
 //! - [Decimal](GenericDecimal) type, based on [Fraction](GenericFraction) type represents floats as lossless decimals
 //! - [DynaInt](dynaint) implements dinamically growing integer type that perfarms checked math and avoids stack overflows
 //! - PostgreSQL binary protocol integration for both fractions and decimals
@@ -49,8 +49,10 @@
 //! ```
 //! type F = fraction::Fraction;
 //!
-//! let result = F::from(0.5) / F::from(0.3);
-//! assert_eq!(format!("{}", result), "+5/3");
+//! let result = F::from(0.7) / F::from(0.4);
+//! assert_eq!(format!("{}", result), "7/4");
+//! assert_eq!(format!("{:.2}", result), "1.75");
+//! assert_eq!(format!("{:#.3}", result), "1.750");
 //! ```
 //!
 //! ### Simple Decimal use:
@@ -98,9 +100,12 @@ extern crate lazy_static;
 pub use num::bigint::{BigInt, BigUint};
 
 pub use num::rational::{ParseRatioError, Ratio};
+
 pub use num::{
-    /*#[cfg(feature="std")] Float,*/ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One,
-    Signed, ToPrimitive, Zero,
+    /*#[cfg(feature="std")] Float,*/
+    Bounded, CheckedAdd, CheckedDiv,
+    CheckedMul, CheckedSub, Integer,
+    Num, One, Signed, ToPrimitive, Zero,
 };
 
 #[cfg(test)] #[macro_use] mod tests;
@@ -123,9 +128,9 @@ pub use self::prelude::*;
 
 #[cfg(feature = "with-juniper-support")] extern crate juniper;
 #[cfg(feature = "with-postgres-support")] #[macro_use] extern crate postgres;
+
 #[cfg(feature = "with-serde-support")] #[macro_use] extern crate serde_derive;
 #[cfg(feature = "with-serde-support")] extern crate serde;
 
-#[cfg(feature = "with-dynaint")] pub mod dynaint;
 #[cfg(feature = "with-decimal")] mod decimal;
-#[cfg(feature = "with-decimal")] pub use decimal::GenericDecimal;
+#[cfg(feature = "with-dynaint")] pub mod dynaint;
