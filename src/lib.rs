@@ -12,6 +12,7 @@
 //!
 //! - Drop in replacement for floats with the exception for NaN == NaN so that it's hashable
 //! - It's hashable, so may be used as values in Sets and keys in dictionaries and hash maps
+//! - [Display](fraction::display) implementation for fractions and decimals
 //! - [Fraction](GenericFraction) type, representing fractions
 //! - [Decimal](GenericDecimal) type, based on [Fraction](GenericFraction) type represents floats as lossless decimals
 //! - [DynaInt](dynaint) implements dinamically growing integer type that perfarms checked math and avoids stack overflows
@@ -21,11 +22,10 @@
 //! - [Lossless division](division) with no allocations and infinite precision
 //!
 //! # Disclaimer
-//! Bugs to be expected!  
-//! Even though we do our best to keep it well covered with tests, it is not enterprise ready yet.  
-//! When it gets stable we will release the version 1.0.0.  
-//! You may find more info about Semantic Versioning on [https://semver.org/](https://semver.org/).  
-//! You are very welcome to report bugs or make other contributions.
+//! Even though we do our best to keep it well covered with tests, there may be bugs out there.
+//! The library API is still in flux. When it gets stable we will release the version 1.0.0.
+//! You may find more info about Semantic Versioning on [https://semver.org/](https://semver.org/).
+//! Bug reports and contributions are appreciated.
 //!
 //! # Crate features
 //! - `with-bigint` (default) integration with [num::BigInt] and [num::BigUint] data types
@@ -36,7 +36,7 @@
 //! - `with-serde-support` [Serde](https://crates.io/crates/serde) traits implementation
 //!
 //! # Implementation
-//! Basic math implemented upon the [num] crate (in particular the [num::rational] module).  
+//! Basic math implemented upon the [num] crate (in particular the [num::rational] module).
 //! The utilised traits from the [num] crate are re-exported, so you don't have to explicitly depend on that crate however,
 //! you may import them from either of crates if necessary.
 //!

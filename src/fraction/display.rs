@@ -3,7 +3,7 @@
 //! Complete support of the [std::fmt] formatting syntax with exceptions for alternate
 //! integer types (hexadecimal, octal, binary)
 //!
-//! There are a couple of discrepancies with std::fmt, which are  
+//! There are a couple of extensions on top of std::fmt, which are
 //!   - Alternate flag (`#`) is used to enable `trailing zeroes` output
 //!   - Negative sign (`-`) is used to suppress sign output (even negative)
 //!
