@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.6.1] - 2019-03-29
+### Added
+ - dynaint, Into<BigUint> implementation
+ - fraction, GenericFraction::into_fraction<I> method implementation
+
 ## [0.6.0] - 2019-02-05
 ### Added
 - division::divide_to_callback implementation. Some other functions refactored to be using it internally

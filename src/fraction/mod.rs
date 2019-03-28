@@ -344,8 +344,8 @@ where
         }
     }
 
-    /// Generates a GenericFraction<T> from a GenericFraction<F>
-    /// simply casting underlying values of F into T.
+    /// Generates a GenericFraction<T> from GenericFraction<F>
+    /// where T: From<F>
     ///
     /// ```
     /// use fraction::{ Fraction, GenericFraction };
@@ -365,6 +365,31 @@ where
             GenericFraction::Rational(sign, ratio) => {
                 let (num, den): (F, F) = ratio.into();
                 GenericFraction::Rational(sign, Ratio::new_raw(T::from(num), T::from(den)))
+            }
+        }
+    }
+
+    /// Generates a GenericFraction<I> from GenericFraction<T>
+    /// where T: Into<I>
+    ///
+    /// ```
+    /// use fraction::{ Fraction, GenericFraction };
+    /// type F8 = GenericFraction<u8>;
+    ///
+    /// let fra8 = F8::new (5u8, 6u8);
+    /// assert_eq! (Fraction::new (5u64, 6u64), fra8.into_fraction());
+    /// ```
+    pub fn into_fraction<I>(self) -> GenericFraction<I>
+    where
+        T: Into<I>,
+        I: Clone + Integer
+    {
+        match self {
+            GenericFraction::NaN => GenericFraction::NaN,
+            GenericFraction::Infinity(sign) => GenericFraction::Infinity(sign),
+            GenericFraction::Rational(sign, ratio) => {
+                let (num, den): (T, T) = ratio.into();
+                GenericFraction::Rational(sign, Ratio::new_raw(num.into(), den.into()))
             }
         }
     }
