@@ -3,7 +3,7 @@
 Lossless fractions and decimals; drop-in float replacement
 ------
 
-[![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]() [![Build Status](https://travis-ci.org/dnsl48/fraction.svg?branch=master)](https://travis-ci.org/dnsl48/fraction) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
+[![CircleCI](https://circleci.com/gh/dnsl48/fraction/tree/master.svg?style=svg)](https://circleci.com/gh/dnsl48/fraction/tree/master) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/) [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]()
 ------
 
 # Features
@@ -11,13 +11,27 @@ Lossless fractions and decimals; drop-in float replacement
  - It's hashable, so may be used as values in Sets and keys in dictionaries and hash maps
  - Fraction type, representing floats as fractions
  - Decimal type, based on Fraction type, represents floats as decimals
- - DynaInt implements dinamically growing integer type that performs checked math and avoids stack overflows
+ - DynaInt implements dynamically growing integer type that performs checked math and avoids stack overflows
  - PostgreSQL integration for Numeric/Decimal type (with no extra memory allocations)
  - Juniper integration for both fractions and decimals
  - Generic integer conversions, such as `i8 -> u8`, `usize -> u8` and so on
  - Lossless division with no allocations and infinite precision
 
+# Documentation
+ Here: [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
+
 # Examples
+
+## Formatting
+```rust
+use fraction::Fraction;
+
+let fraction = Fraction::new(7, 4);
+
+assert_eq!("7/4", format!("{}", fraction));
+assert_eq!("1.75", format!("{:.2}", fraction));
+assert_eq!("1.750", format!("{:#.3}", fraction));
+```
 
 ## Simple arithmetic
 ```rust
