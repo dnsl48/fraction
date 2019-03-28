@@ -814,6 +814,20 @@ where
     }
 }
 
+#[cfg(feature = "with-bigint")]
+impl<T, G> Into<BigUint> for DynaInt<T, G>
+where
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8>,
+    G: Clone + GenericInteger + Into<BigUint>,
+{
+    fn into(self) -> BigUint {
+        match self {
+            DynaInt::S(v) => <T as Into<G>>::into(v).into(),
+            DynaInt::__H(v) => v.into()
+        }
+    }
+}
+
 impl<T, G> Zero for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8>,
