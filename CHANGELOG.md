@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.6.2] - 2019-05-20
+### Addad
+ - std::error::Error implemented for error::ParseError
+
 ## [0.6.1] - 2019-03-29
 ### Added
  - dynaint, Into<BigUint> implementation

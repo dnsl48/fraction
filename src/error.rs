@@ -17,13 +17,26 @@ pub enum ParseError {
     /// Could not convert a character into a digit or a string into a number
     ParseIntError,
 
-    /// The base is not supported. E.g. some type only supports base 10, but we try to
+    /// The base is not supported. E.g. a type only supports base 10, but we try to
     /// parse with the base 7.
     UnsupportedBase
 }
 
 unsafe impl Send for ParseError {}
 unsafe impl Sync for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseError::OverflowError => write!(f, "Overflow"),
+            ParseError::ParseIntError => write!(f, "Could not parse integer"),
+            ParseError::UnsupportedBase => write!(f, "Unsupported base")
+        }
+    }
+}
+
+
+impl Error for ParseError {}
 
 
 /// Could not perform division, or fill in the resulting buffer
