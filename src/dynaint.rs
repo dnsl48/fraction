@@ -24,10 +24,11 @@
 //! assert_eq!(num.unpack(), Ok(255u8));
 //! ```
 
-
 use std::mem;
 
-use num::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One, Zero, ToPrimitive, Bounded};
+use num::{
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One, ToPrimitive, Zero,
+};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
 use std::ops::{
@@ -42,7 +43,6 @@ use num::BigUint;
 
 use convert::TryToConvertFrom;
 use generic::{read_generic_integer, GenericInteger};
-
 
 /// The wrapper implementation
 ///
@@ -66,13 +66,12 @@ where
     __H(G),
 }
 
-
 impl<T, G> Copy for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8>,
-    G: Copy + GenericInteger
-{}
-
+    G: Copy + GenericInteger,
+{
+}
 
 impl<T, G> fmt::Display for DynaInt<T, G>
 where
@@ -82,22 +81,24 @@ where
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
             DynaInt::S(value) => write!(formatter, "{}", value),
-            DynaInt::__H(value) => write!(formatter, "{}", value)
+            DynaInt::__H(value) => write!(formatter, "{}", value),
         }
     }
 }
-
 
 impl<T, G> Bounded for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + Bounded,
     G: Clone + GenericInteger + Bounded,
 {
-    fn min_value() -> Self { DynaInt::S(T::min_value()) }
+    fn min_value() -> Self {
+        DynaInt::S(T::min_value())
+    }
 
-    fn max_value() -> Self { DynaInt::__H(G::max_value()) }
+    fn max_value() -> Self {
+        DynaInt::__H(G::max_value())
+    }
 }
-
 
 impl<T, G> DynaInt<T, G>
 where
@@ -128,27 +129,25 @@ where
     }
 }
 
-
 impl<T, G> ToPrimitive for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + ToPrimitive,
-    G: Clone + GenericInteger
+    G: Clone + GenericInteger,
 {
     fn to_i64(&self) -> Option<i64> {
         match self {
             DynaInt::S(val) => val.to_i64(),
-            DynaInt::__H(val) => val.to_i64()
+            DynaInt::__H(val) => val.to_i64(),
         }
     }
 
     fn to_u64(&self) -> Option<u64> {
         match self {
             DynaInt::S(val) => val.to_u64(),
-            DynaInt::__H(val) => val.to_u64()
+            DynaInt::__H(val) => val.to_u64(),
         }
     }
 }
-
 
 impl<T, G> GenericInteger for DynaInt<T, G>
 where
@@ -185,7 +184,6 @@ where
         (Sign::Plus, self)
     }
 }
-
 
 macro_rules! dyna_impl {
     (impl_trait_birefs_customret; $trait:ident, $fn:ident, $ret:ty) => {
@@ -745,8 +743,6 @@ macro_rules! dyna_impl {
     };
 }
 
-
-
 dyna_impl! (impl_trait_birefs_customret; PartialEq, eq, bool);
 dyna_impl! (impl_trait_birefs_customret; PartialOrd, partial_cmp, Option<Ordering>);
 dyna_impl! (impl_trait_birefs_customret; Ord, cmp, Ordering);
@@ -791,7 +787,8 @@ impl<T, G> Eq for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + Eq,
     G: Clone + GenericInteger + Eq,
-{}
+{
+}
 
 impl<T, G> From<u8> for DynaInt<T, G>
 where
@@ -823,7 +820,7 @@ where
     fn into(self) -> BigUint {
         match self {
             DynaInt::S(v) => <T as Into<G>>::into(v).into(),
-            DynaInt::__H(v) => v.into()
+            DynaInt::__H(v) => v.into(),
         }
     }
 }
@@ -857,12 +854,7 @@ where
 
 impl<T, G> Num for DynaInt<T, G>
 where
-    T: Copy
-        + GenericInteger
-        + Into<G>
-        + TryToConvertFrom<G>
-        + From<u8>
-        + Num,
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + Num,
     G: Clone + GenericInteger,
 {
     type FromStrRadixErr = <G as Num>::FromStrRadixErr;
@@ -876,11 +868,7 @@ where
 
 impl<T, G> Integer for DynaInt<T, G>
 where
-    T: Copy
-        + GenericInteger
-        + Into<G>
-        + TryToConvertFrom<G>
-        + From<u8>,
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8>,
     G: Clone + GenericInteger,
 {
     dyna_impl!(impl_fn_refmath; div_floor);
@@ -897,10 +885,12 @@ where
     dyna_impl!(impl_fn_refmath_tuple2self; div_rem);
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, DynaInt, GenericInteger, Integer, Num, One, Sign, ToPrimitive, Zero};
+    use super::{
+        CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, DynaInt, GenericInteger, Integer, Num, One,
+        Sign, ToPrimitive, Zero,
+    };
 
     type D = DynaInt<u8, u16>;
 
@@ -1029,16 +1019,40 @@ mod tests {
 
         assert_eq!(257u16, (D::one() + D::from(256u16)).unpack().err().unwrap());
         assert_eq!(256u16, (D::one() + &D::from(255u8)).unpack().err().unwrap());
-        assert_eq!(257u16, (D::one() + &D::from(256u16)).unpack().err().unwrap());
-        assert_eq!(257u16, (&D::one() + &D::from(256u16)).unpack().err().unwrap());
+        assert_eq!(
+            257u16,
+            (D::one() + &D::from(256u16)).unpack().err().unwrap()
+        );
+        assert_eq!(
+            257u16,
+            (&D::one() + &D::from(256u16)).unpack().err().unwrap()
+        );
 
         assert_eq!(257u16, (D::from(256u16) + D::one()).unpack().err().unwrap());
-        assert_eq!(257u16, (D::from(256u16) + &D::one()).unpack().err().unwrap());
-        assert_eq!(257u16, (&D::from(256u16) + &D::one()).unpack().err().unwrap());
+        assert_eq!(
+            257u16,
+            (D::from(256u16) + &D::one()).unpack().err().unwrap()
+        );
+        assert_eq!(
+            257u16,
+            (&D::from(256u16) + &D::one()).unpack().err().unwrap()
+        );
 
-        assert_eq!(512u16, (D::from(256u16) + D::from(256u16)).unpack().err().unwrap());
-        assert_eq!(512u16, (D::from(256u16) + &D::from(256u16)).unpack().err().unwrap());
-        assert_eq!(512u16, (&D::from(256u16) + &D::from(256u16)).unpack().err().unwrap());
+        assert_eq!(
+            512u16,
+            (D::from(256u16) + D::from(256u16)).unpack().err().unwrap()
+        );
+        assert_eq!(
+            512u16,
+            (D::from(256u16) + &D::from(256u16)).unpack().err().unwrap()
+        );
+        assert_eq!(
+            512u16,
+            (&D::from(256u16) + &D::from(256u16))
+                .unpack()
+                .err()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -1054,7 +1068,6 @@ mod tests {
 
         assert_eq!(D::from(256u16), D::from(256u16) & D::from(257u16));
         assert_eq!(D::from(256u16), &D::from(256u16) & &D::from(257u16));
-
 
         {
             let mut v = D::one();
@@ -1104,7 +1117,6 @@ mod tests {
             assert_eq!(v, D::from(256u16));
         }
     }
-
 
     #[test]
     fn op_rem() {
@@ -1177,10 +1189,19 @@ mod tests {
     fn checked_math() {
         assert_eq!(Some(D::zero()), D::zero().checked_add(&D::zero()));
         assert_eq!(Some(D::from(256u16)), D::one().checked_add(&D::from(255u8)));
-        assert_eq!(Some(D::from(257u16)), D::one().checked_add(&D::from(256u16)));
+        assert_eq!(
+            Some(D::from(257u16)),
+            D::one().checked_add(&D::from(256u16))
+        );
 
-        assert_eq!(Some(D::from(257u16)), D::from(256u16).checked_add(&D::one()));
-        assert_eq!(Some(D::from(512u16)), D::from(256u16).checked_add(&D::from(256u16)));
+        assert_eq!(
+            Some(D::from(257u16)),
+            D::from(256u16).checked_add(&D::one())
+        );
+        assert_eq!(
+            Some(D::from(512u16)),
+            D::from(256u16).checked_add(&D::from(256u16))
+        );
 
         assert_eq!(None, D::from(u16::max_value()).checked_add(&D::one()));
         assert_eq!(None, D::one().checked_add(&D::from(u16::max_value())));
@@ -1232,7 +1253,13 @@ mod tests {
 
         assert_eq!((D::one(), D::zero()), D::one().div_rem(&D::one()));
         assert_eq!((D::zero(), D::one()), D::one().div_rem(&D::from(256u16)));
-        assert_eq!((D::from(256u16), D::zero()), D::from(256u16).div_rem(&D::one()));
-        assert_eq!((D::one(), D::one()), D::from(257u16).div_rem(&D::from(256u16)));
+        assert_eq!(
+            (D::from(256u16), D::zero()),
+            D::from(256u16).div_rem(&D::one())
+        );
+        assert_eq!(
+            (D::one(), D::one()),
+            D::from(257u16).div_rem(&D::from(256u16))
+        );
     }
 }

@@ -357,7 +357,6 @@ where
     Ok(state)
 }
 
-
 /// Calculate the max possible length of division in characters (including floating point)
 /// This may be useful for string/vector pre-allocations
 ///
@@ -395,7 +394,6 @@ where
     len + precision + if precision > 0 { 1 } else { 0 }
 }
 
-
 /// Divide a fraction into a [`String`]
 ///
 ///  - Makes only one allocation for the resulting string
@@ -425,7 +423,7 @@ pub fn divide_to_string<I>(
     dividend: I,
     divisor: I,
     precision: usize,
-    trail_zeroes: bool
+    trail_zeroes: bool,
 ) -> Result<String, DivisionError>
 where
     I: Clone + GenericInteger,
@@ -466,7 +464,7 @@ pub fn divide_to_ascii_vec<I>(
     dividend: I,
     divisor: I,
     precision: usize,
-    trail_zeroes: bool
+    trail_zeroes: bool,
 ) -> Result<Vec<u8>, DivisionError>
 where
     I: Clone + GenericInteger,
@@ -548,15 +546,10 @@ pub fn divide_to_writeable<I>(
 where
     I: Clone + GenericInteger,
 {
-    divide_to_callback(
-        dividend,
-        divisor,
-        precision,
-        trail_zeroes,
-        |digit| write_digit(writeable, digit)
-    )
+    divide_to_callback(dividend, divisor, precision, trail_zeroes, |digit| {
+        write_digit(writeable, digit)
+    })
 }
-
 
 /// Calculate the division result and pass every character into the callback  
 /// Returns the remainder of the division
@@ -590,26 +583,24 @@ pub fn divide_to_callback<I, C>(
     divisor: I,
     mut precision: usize,
     trail_zeroes: bool,
-    mut callback: C
+    mut callback: C,
 ) -> Result<I, DivisionError>
 where
     C: FnMut(u8) -> Result<bool, DivisionError>,
-    I: Clone + GenericInteger
+    I: Clone + GenericInteger,
 {
     let mut keep_going = true;
 
-    let mut div_state = divide_integral(dividend, divisor, |digit: u8| {
-        match callback(digit) {
-            result @ Ok(false) => {
-                keep_going = false;
-                result
-            },
-            result @ _ => result
+    let mut div_state = divide_integral(dividend, divisor, |digit: u8| match callback(digit) {
+        result @ Ok(false) => {
+            keep_going = false;
+            result
         }
+        result @ _ => result,
     })?;
 
     if !keep_going {
-        return Ok(div_state.remainder)
+        return Ok(div_state.remainder);
     }
 
     if precision > 0 {
@@ -634,11 +625,11 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result
+                                result @ _ => result,
                             }?;
 
                             if !keep_going {
-                                return Ok(Err(state))
+                                return Ok(Err(state));
                             }
                         }
 
@@ -650,11 +641,11 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result
+                                result @ _ => result,
                             }?;
 
                             if !keep_going {
-                                return Ok(Err(state))
+                                return Ok(Err(state));
                             }
                         }
 
@@ -663,11 +654,11 @@ where
                                 keep_going = false;
                                 result
                             }
-                            result @ _ => result
+                            result @ _ => result,
                         }?;
 
                         if !keep_going {
-                            return Ok(Err(state))
+                            return Ok(Err(state));
                         }
                     }
 
@@ -687,11 +678,11 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result
+                    result @ _ => result,
                 }?;
 
                 if !keep_going {
-                    return Ok(div_state.remainder)
+                    return Ok(div_state.remainder);
                 }
             }
 
@@ -703,11 +694,11 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result
+                    result @ _ => result,
                 }?;
 
                 if !keep_going {
-                    return Ok(div_state.remainder)
+                    return Ok(div_state.remainder);
                 }
             }
 
@@ -719,11 +710,11 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result
+                    result @ _ => result,
                 }?;
 
                 if !keep_going {
-                    return Ok(div_state.remainder)
+                    return Ok(div_state.remainder);
                 }
             }
         }
@@ -731,7 +722,6 @@ where
 
     Ok(div_state.remainder)
 }
-
 
 /// A helper function to use in conjunction with [divide_to_callback]
 ///
@@ -753,8 +743,7 @@ where
 /// assert_eq!(&result, "1.75");
 /// assert_eq!(length, result.len());
 /// ```
-pub fn write_digit(writeable: &mut Write, digit: u8) -> Result<bool, DivisionError>
-{
+pub fn write_digit(writeable: &mut Write, digit: u8) -> Result<bool, DivisionError> {
     if digit == 10u8 {
         match writeable.write_char('.') {
             Ok(_) => Ok(true),
@@ -767,7 +756,6 @@ pub fn write_digit(writeable: &mut Write, digit: u8) -> Result<bool, DivisionErr
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1085,7 +1073,8 @@ mod tests {
 
             {
                 let mut string: String = String::new();
-                let mut remainder = divide_to_writeable(&mut string, i.0, i.1, PRECISION, false).unwrap();
+                let mut remainder =
+                    divide_to_writeable(&mut string, i.0, i.1, PRECISION, false).unwrap();
 
                 assert_eq!(string, i.2);
                 assert_eq!(remainder.is_zero(), i.3);
@@ -1096,7 +1085,8 @@ mod tests {
         {
             for i in data {
                 assert_eq!(
-                    divide_to_string(BigUint::from(i.0), BigUint::from(i.1), PRECISION, false).unwrap(),
+                    divide_to_string(BigUint::from(i.0), BigUint::from(i.1), PRECISION, false)
+                        .unwrap(),
                     i.2
                 );
             }
@@ -1154,7 +1144,7 @@ mod tests {
                 BigUint::from_str_radix(num, 10).ok().unwrap(),
                 BigUint::from_str_radix(den, 10).ok().unwrap(),
                 1024,
-                false
+                false,
             );
 
             assert_eq!(&asrt1.ok().unwrap(), result);
@@ -1163,7 +1153,7 @@ mod tests {
                 BigUint::from_str_radix(num, 10).ok().unwrap(),
                 BigUint::from_str_radix(den, 10).ok().unwrap(),
                 1024,
-                true
+                true,
             );
 
             assert_eq!(&asrt1.ok().unwrap(), result);
@@ -1173,11 +1163,23 @@ mod tests {
     #[test]
     fn test_divide_to_ascii_vec() {
         assert_eq!(divide_to_ascii_vec(0, 5, 5, false).unwrap(), vec![48]);
-        assert_eq!(divide_to_ascii_vec(0, 5, 5, true).unwrap(), vec![48, 46, 48, 48, 48, 48, 48]);
+        assert_eq!(
+            divide_to_ascii_vec(0, 5, 5, true).unwrap(),
+            vec![48, 46, 48, 48, 48, 48, 48]
+        );
         assert_eq!(divide_to_ascii_vec(30, 2, 5, false).unwrap(), vec![49, 53]);
-        assert_eq!(divide_to_ascii_vec(2, 4, 2, false).unwrap(), vec![48, 46, 53]);
-        assert_eq!(divide_to_ascii_vec(2, 4, 2, true).unwrap(), vec![48, 46, 53, 48]);
-        assert_eq!(divide_to_ascii_vec(255u8, 3u8, 5, false).unwrap(), vec![56, 53]);
+        assert_eq!(
+            divide_to_ascii_vec(2, 4, 2, false).unwrap(),
+            vec![48, 46, 53]
+        );
+        assert_eq!(
+            divide_to_ascii_vec(2, 4, 2, true).unwrap(),
+            vec![48, 46, 53, 48]
+        );
+        assert_eq!(
+            divide_to_ascii_vec(255u8, 3u8, 5, false).unwrap(),
+            vec![56, 53]
+        );
         assert_eq!(
             divide_to_ascii_vec(1000001u64, 10000u64, 3, false).unwrap(),
             vec![49, 48, 48]

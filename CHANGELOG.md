@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.6.3] - ????-??-??
+### Changed
+ - rustfmt applied
+
 ## [0.6.2] - 2019-05-20
 ### Addad
  - std::error::Error implemented for error::ParseError

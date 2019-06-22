@@ -57,10 +57,7 @@ mod juniper_support;
 /// assert_eq!(add, Decimal::from(12.5));
 /// ```
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "with-serde-support",
-    derive(Serialize, Deserialize)
-)]
+#[cfg_attr(feature = "with-serde-support", derive(Serialize, Deserialize))]
 pub struct GenericDecimal<T, P>(GenericFraction<T>, P)
 where
     T: Clone + Integer,
@@ -70,7 +67,8 @@ impl<T, P> Copy for GenericDecimal<T, P>
 where
     T: Copy + Integer,
     P: Copy + Integer + Into<usize>,
-{}
+{
+}
 
 impl<T, P> fmt::Display for GenericDecimal<T, P>
 where
@@ -80,11 +78,9 @@ where
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GenericDecimal(ref fraction, precision) => {
-                let format = display::Format::new(formatter)
-                    .set_precision(Some(
-                        formatter.precision()
-                            .unwrap_or_else(|| precision.into())
-                    ));
+                let format = display::Format::new(formatter).set_precision(Some(
+                    formatter.precision().unwrap_or_else(|| precision.into()),
+                ));
                 display::format_fraction(fraction, formatter, &format)
             }
         }
@@ -407,11 +403,13 @@ where
                                         Ok(Err(s))
                                     },
                                 ) {
-                                    Ok(s) => if s.remainder.is_zero() {
-                                        None
-                                    } else {
-                                        Some(s)
-                                    },
+                                    Ok(s) => {
+                                        if s.remainder.is_zero() {
+                                            None
+                                        } else {
+                                            Some(s)
+                                        }
+                                    }
                                     Err(_) => return false,
                                 };
 
@@ -422,11 +420,13 @@ where
                                         Ok(Err(s))
                                     },
                                 ) {
-                                    Ok(s) => if s.remainder.is_zero() {
-                                        None
-                                    } else {
-                                        Some(s)
-                                    },
+                                    Ok(s) => {
+                                        if s.remainder.is_zero() {
+                                            None
+                                        } else {
+                                            Some(s)
+                                        }
+                                    }
                                     Err(_) => return false,
                                 };
 
@@ -452,11 +452,13 @@ where
                                                     },
                                                 );
                                                 o_state = match div_result {
-                                                    Ok(s) => if s.remainder.is_zero() {
-                                                        None
-                                                    } else {
-                                                        Some(s)
-                                                    },
+                                                    Ok(s) => {
+                                                        if s.remainder.is_zero() {
+                                                            None
+                                                        } else {
+                                                            Some(s)
+                                                        }
+                                                    }
                                                     Err(_) => return false,
                                                 };
 
@@ -485,11 +487,13 @@ where
                                                     },
                                                 );
                                                 s_state = match div_result {
-                                                    Ok(s) => if s.remainder.is_zero() {
-                                                        None
-                                                    } else {
-                                                        Some(s)
-                                                    },
+                                                    Ok(s) => {
+                                                        if s.remainder.is_zero() {
+                                                            None
+                                                        } else {
+                                                            Some(s)
+                                                        }
+                                                    }
                                                     Err(_) => return false,
                                                 };
 
@@ -535,11 +539,13 @@ where
         match self {
             GenericDecimal(fraction, precision) => match fraction {
                 GenericFraction::NaN => state.write_u8(0u8),
-                GenericFraction::Infinity(sign) => if let Sign::Plus = sign {
-                    state.write_u8(1u8)
-                } else {
-                    state.write_u8(2u8)
-                },
+                GenericFraction::Infinity(sign) => {
+                    if let Sign::Plus = sign {
+                        state.write_u8(1u8)
+                    } else {
+                        state.write_u8(2u8)
+                    }
+                }
                 GenericFraction::Rational(sign, ratio) => {
                     if let Sign::Plus = sign {
                         state.write_u8(3u8)
@@ -554,7 +560,8 @@ where
                         division::divide_integral(num.clone(), den.clone(), |digit: u8| {
                             state.write_u8(digit);
                             Ok(true)
-                        }).ok();
+                        })
+                        .ok();
 
                     if !precision.is_zero() {
                         let mut dot = false;
@@ -587,7 +594,8 @@ where
 
                                         Ok(if precision.is_zero() { Err(s) } else { Ok(s) })
                                     },
-                                ).ok();
+                                )
+                                .ok();
                             }
                         }
                     }
@@ -601,7 +609,8 @@ impl<T, P> Eq for GenericDecimal<T, P>
 where
     T: Clone + GenericInteger + Eq,
     P: Copy + GenericInteger + Into<usize>,
-{}
+{
+}
 
 impl<T, P> Bounded for GenericDecimal<T, P>
 where
