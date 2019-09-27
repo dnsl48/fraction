@@ -25,17 +25,20 @@ Lossless fractions and decimals; drop-in float replacement
 ## Formatting
 ```rust
 use fraction::Fraction;
+fn main() {
+  let fraction = Fraction::new(7u, 4u);
 
-let fraction = Fraction::new(7, 4);
-
-assert_eq!("7/4", format!("{}", fraction));
-assert_eq!("1.75", format!("{:.2}", fraction));
-assert_eq!("1.750", format!("{:#.3}", fraction));
+  assert_eq!("7/4", format!("{}", fraction));
+  assert_eq!("1.75", format!("{:.2}", fraction));
+  assert_eq!("1.750", format!("{:#.3}", fraction));
+}
 ```
 
 ## Simple arithmetic
 ```rust
 use fraction::Fraction;
+use fraction::ToPrimitive;
+use fraction::Zero;
 
 fn main () {
   let mut fr = Fraction::zero ();
@@ -44,16 +47,18 @@ fn main () {
   fr = fr / Fraction::from (0.5); // 2 / 0.5 = 4
 
   assert_eq! (fr, Fraction::from (4));
-  assert_eq! (4.0f64, fr.to_f64 ());
+  assert_eq! (4.0f64, fr.to_f64 ().unwrap());
 }
 ```
 
 ## Decimal
 ```rust
-type D = fraction::Decimal;
+fn main () {
+  type D = fraction::Decimal;
 
-let result = D::from(0.5) / D::from(0.3);
-assert_eq!(format!("{:.4}", result), "1.6666");
+  let result = D::from(0.5) / D::from(0.3);
+  assert_eq!(format!("{:.4}", result), "1.6666");
+}
 ```
 
 ## Using as keys for a HashMap
@@ -77,12 +82,14 @@ fn main () {
 
 ### Generic integer conversion
 ```rust
-use fraction::{Sign, GenericFraction};
+use fraction::{GenericFraction, Sign};
 
-type F = GenericFraction<u32>;
+fn main() {
+  type F = GenericFraction<u32>;
 
-let fra = F::new_generic(Sign::Plus, 1i8, 42usize).unwrap();
-assert_eq!(fra, F::new(1u32, 42u32));
+  let fra = F::new_generic(Sign::Plus, 1i8, 42usize).unwrap();
+  assert_eq!(fra, F::new(1u32, 42u32));
+}
 ```
 
 ## Comparison
