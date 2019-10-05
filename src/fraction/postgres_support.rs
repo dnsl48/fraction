@@ -5,9 +5,9 @@ use postgres::types::{FromSql, IsNull, ToSql, Type, NUMERIC};
 
 use super::{GenericFraction, Sign, Zero};
 use division::{divide_integral, divide_rem};
+use error::GenericError;
 use generic::GenericInteger;
 
-use std::error::Error;
 use std::fmt;
 use std::mem;
 
@@ -19,7 +19,7 @@ const PG_NBASE_I: i16 = 10000;
 pub const PG_MAX_PRECISION: usize = 16383;
 
 #[inline]
-pub fn read_i16(mut buf: &[u8]) -> Result<i16, Box<Error + Sync + Send>> {
+pub fn read_i16(mut buf: &[u8]) -> Result<i16, GenericError> {
     match buf.read_i16::<BigEndian>() {
         Ok(n) => Ok(n),
         Err(e) => Err(e.into()),
@@ -27,7 +27,7 @@ pub fn read_i16(mut buf: &[u8]) -> Result<i16, Box<Error + Sync + Send>> {
 }
 
 #[inline]
-pub fn read_u16(mut buf: &[u8]) -> Result<u16, Box<Error + Sync + Send>> {
+pub fn read_u16(mut buf: &[u8]) -> Result<u16, GenericError> {
     match buf.read_u16::<BigEndian>() {
         Ok(n) => Ok(n),
         Err(e) => Err(e.into()),
@@ -35,7 +35,7 @@ pub fn read_u16(mut buf: &[u8]) -> Result<u16, Box<Error + Sync + Send>> {
 }
 
 #[inline]
-pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), Box<Error + Sync + Send>> {
+pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), GenericError> {
     match buf.write_i16::<BigEndian>(value) {
         Ok(()) => Ok(()),
         Err(e) => Err(e.into()),
@@ -43,7 +43,7 @@ pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), Box<Error + Sync 
 }
 
 #[inline]
-pub fn write_u16(mut buf: &mut [u8], value: u16) -> Result<(), Box<Error + Sync + Send>> {
+pub fn write_u16(mut buf: &mut [u8], value: u16) -> Result<(), GenericError> {
     match buf.write_u16::<BigEndian>(value) {
         Ok(()) => Ok(()),
         Err(e) => Err(e.into()),
@@ -54,7 +54,7 @@ impl<T> FromSql for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u16>,
 {
-    fn from_sql(_ty: &Type, raw: &[u8]) -> Result<Self, Box<Error + Sync + Send>> {
+    fn from_sql(_ty: &Type, raw: &[u8]) -> Result<Self, GenericError> {
         if raw.len() < 8 {
             return Err("unexpected data package from the database".into());
         }
@@ -212,7 +212,7 @@ impl<T> ToSql for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u8> + fmt::Debug,
 {
-    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<Error + Sync + Send>> {
+    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, GenericError> {
         fraction_to_sql_buf(self, ty, buf, PG_MAX_PRECISION)
     }
 
@@ -226,11 +226,15 @@ pub fn fraction_to_sql_buf<T>(
     _ty: &Type,
     buf: &mut Vec<u8>,
     precision: usize,
-) -> Result<IsNull, Box<Error + Sync + Send>>
+) -> Result<IsNull, GenericError>
 where
     T: Clone + GenericInteger + From<u8>,
 {
-    let precision = if precision <= PG_MAX_PRECISION { precision } else { PG_MAX_PRECISION };
+    let precision = if precision <= PG_MAX_PRECISION {
+        precision
+    } else {
+        PG_MAX_PRECISION
+    };
 
     let buffer_offset: usize = buf.len();
     buf.write_u64::<BigEndian>(0)?; // fill in the first 8 bytes
@@ -351,44 +355,48 @@ where
 
     if !div_state.remainder.is_zero() {
         padding = weight < 0; // true;
-        divide_rem(div_state.remainder, div_state.divisor, |state, digit: u8| {
-            let digit: i16 = digit.into();
+        divide_rem(
+            div_state.remainder,
+            div_state.divisor,
+            |state, digit: u8| {
+                let digit: i16 = digit.into();
 
-            if digit != 0 {
-                if padding && weight > 0 {
-                    ndigits += weight;
-                    for _ in 0..weight {
+                if digit != 0 {
+                    if padding && weight > 0 {
+                        ndigits += weight;
+                        for _ in 0..weight {
+                            buf.write_i16::<BigEndian>(ndigit)?;
+                        }
+                    }
+                    padding = false;
+                }
+
+                nptr += 1;
+
+                ndigit += digit * (PG_NBASE_I / 10i16.pow(nptr));
+
+                scale += 1;
+                uscale += 1;
+
+                if nptr > 3 {
+                    if padding && weight < 0 {
+                        weight -= 1;
+                    } else {
+                        ndigits += 1;
                         buf.write_i16::<BigEndian>(ndigit)?;
                     }
+
+                    nptr = 0;
+                    ndigit = 0;
                 }
-                padding = false;
-            }
 
-            nptr += 1;
-
-            ndigit += digit * (PG_NBASE_I / 10i16.pow(nptr));
-
-            scale += 1;
-            uscale += 1;
-
-            if nptr > 3 {
-                if padding && weight < 0 {
-                    weight -= 1;
+                Ok(if uscale < precision {
+                    Ok(state)
                 } else {
-                    ndigits += 1;
-                    buf.write_i16::<BigEndian>(ndigit)?;
-                }
-
-                nptr = 0;
-                ndigit = 0;
-            }
-
-            Ok(if uscale < precision {
-                Ok(state)
-            } else {
-                Err(state)
-            })
-        })?;
+                    Err(state)
+                })
+            },
+        )?;
 
         if nptr != 0 && !padding {
             ndigits += 1;

@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.7.0] - ????-??-??
+### Added
+ - std::error::GenericError type alias
+
+### Changed
+ - no dynamic dispatch anymore for ::std::fmt::Write in display and division modules
+
 ## [0.6.2] - 2019-05-20
 ### Addad
  - std::error::Error implemented for error::ParseError

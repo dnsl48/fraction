@@ -8,6 +8,11 @@ use std::fmt;
 use std::io;
 
 
+/// A generic error object
+/// dynamically dispatched at runtime
+pub type GenericError = Box<dyn Error + Send + Sync>;
+
+
 /// Happens when we parse stuff from strings
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ParseError {
@@ -53,7 +58,7 @@ pub enum DivisionError {
 
     /// Errors external to the division algorithm still may be passed
     /// through the co-routines wrapped up with this constructor
-    ExternalError(Box<Error + Send + Sync>)
+    ExternalError(GenericError)
 }
 
 unsafe impl Sync for DivisionError {}

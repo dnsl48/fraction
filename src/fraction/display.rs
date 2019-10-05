@@ -189,7 +189,10 @@ impl Format {
     }
 }
 
-pub fn format_sign(sign: Sign, buffer: &mut fmt::Write, format: &Format) -> fmt::Result {
+pub fn format_sign<W>(sign: Sign, buffer: &mut W, format: &Format) -> fmt::Result
+where
+    W: fmt::Write,
+{
     if format.sign_plus() || (!format.sign_minus() && sign.is_negative()) {
         if format.sign_aware_zero_pad() {
             let format = format.clone().set_sign_aware_zero_pad(false);
@@ -220,13 +223,14 @@ pub fn format_sign(sign: Sign, buffer: &mut fmt::Write, format: &Format) -> fmt:
     }
 }
 
-pub fn format_fraction<T>(
+pub fn format_fraction<T, W>(
     fraction: &GenericFraction<T>,
-    buffer: &mut fmt::Write,
+    buffer: &mut W,
     format: &Format,
 ) -> fmt::Result
 where
     T: Clone + GenericInteger,
+    W: fmt::Write,
 {
     match *fraction {
         GenericFraction::NaN => format_value(
@@ -339,8 +343,8 @@ where
     }
 }
 
-fn format_value<L, V>(
-    buffer: &mut fmt::Write,
+fn format_value<L, V, W>(
+    buffer: &mut W,
     format: &Format,
     sign: Option<Sign>,
     value_length: L,
@@ -348,7 +352,8 @@ fn format_value<L, V>(
 ) -> fmt::Result
 where
     L: Fn(&Format) -> usize,
-    V: FnOnce(&mut fmt::Write, &Format) -> Result<usize, fmt::Error>,
+    V: FnOnce(&mut W, &Format) -> Result<usize, fmt::Error>,
+    W: fmt::Write,
 {
     if let Some(width) = format.width() {
         let width = *width;
