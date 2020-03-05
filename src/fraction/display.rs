@@ -189,7 +189,7 @@ impl Format {
     }
 }
 
-pub fn format_sign(sign: Sign, buffer: &mut fmt::Write, format: &Format) -> fmt::Result {
+pub fn format_sign(sign: Sign, buffer: &mut dyn fmt::Write, format: &Format) -> fmt::Result {
     if format.sign_plus() || (!format.sign_minus() && sign.is_negative()) {
         if format.sign_aware_zero_pad() {
             let format = format.clone().set_sign_aware_zero_pad(false);
@@ -222,7 +222,7 @@ pub fn format_sign(sign: Sign, buffer: &mut fmt::Write, format: &Format) -> fmt:
 
 pub fn format_fraction<T>(
     fraction: &GenericFraction<T>,
-    buffer: &mut fmt::Write,
+    buffer: &mut dyn fmt::Write,
     format: &Format,
 ) -> fmt::Result
 where
@@ -340,7 +340,7 @@ where
 }
 
 fn format_value<L, V>(
-    buffer: &mut fmt::Write,
+    buffer: &mut dyn fmt::Write,
     format: &Format,
     sign: Option<Sign>,
     value_length: L,
@@ -348,7 +348,7 @@ fn format_value<L, V>(
 ) -> fmt::Result
 where
     L: Fn(&Format) -> usize,
-    V: FnOnce(&mut fmt::Write, &Format) -> Result<usize, fmt::Error>,
+    V: FnOnce(&mut dyn fmt::Write, &Format) -> Result<usize, fmt::Error>,
 {
     if let Some(width) = format.width() {
         let width = *width;
