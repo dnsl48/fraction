@@ -539,7 +539,7 @@ where
 /// [`divide_rem`]: ./fn.divide_rem.html
 #[inline]
 pub fn divide_to_writeable<I>(
-    writeable: &mut Write,
+    writeable: &mut dyn Write,
     dividend: I,
     divisor: I,
     precision: usize,
@@ -753,7 +753,7 @@ where
 /// assert_eq!(&result, "1.75");
 /// assert_eq!(length, result.len());
 /// ```
-pub fn write_digit(writeable: &mut Write, digit: u8) -> Result<bool, DivisionError>
+pub fn write_digit(writeable: &mut dyn Write, digit: u8) -> Result<bool, DivisionError>
 {
     if digit == 10u8 {
         match writeable.write_char('.') {
@@ -1085,7 +1085,7 @@ mod tests {
 
             {
                 let mut string: String = String::new();
-                let mut remainder = divide_to_writeable(&mut string, i.0, i.1, PRECISION, false).unwrap();
+                let remainder = divide_to_writeable(&mut string, i.0, i.1, PRECISION, false).unwrap();
 
                 assert_eq!(string, i.2);
                 assert_eq!(remainder.is_zero(), i.3);

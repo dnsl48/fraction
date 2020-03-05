@@ -53,7 +53,7 @@ pub enum DivisionError {
 
     /// Errors external to the division algorithm still may be passed
     /// through the co-routines wrapped up with this constructor
-    ExternalError(Box<Error + Send + Sync>)
+    ExternalError(Box<dyn Error + Send + Sync>)
 }
 
 unsafe impl Sync for DivisionError {}
