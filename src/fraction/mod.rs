@@ -2,6 +2,7 @@
 use super::{BigInt, BigUint};
 
 use error::ParseError;
+use std::iter::{Sum, Product};
 
 use super::{
     /*Float, */ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One,
@@ -1700,6 +1701,30 @@ where
                 }
             },
         };
+    }
+}
+
+impl<T: Clone + Integer> Sum for GenericFraction<T> {
+    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(GenericFraction::<T>::zero(), Add::add)
+    }
+}
+
+impl<'a, T: 'a + Clone + Integer> Sum<&'a GenericFraction<T>> for GenericFraction<T> {
+    fn sum<I: Iterator<Item=&'a Self>>(iter: I) -> Self {
+        iter.fold(GenericFraction::<T>::zero(), |ref s, x| Add::add(s, x))
+    }
+}
+
+impl<T: Clone + Integer> Product for GenericFraction<T> {
+    fn product<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(GenericFraction::<T>::one(), Mul::mul)
+    }
+}
+
+impl<'a, T: 'a + Clone + Integer> Product<&'a GenericFraction<T>> for GenericFraction<T> {
+    fn product<I: Iterator<Item=&'a Self>>(iter: I) -> Self {
+        iter.fold(GenericFraction::<T>::one(), |ref s, x| Mul::mul(s, x))
     }
 }
 
@@ -4346,5 +4371,19 @@ mod tests {
         );
 
         assert_eq!(1f64, Frac::one().to_f64().unwrap());
+    }
+
+    #[test]
+    fn summing_iterator() {
+        let values = vec![Fraction::new(2u64, 3u64), Fraction::new(1u64, 3u64)];
+        let sum: Fraction = values.iter().sum();
+        assert_eq!(sum, Fraction::new(1u8, 1u8));
+    }
+
+    #[test]
+    fn product_iterator() {
+        let values = vec![Fraction::new(2u64, 3u64), Fraction::new(1u64, 3u64)];
+        let product: Fraction = values.iter().product();
+        assert_eq!(product, Fraction::new(2u8, 9u8));
     }
 }
