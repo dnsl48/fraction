@@ -14,6 +14,7 @@ use std::num::FpCategory;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
 };
+use std::iter::{Sum, Product};
 
 use super::{GenericFraction, Sign};
 use division;
@@ -345,6 +346,54 @@ dec_impl!(impl_trait_proxy;
         (to_u64; rself;; Option<u64>),
         (to_f64; rself;; Option<f64>)
 );
+
+impl<T, P> Sum for GenericDecimal<T, P>
+where
+    T: Clone + GenericInteger + PartialEq,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(GenericDecimal::<T, P>::zero(), Add::add)
+    }
+}
+impl<'a, T, P> Sum<&'a GenericDecimal<T, P>> for GenericDecimal<T, P> where
+    T: Clone + GenericInteger + PartialEq,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn sum<I: Iterator<Item=&'a Self>>(iter: I) -> Self {
+        let mut sum = Self::zero();
+
+        for x in iter {
+            sum += x;
+        }
+
+        sum
+    }
+}
+
+impl<T, P> Product for GenericDecimal<T, P>
+where
+    T: Clone + GenericInteger + PartialEq,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn product<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(GenericDecimal::<T, P>::one(), Mul::mul)
+    }
+}
+impl<'a, T, P> Product<&'a GenericDecimal<T, P>> for GenericDecimal<T, P> where
+    T: Clone + GenericInteger + PartialEq,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn product<I: Iterator<Item=&'a Self>>(iter: I) -> Self {
+        let mut sum = Self::one();
+
+        for x in iter {
+            sum *= x;
+        }
+
+        sum
+    }
+}
 
 dec_impl!(impl_trait_cmp; PartialOrd; partial_cmp; Option<Ordering>);
 
@@ -1046,6 +1095,20 @@ mod tests {
             format!("{:?}", Decimal::one()),
             format!("GenericDecimal(1 | prec=0; {:?}; 1)", F::one())
         );
+    }
+
+    #[test]
+    fn summing_iterator() {
+        let values = vec![Decimal::from(152.568), Decimal::from(328.76842)];
+        let sum: Decimal = values.iter().sum();
+        assert_eq!(sum, values[0] + values[1])
+    }
+
+    #[test]
+    fn product_iterator() {
+        let values = vec![Decimal::from(152.568), Decimal::from(328.76842)];
+        let product: Decimal = values.iter().product();
+        assert_eq!(product, values[0] * values[1])
     }
 
     // TODO: more tests
