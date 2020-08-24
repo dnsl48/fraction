@@ -80,6 +80,28 @@ impl Neg for Sign {
     }
 }
 
+impl PartialOrd for Sign {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Sign::Minus, Sign::Minus) => Some(Ordering::Equal),
+            (Sign::Minus, Sign::Plus) => Some(Ordering::Less),
+            (Sign::Plus, Sign::Minus) => Some(Ordering::Greater),
+            (Sign::Plus, Sign::Plus) => Some(Ordering::Equal),
+        }
+    }
+}
+
+impl Ord for Sign {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Sign::Minus, Sign::Minus) => Ordering::Equal,
+            (Sign::Minus, Sign::Plus) => Ordering::Less,
+            (Sign::Plus, Sign::Minus) => Ordering::Greater,
+            (Sign::Plus, Sign::Plus) => Ordering::Equal,
+        }
+    }
+}
+
 impl fmt::Display for Sign {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let format = display::Format::new(f);
@@ -441,8 +463,8 @@ where
         };
 
         let dot = src.find('.');
-        let who = if dot.is_some() {
-            &src[start..dot.unwrap()]
+        let who = if let Some(dot) = dot {
+            &src[start..dot]
         } else {
             &src[start..]
         };
@@ -517,25 +539,17 @@ impl<T: Bounded + Clone + Integer> Bounded for GenericFraction<T> {
 
 impl<T: Clone + Integer> PartialEq for GenericFraction<T> {
     fn eq(&self, other: &Self) -> bool {
-        match *self {
-            GenericFraction::NaN => match *other {
-                GenericFraction::NaN => true,
-                _ => false,
-            },
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::Infinity(osign) => sign == osign,
-                _ => false,
-            },
-            GenericFraction::Rational(ref ls, ref l) => match *other {
-                GenericFraction::Rational(ref rs, ref r) => {
-                    if ls == rs {
-                        l.eq(r)
-                    } else {
-                        l.is_zero() && r.is_zero()
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, GenericFraction::NaN) => true,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => ls == rs,
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == rs {
+                    lv.eq(rv)
+                } else {
+                    lv.is_zero() && rv.is_zero()
                 }
-                _ => false,
-            },
+            }
+            _ => false,
         }
     }
 }
@@ -570,51 +584,31 @@ impl<T: Clone + Integer> Eq for GenericFraction<T> {}
 
 impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match *self {
-            GenericFraction::NaN => None,
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(osign) => {
-                    if sign == osign {
-                        Some(Ordering::Equal)
-                    } else if sign == Sign::Minus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-                GenericFraction::Rational(_, _) => {
-                    if sign == Sign::Plus {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Less)
-                    }
-                }
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => None,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => Some(ls.cmp(rs)),
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => match ls {
+                Sign::Minus => Some(Ordering::Less),
+                Sign::Plus => Some(Ordering::Greater),
             },
-            GenericFraction::Rational(ref ls, ref l) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(rs) => {
-                    if rs == Sign::Plus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-                GenericFraction::Rational(ref rs, ref r) => {
-                    if ls == rs {
-                        match *ls {
-                            Sign::Plus => l.partial_cmp(r),
-                            Sign::Minus => r.partial_cmp(l),
-                        }
-                    } else if l.is_zero() && r.is_zero() {
-                        Some(Ordering::Equal)
-                    } else if *ls == Sign::Minus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => match rs {
+                Sign::Minus => Some(Ordering::Greater),
+                Sign::Plus => Some(Ordering::Less),
             },
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == rs {
+                    match *ls {
+                        Sign::Plus => lv.partial_cmp(rv),
+                        Sign::Minus => rv.partial_cmp(lv),
+                    }
+                } else if lv.is_zero() && rv.is_zero() {
+                    Some(Ordering::Equal)
+                } else if *ls == Sign::Minus {
+                    Some(Ordering::Less)
+                } else {
+                    Some(Ordering::Greater)
+                }
+            }
         }
     }
 }
@@ -659,42 +653,40 @@ impl<T: Clone + Integer> Add for GenericFraction<T> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        match self {
-            GenericFraction::NaN => self,
-            GenericFraction::Infinity(sign) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Rational(_, _) => self,
-                GenericFraction::Infinity(osign) => {
-                    if sign != osign {
-                        GenericFraction::NaN
-                    } else {
-                        self
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                if ls == rs {
+                    GenericFraction::Infinity(ls)
+                } else {
+                    GenericFraction::NaN
                 }
-            },
-            GenericFraction::Rational(ls, l) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(_) => other,
-                GenericFraction::Rational(rs, r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        GenericFraction::Rational(Sign::Plus, l.add(r))
-                    } else if ls == Sign::Plus {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Minus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, l.sub(r))
-                        }
-                    } else if rs == Sign::Plus {
-                        if r < l {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        }
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => {
+                GenericFraction::Infinity(ls)
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(rs)
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == Sign::Plus && rs == Sign::Plus {
+                    GenericFraction::Rational(Sign::Plus, lv.add(rv))
+                } else if ls == Sign::Plus {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Minus, rv.sub(lv))
                     } else {
-                        GenericFraction::Rational(Sign::Minus, l.add(r))
+                        GenericFraction::Rational(Sign::Plus, lv.sub(rv))
                     }
+                } else if rs == Sign::Plus {
+                    if rv < lv {
+                        GenericFraction::Rational(Sign::Minus, lv.sub(rv))
+                    } else {
+                        GenericFraction::Rational(Sign::Plus, rv.sub(lv))
+                    }
+                } else {
+                    GenericFraction::Rational(Sign::Minus, lv.add(rv))
                 }
-            },
+            }
         }
     }
 }
@@ -706,42 +698,40 @@ where
     type Output = GenericFraction<T>;
 
     fn add(self, other: Self) -> GenericFraction<T> {
-        match *self {
-            GenericFraction::NaN => self.clone(),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Rational(_, _) => self.clone(),
-                GenericFraction::Infinity(osign) => {
-                    if sign != osign {
-                        GenericFraction::NaN
-                    } else {
-                        self.clone()
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                if ls == rs {
+                    GenericFraction::Infinity(ls.clone())
+                } else {
+                    GenericFraction::NaN
                 }
-            },
-            GenericFraction::Rational(ls, ref l) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(_) => other.clone(),
-                GenericFraction::Rational(rs, ref r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        GenericFraction::Rational(Sign::Plus, l.add(r))
-                    } else if ls == Sign::Plus {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Minus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, l.sub(r))
-                        }
-                    } else if rs == Sign::Plus {
-                        if r < l {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        }
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(rs.clone())
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => {
+                GenericFraction::Infinity(ls.clone())
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == &Sign::Plus && rs == &Sign::Plus {
+                    GenericFraction::Rational(Sign::Plus, lv.add(rv))
+                } else if ls == &Sign::Plus {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Minus, rv.sub(lv))
                     } else {
-                        GenericFraction::Rational(Sign::Minus, l.add(r))
+                        GenericFraction::Rational(Sign::Plus, lv.sub(rv))
                     }
+                } else if rs == &Sign::Plus {
+                    if rv < lv {
+                        GenericFraction::Rational(Sign::Minus, lv.sub(rv))
+                    } else {
+                        GenericFraction::Rational(Sign::Plus, rv.sub(lv))
+                    }
+                } else {
+                    GenericFraction::Rational(Sign::Minus, lv.add(rv))
                 }
-            },
+            }
         }
     }
 }
@@ -751,48 +741,44 @@ where
     T: Clone + Integer + CheckedAdd + CheckedSub + CheckedMul,
 {
     fn checked_add(&self, other: &Self) -> Option<GenericFraction<T>> {
-        match *self {
-            GenericFraction::NaN => Some(self.clone()),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Rational(_, _) => Some(self.clone()),
-                GenericFraction::Infinity(osign) => {
-                    if sign != osign {
-                        Some(GenericFraction::NaN)
-                    } else {
-                        Some(self.clone())
-                    }
-                }
-            },
-            GenericFraction::Rational(ls, ref l) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(_) => Some(other.clone()),
-                GenericFraction::Rational(rs, ref r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        l.checked_add(r)
-                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                    } else if ls == Sign::Plus {
-                        if l < r {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        } else {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        }
-                    } else if rs == Sign::Plus {
-                        if r < l {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        } else {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        }
-                    } else {
-                        l.checked_add(r)
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => Some(GenericFraction::NaN),
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => Some(if ls == rs {
+                GenericFraction::Infinity(*ls)
+            } else {
+                GenericFraction::NaN
+            }),
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => {
+                Some(GenericFraction::Infinity(*ls))
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                Some(GenericFraction::Infinity(*rs))
+            }
+            (GenericFraction::Rational(ls, l), GenericFraction::Rational(rs, r)) => {
+                if ls == &Sign::Plus && rs == &Sign::Plus {
+                    l.checked_add(r)
+                        .map(|value| GenericFraction::Rational(Sign::Plus, value))
+                } else if ls == &Sign::Plus {
+                    if l < r {
+                        r.checked_sub(l)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                    } else {
+                        l.checked_sub(r)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
                     }
+                } else if rs == &Sign::Plus {
+                    if r < l {
+                        l.checked_sub(r)
+                            .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                    } else {
+                        r.checked_sub(l)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
+                    }
+                } else {
+                    l.checked_add(r)
+                        .map(|value| GenericFraction::Rational(Sign::Minus, value))
                 }
-            },
+            }
         }
     }
 }
@@ -892,42 +878,38 @@ impl<T: Clone + Integer> Sub for GenericFraction<T> {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        match self {
-            GenericFraction::NaN => self,
-            GenericFraction::Infinity(sign) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(osign) => {
-                    if sign == osign {
-                        GenericFraction::NaN
+        match (&self, &other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                if ls == rs {
+                    GenericFraction::NaN
+                } else {
+                    self
+                }
+            }
+            (GenericFraction::Infinity(_), GenericFraction::Rational(_, _)) => self,
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(-*rs)
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == &Sign::Plus && rs == &Sign::Plus {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Minus, rv.sub(lv))
                     } else {
-                        self
+                        GenericFraction::Rational(Sign::Plus, lv.sub(rv))
+                    }
+                } else if ls == &Sign::Plus {
+                    GenericFraction::Rational(Sign::Plus, lv.add(rv))
+                } else if rs == &Sign::Plus {
+                    GenericFraction::Rational(Sign::Minus, lv.add(rv))
+                } else {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Plus, rv.sub(lv))
+                    } else {
+                        GenericFraction::Rational(Sign::Minus, lv.sub(rv))
                     }
                 }
-                GenericFraction::Rational(_, _) => self,
-            },
-            GenericFraction::Rational(ls, l) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(sign) => GenericFraction::Infinity(-sign),
-                GenericFraction::Rational(rs, r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Minus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, l.sub(r))
-                        }
-                    } else if ls == Sign::Plus {
-                        GenericFraction::Rational(Sign::Plus, l.add(r))
-                    } else if rs == Sign::Plus {
-                        GenericFraction::Rational(Sign::Minus, l.add(r))
-                    } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
-                    }
-                }
-            },
+            }
         }
     }
 }
@@ -939,42 +921,40 @@ where
     type Output = GenericFraction<T>;
 
     fn sub(self, other: Self) -> GenericFraction<T> {
-        match *self {
-            GenericFraction::NaN => self.clone(),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(osign) => {
-                    if sign == osign {
-                        GenericFraction::NaN
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                if ls == rs {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(*ls)
+                }
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => {
+                GenericFraction::Infinity(*ls)
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(-*rs)
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == &Sign::Plus && rs == &Sign::Plus {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Minus, rv.sub(lv))
                     } else {
-                        self.clone()
+                        GenericFraction::Rational(Sign::Plus, lv.sub(rv))
+                    }
+                } else if ls == &Sign::Plus {
+                    GenericFraction::Rational(Sign::Plus, lv.add(rv))
+                } else if rs == &Sign::Plus {
+                    GenericFraction::Rational(Sign::Minus, lv.add(rv))
+                } else {
+                    if lv < rv {
+                        GenericFraction::Rational(Sign::Plus, rv.sub(lv))
+                    } else {
+                        GenericFraction::Rational(Sign::Minus, lv.sub(rv))
                     }
                 }
-                GenericFraction::Rational(_, _) => self.clone(),
-            },
-            GenericFraction::Rational(ls, ref l) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(sign) => GenericFraction::Infinity(-sign),
-                GenericFraction::Rational(rs, ref r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Minus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Plus, l.sub(r))
-                        }
-                    } else if ls == Sign::Plus {
-                        GenericFraction::Rational(Sign::Plus, l.add(r))
-                    } else if rs == Sign::Plus {
-                        GenericFraction::Rational(Sign::Minus, l.add(r))
-                    } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
-                    }
-                }
-            },
+            }
         }
     }
 }
@@ -984,48 +964,44 @@ where
     T: Clone + Integer + CheckedAdd + CheckedSub + CheckedMul,
 {
     fn checked_sub(&self, other: &Self) -> Option<GenericFraction<T>> {
-        match *self {
-            GenericFraction::NaN => Some(self.clone()),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(osign) => {
-                    if sign == osign {
-                        Some(GenericFraction::NaN)
-                    } else {
-                        Some(self.clone())
-                    }
-                }
-                GenericFraction::Rational(_, _) => Some(self.clone()),
-            },
-            GenericFraction::Rational(ls, ref l) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(sign) => Some(GenericFraction::Infinity(-sign)),
-                GenericFraction::Rational(rs, ref r) => {
-                    if ls == Sign::Plus && rs == Sign::Plus {
-                        if l < r {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        } else {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        }
-                    } else if ls == Sign::Plus {
-                        l.checked_add(r)
-                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                    } else if rs == Sign::Plus {
-                        l.checked_add(r)
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => Some(GenericFraction::NaN),
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => Some(if ls == rs {
+                GenericFraction::NaN
+            } else {
+                GenericFraction::Infinity(*ls)
+            }),
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(_, _)) => {
+                Some(GenericFraction::Infinity(*ls))
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(rs)) => {
+                Some(GenericFraction::Infinity(-*rs))
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if ls == &Sign::Plus && rs == &Sign::Plus {
+                    if lv < rv {
+                        rv.checked_sub(lv)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
                     } else {
-                        if l < r {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        } else {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        }
+                        lv.checked_sub(rv)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
+                    }
+                } else if ls == &Sign::Plus {
+                    lv.checked_add(rv)
+                        .map(|value| GenericFraction::Rational(Sign::Plus, value))
+                } else if rs == &Sign::Plus {
+                    lv.checked_add(rv)
+                        .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                } else {
+                    if lv < rv {
+                        rv.checked_sub(lv)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
+                    } else {
+                        lv.checked_sub(rv)
+                            .map(|value| GenericFraction::Rational(Sign::Minus, value))
                     }
                 }
-            },
+            }
         }
     }
 }
@@ -1125,51 +1101,35 @@ impl<T: Clone + Integer> Mul for GenericFraction<T> {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        match self {
-            GenericFraction::NaN => self,
-            GenericFraction::Infinity(sign) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(osign) => GenericFraction::Infinity(if sign == osign {
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, rv)) => {
+                if rv.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+                }
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Infinity(rs)) => {
+                if lv.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+                }
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                let s = if lv.is_zero() || rv.is_zero() {
+                    Sign::Plus
+                } else if ls == rs {
                     Sign::Plus
                 } else {
                     Sign::Minus
-                }),
-                GenericFraction::Rational(osign, l) => {
-                    if l.is_zero() {
-                        GenericFraction::NaN
-                    } else {
-                        GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        })
-                    }
-                }
-            },
-            GenericFraction::Rational(sign, l) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(osign) => {
-                    if l.is_zero() {
-                        GenericFraction::NaN
-                    } else {
-                        GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        })
-                    }
-                }
-                GenericFraction::Rational(osign, r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
-                        Sign::Plus
-                    } else {
-                        Sign::Minus
-                    };
-                    GenericFraction::Rational(s, l.mul(r))
-                }
-            },
+                };
+                GenericFraction::Rational(s, lv.mul(rv))
+            }
         }
     }
 }
@@ -1181,51 +1141,35 @@ where
     type Output = GenericFraction<T>;
 
     fn mul(self, other: Self) -> GenericFraction<T> {
-        match *self {
-            GenericFraction::NaN => self.clone(),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(osign) => GenericFraction::Infinity(if sign == osign {
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, rv)) => {
+                if rv.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+                }
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Infinity(rs)) => {
+                if lv.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+                }
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                let s = if lv.is_zero() || rv.is_zero() {
+                    Sign::Plus
+                } else if ls == rs {
                     Sign::Plus
                 } else {
                     Sign::Minus
-                }),
-                GenericFraction::Rational(osign, ref l) => {
-                    if l.is_zero() {
-                        GenericFraction::NaN
-                    } else {
-                        GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        })
-                    }
-                }
-            },
-            GenericFraction::Rational(sign, ref l) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(osign) => {
-                    if l.is_zero() {
-                        GenericFraction::NaN
-                    } else {
-                        GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        })
-                    }
-                }
-                GenericFraction::Rational(osign, ref r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
-                        Sign::Plus
-                    } else {
-                        Sign::Minus
-                    };
-                    GenericFraction::Rational(s, l.mul(r))
-                }
-            },
+                };
+                GenericFraction::Rational(s, lv.mul(rv))
+            }
         }
     }
 }
@@ -1235,43 +1179,35 @@ where
     T: Clone + Integer + CheckedMul,
 {
     fn checked_mul(&self, other: &Self) -> Option<GenericFraction<T>> {
-        match *self {
-            GenericFraction::NaN => Some(self.clone()),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(osign) => {
-                    Some(GenericFraction::Infinity(if sign == osign {
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => Some(GenericFraction::NaN),
+            (GenericFraction::Infinity(ls), GenericFraction::Infinity(rs)) => {
+                Some(GenericFraction::Infinity(if ls == rs {
+                    Sign::Plus
+                } else {
+                    Sign::Minus
+                }))
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, rv)) => {
+                Some(if rv.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+                })
+            }
+            (GenericFraction::Rational(sign, l), GenericFraction::Infinity(osign)) => {
+                Some(if l.is_zero() {
+                    GenericFraction::NaN
+                } else {
+                    GenericFraction::Infinity(if sign == osign {
                         Sign::Plus
                     } else {
                         Sign::Minus
-                    }))
-                }
-                GenericFraction::Rational(osign, ref l) => {
-                    if l.is_zero() {
-                        Some(GenericFraction::NaN)
-                    } else {
-                        Some(GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        }))
-                    }
-                }
-            },
-            GenericFraction::Rational(sign, ref l) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(osign) => {
-                    if l.is_zero() {
-                        Some(GenericFraction::NaN)
-                    } else {
-                        Some(GenericFraction::Infinity(if sign == osign {
-                            Sign::Plus
-                        } else {
-                            Sign::Minus
-                        }))
-                    }
-                }
-                GenericFraction::Rational(osign, ref r) => l.checked_mul(r).map(|value| {
+                    })
+                })
+            }
+            (GenericFraction::Rational(sign, l), GenericFraction::Rational(osign, r)) => {
+                l.checked_mul(r).map(|value| {
                     GenericFraction::Rational(
                         if l.is_zero() || r.is_zero() {
                             Sign::Plus
@@ -1282,8 +1218,8 @@ where
                         },
                         value,
                     )
-                }),
-            },
+                })
+            }
         }
     }
 }
@@ -1383,43 +1319,29 @@ impl<T: Clone + Integer> Div for GenericFraction<T> {
     type Output = Self;
 
     fn div(self, other: Self) -> Self {
-        match self {
-            GenericFraction::NaN => self,
-            GenericFraction::Infinity(sign) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(osign, _) => {
-                    GenericFraction::Infinity(if sign == osign {
-                        Sign::Plus
-                    } else {
-                        Sign::Minus
-                    })
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(_), GenericFraction::Infinity(_)) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, _)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::zero())
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if lv.is_zero() && rv.is_zero() {
+                    GenericFraction::NaN
+                } else if rv.is_zero() {
+                    GenericFraction::Infinity(ls)
+                } else if lv.is_zero() {
+                    GenericFraction::Rational(Sign::Plus, lv)
+                } else {
+                    GenericFraction::Rational(
+                        if ls == rs { Sign::Plus } else { Sign::Minus },
+                        lv.div(rv),
+                    )
                 }
-            },
-            GenericFraction::Rational(sign, l) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(_) => {
-                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                }
-                GenericFraction::Rational(osign, r) => {
-                    if l.is_zero() && r.is_zero() {
-                        GenericFraction::NaN
-                    } else if r.is_zero() {
-                        GenericFraction::Infinity(sign)
-                    } else if l.is_zero() {
-                        GenericFraction::Rational(Sign::Plus, l)
-                    } else {
-                        GenericFraction::Rational(
-                            if sign == osign {
-                                Sign::Plus
-                            } else {
-                                Sign::Minus
-                            },
-                            l.div(r),
-                        )
-                    }
-                }
-            },
+            }
         }
     }
 }
@@ -1431,43 +1353,29 @@ where
     type Output = GenericFraction<T>;
 
     fn div(self, other: Self) -> GenericFraction<T> {
-        match *self {
-            GenericFraction::NaN => self.clone(),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(osign, _) => {
-                    GenericFraction::Infinity(if sign == osign {
-                        Sign::Plus
-                    } else {
-                        Sign::Minus
-                    })
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(_), GenericFraction::Infinity(_)) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, _)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::zero())
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if lv.is_zero() && rv.is_zero() {
+                    GenericFraction::NaN
+                } else if rv.is_zero() {
+                    GenericFraction::Infinity(ls.clone())
+                } else if lv.is_zero() {
+                    GenericFraction::Rational(Sign::Plus, lv.clone())
+                } else {
+                    GenericFraction::Rational(
+                        if ls == rs { Sign::Plus } else { Sign::Minus },
+                        lv.div(rv),
+                    )
                 }
-            },
-            GenericFraction::Rational(sign, ref l) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(_) => {
-                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                }
-                GenericFraction::Rational(osign, ref r) => {
-                    if l.is_zero() && r.is_zero() {
-                        GenericFraction::NaN
-                    } else if r.is_zero() {
-                        GenericFraction::Infinity(sign)
-                    } else if l.is_zero() {
-                        GenericFraction::Rational(Sign::Plus, l.clone())
-                    } else {
-                        GenericFraction::Rational(
-                            if sign == osign {
-                                Sign::Plus
-                            } else {
-                                Sign::Minus
-                            },
-                            l.div(r),
-                        )
-                    }
-                }
-            },
+            }
         }
     }
 }
@@ -1477,82 +1385,66 @@ where
     T: Clone + Integer + CheckedDiv + CheckedMul,
 {
     fn checked_div(&self, other: &Self) -> Option<GenericFraction<T>> {
-        match *self {
-            GenericFraction::NaN => Some(self.clone()),
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(_) => Some(GenericFraction::NaN),
-                GenericFraction::Rational(osign, _) => {
-                    Some(GenericFraction::Infinity(if sign == osign {
-                        Sign::Plus
-                    } else {
-                        Sign::Minus
-                    }))
+        match (self, other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => Some(GenericFraction::NaN),
+            (GenericFraction::Infinity(_), GenericFraction::Infinity(_)) => {
+                Some(GenericFraction::NaN)
+            }
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, _)) => {
+                Some(GenericFraction::Infinity(if ls == rs {
+                    Sign::Plus
+                } else {
+                    Sign::Minus
+                }))
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(_)) => {
+                Some(GenericFraction::Rational(Sign::Plus, Ratio::zero()))
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if lv.is_zero() && rv.is_zero() {
+                    Some(GenericFraction::NaN)
+                } else if rv.is_zero() {
+                    Some(GenericFraction::Infinity(ls.clone()))
+                } else if lv.is_zero() {
+                    Some(GenericFraction::Rational(Sign::Plus, lv.clone()))
+                } else {
+                    lv.checked_div(rv).map(|value| {
+                        GenericFraction::Rational(
+                            if ls == rs { Sign::Plus } else { Sign::Minus },
+                            value,
+                        )
+                    })
                 }
-            },
-            GenericFraction::Rational(sign, ref l) => match *other {
-                GenericFraction::NaN => Some(other.clone()),
-                GenericFraction::Infinity(_) => {
-                    Some(GenericFraction::Rational(Sign::Plus, Ratio::zero()))
-                }
-                GenericFraction::Rational(osign, ref r) => {
-                    if l.is_zero() && r.is_zero() {
-                        Some(GenericFraction::NaN)
-                    } else if r.is_zero() {
-                        Some(GenericFraction::Infinity(sign))
-                    } else if l.is_zero() {
-                        Some(GenericFraction::Rational(Sign::Plus, l.clone()))
-                    } else {
-                        l.checked_div(r).map(|value| {
-                            GenericFraction::Rational(
-                                if sign == osign {
-                                    Sign::Plus
-                                } else {
-                                    Sign::Minus
-                                },
-                                value,
-                            )
-                        })
-                    }
-                }
-            },
+            }
         }
     }
 }
 
 impl<T: Clone + Integer> DivAssign for GenericFraction<T> {
     fn div_assign(&mut self, other: Self) {
-        *self = match *self {
-            GenericFraction::NaN => GenericFraction::NaN,
-            GenericFraction::Infinity(ls) => match other {
-                GenericFraction::NaN => GenericFraction::NaN,
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(rs, _) => {
-                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+        *self = match (&self, &other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(_), GenericFraction::Infinity(_)) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, _)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::zero())
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if lv.is_zero() && rv.is_zero() {
+                    GenericFraction::NaN
+                } else if rv.is_zero() {
+                    GenericFraction::Infinity(ls.clone())
+                } else if lv.is_zero() {
+                    GenericFraction::Rational(Sign::Plus, lv.clone())
+                } else {
+                    GenericFraction::Rational(
+                        if ls == rs { Sign::Plus } else { Sign::Minus },
+                        lv.div(rv),
+                    )
                 }
-            },
-            GenericFraction::Rational(ls, ref mut l) => match other {
-                GenericFraction::NaN => GenericFraction::NaN,
-                GenericFraction::Infinity(_) => {
-                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                }
-                GenericFraction::Rational(rs, r) => {
-                    let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
-
-                    if l_.is_zero() && r.is_zero() {
-                        GenericFraction::NaN
-                    } else if r.is_zero() {
-                        GenericFraction::Infinity(ls)
-                    } else if l_.is_zero() {
-                        GenericFraction::Rational(Sign::Plus, l_)
-                    } else {
-                        GenericFraction::Rational(
-                            if ls == rs { Sign::Plus } else { Sign::Minus },
-                            l_.div(r),
-                        )
-                    }
-                }
-            },
+            }
         };
     }
 }
@@ -1562,37 +1454,29 @@ where
     T: Clone + Integer,
 {
     fn div_assign(&mut self, other: &'a Self) {
-        *self = match *self {
-            GenericFraction::NaN => GenericFraction::NaN,
-            GenericFraction::Infinity(ls) => match *other {
-                GenericFraction::NaN => GenericFraction::NaN,
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(rs, _) => {
-                    GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+        *self = match (&self, &other) {
+            (GenericFraction::NaN, _) | (_, GenericFraction::NaN) => GenericFraction::NaN,
+            (GenericFraction::Infinity(_), GenericFraction::Infinity(_)) => GenericFraction::NaN,
+            (GenericFraction::Infinity(ls), GenericFraction::Rational(rs, _)) => {
+                GenericFraction::Infinity(if ls == rs { Sign::Plus } else { Sign::Minus })
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::zero())
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Rational(rs, rv)) => {
+                if lv.is_zero() && rv.is_zero() {
+                    GenericFraction::NaN
+                } else if rv.is_zero() {
+                    GenericFraction::Infinity(ls.clone())
+                } else if lv.is_zero() {
+                    GenericFraction::Rational(Sign::Plus, lv.clone())
+                } else {
+                    GenericFraction::Rational(
+                        if ls == rs { Sign::Plus } else { Sign::Minus },
+                        lv.div(rv),
+                    )
                 }
-            },
-            GenericFraction::Rational(ls, ref mut l) => match *other {
-                GenericFraction::NaN => GenericFraction::NaN,
-                GenericFraction::Infinity(_) => {
-                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                }
-                GenericFraction::Rational(rs, ref r) => {
-                    let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
-
-                    if l_.is_zero() && r.is_zero() {
-                        GenericFraction::NaN
-                    } else if r.is_zero() {
-                        GenericFraction::Infinity(ls)
-                    } else if l_.is_zero() {
-                        GenericFraction::Rational(Sign::Plus, l_)
-                    } else {
-                        GenericFraction::Rational(
-                            if ls == rs { Sign::Plus } else { Sign::Minus },
-                            l_.div(r),
-                        )
-                    }
-                }
-            },
+            }
         };
     }
 }
@@ -1601,26 +1485,25 @@ impl<T: Clone + Integer> Rem for GenericFraction<T> {
     type Output = Self;
 
     fn rem(self, other: Self) -> Self {
-        match self {
-            GenericFraction::NaN => self,
-            GenericFraction::Infinity(_) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(_, _) => GenericFraction::NaN,
-            },
-            GenericFraction::Rational(sign, l) => match other {
-                GenericFraction::NaN => other,
-                GenericFraction::Infinity(_) => GenericFraction::Rational(sign, l),
-                GenericFraction::Rational(_, r) => {
-                    if r.is_zero() {
-                        GenericFraction::NaN
-                    } else if l == r {
-                        GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                    } else {
-                        GenericFraction::Rational(sign, l % r)
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, _)
+            | (_, GenericFraction::NaN)
+            | (GenericFraction::Infinity(_), GenericFraction::Infinity(_))
+            | (GenericFraction::Infinity(_), GenericFraction::Rational(_, _)) => {
+                GenericFraction::NaN
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(ls, lv)
+            }
+            (GenericFraction::Rational(ls, l), GenericFraction::Rational(_, r)) => {
+                if r.is_zero() {
+                    GenericFraction::NaN
+                } else if l == r {
+                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
+                } else {
+                    GenericFraction::Rational(ls, l % r)
                 }
-            },
+            }
         }
     }
 }
@@ -1632,26 +1515,25 @@ where
     type Output = GenericFraction<T>;
 
     fn rem(self, other: Self) -> GenericFraction<T> {
-        match *self {
-            GenericFraction::NaN => self.clone(),
-            GenericFraction::Infinity(_) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(_) => GenericFraction::NaN,
-                GenericFraction::Rational(_, _) => GenericFraction::NaN,
-            },
-            GenericFraction::Rational(sign, ref l) => match *other {
-                GenericFraction::NaN => other.clone(),
-                GenericFraction::Infinity(_) => GenericFraction::Rational(sign, l.clone()),
-                GenericFraction::Rational(_, ref r) => {
-                    if r.is_zero() {
-                        GenericFraction::NaN
-                    } else if l == r {
-                        GenericFraction::Rational(Sign::Plus, Ratio::zero())
-                    } else {
-                        GenericFraction::Rational(sign, l.rem(r))
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, _)
+            | (_, GenericFraction::NaN)
+            | (GenericFraction::Infinity(_), GenericFraction::Infinity(_))
+            | (GenericFraction::Infinity(_), GenericFraction::Rational(_, _)) => {
+                GenericFraction::NaN
+            }
+            (GenericFraction::Rational(ls, lv), GenericFraction::Infinity(_)) => {
+                GenericFraction::Rational(*ls, lv.clone())
+            }
+            (GenericFraction::Rational(ls, l), GenericFraction::Rational(_, r)) => {
+                if r.is_zero() {
+                    GenericFraction::NaN
+                } else if l == r {
+                    GenericFraction::Rational(Sign::Plus, Ratio::zero())
+                } else {
+                    GenericFraction::Rational(*ls, l % r)
                 }
-            },
+            }
         }
     }
 }

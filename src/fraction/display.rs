@@ -55,7 +55,7 @@ impl Format {
         }
     }
 
-    pub fn new<'a>(formatter: &fmt::Formatter<'a>) -> Self {
+    pub fn new(formatter: &fmt::Formatter) -> Self {
         let sign_plus = if formatter.sign_plus() { SIGN_PLUS } else { 0 };
         let sign_minus = if formatter.sign_minus() {
             SIGN_MINUS
@@ -77,16 +77,6 @@ impl Format {
             width: formatter.width(),
             precision: formatter.precision(),
             flags: flags,
-        }
-    }
-
-    pub fn clone(&self) -> Self {
-        Format {
-            fill: self.fill(),
-            align: self.cloned_align(),
-            width: self.width().clone(),
-            precision: self.precision().clone(),
-            flags: self.flags,
         }
     }
 
@@ -186,6 +176,18 @@ impl Format {
         }
 
         self
+    }
+}
+
+impl Clone for Format {
+    fn clone(&self) -> Self {
+        Format {
+            fill: self.fill(),
+            align: self.cloned_align(),
+            width: self.width().clone(),
+            precision: self.precision().clone(),
+            flags: self.flags,
+        }
     }
 }
 

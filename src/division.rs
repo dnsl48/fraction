@@ -99,11 +99,11 @@ where
         consumer(0u8)?;
         return Ok(DivisionState::new(dividend, divisor));
     } else {
-        let mut ptr: I = I::_1();
+        let mut ptr: I = I::one();
 
         loop {
             if ptr > dividend {
-                if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
+                if I::_1r().map_or_else(|| ptr > I::one(), |_1| ptr > *_1) {
                     I::_10r().map(|_10| ptr /= _10).or_else(|| {
                         ptr /= I::_10();
                         None
@@ -127,7 +127,7 @@ where
     loop {
         let digit = dividend.div_floor(&ptr).div_floor(&divisor);
 
-        if I::_0r().map_or_else(|| digit > I::_0(), |_0| digit > *_0) {
+        if I::_0r().map_or_else(|| digit > I::zero(), |_0| digit > *_0) {
             passed_leading_zeroes = true;
             dividend -= digit.clone() * &divisor * &ptr;
         }
@@ -144,7 +144,7 @@ where
             };
         }
 
-        if I::_1r().map_or_else(|| ptr == I::_1(), |_1| ptr == *_1) {
+        if I::_1r().map_or_else(|| ptr == I::one(), |_1| ptr == *_1) {
             break;
         }
 
@@ -374,7 +374,7 @@ pub fn division_result_max_char_length<I>(dividend: &I, precision: usize) -> usi
 where
     I: Clone + GenericInteger,
 {
-    let mut ptr: I = I::_1();
+    let mut ptr: I = I::one();
     let mut len: usize = 0;
 
     loop {

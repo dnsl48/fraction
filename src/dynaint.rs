@@ -155,14 +155,6 @@ where
     G: Clone + GenericInteger + 'static,
 {
     #[inline]
-    fn _0() -> Self {
-        DynaInt::S(T::_0())
-    }
-    #[inline]
-    fn _1() -> Self {
-        DynaInt::S(T::_1())
-    }
-    #[inline]
     fn _10() -> Self {
         DynaInt::S(T::_10())
     }
@@ -948,8 +940,8 @@ mod tests {
 
     #[test]
     fn generic_integer() {
-        assert_eq!(0u8, D::_0().unpack().ok().unwrap());
-        assert_eq!(1u8, D::_1().unpack().ok().unwrap());
+        assert_eq!(0u8, D::zero().unpack().ok().unwrap());
+        assert_eq!(1u8, D::one().unpack().ok().unwrap());
         assert_eq!(10u8, D::_10().unpack().ok().unwrap());
 
         assert!(D::_0r().is_none());
