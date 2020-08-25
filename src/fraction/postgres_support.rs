@@ -230,7 +230,11 @@ pub fn fraction_to_sql_buf<T>(
 where
     T: Clone + GenericInteger + From<u8>,
 {
-    let precision = if precision <= PG_MAX_PRECISION { precision } else { PG_MAX_PRECISION };
+    let precision = if precision <= PG_MAX_PRECISION {
+        precision
+    } else {
+        PG_MAX_PRECISION
+    };
 
     let buffer_offset: usize = buf.len();
     buf.write_u64::<BigEndian>(0)?; // fill in the first 8 bytes
@@ -351,44 +355,48 @@ where
 
     if !div_state.remainder.is_zero() {
         padding = weight < 0; // true;
-        divide_rem(div_state.remainder, div_state.divisor, |state, digit: u8| {
-            let digit: i16 = digit.into();
+        divide_rem(
+            div_state.remainder,
+            div_state.divisor,
+            |state, digit: u8| {
+                let digit: i16 = digit.into();
 
-            if digit != 0 {
-                if padding && weight > 0 {
-                    ndigits += weight;
-                    for _ in 0..weight {
+                if digit != 0 {
+                    if padding && weight > 0 {
+                        ndigits += weight;
+                        for _ in 0..weight {
+                            buf.write_i16::<BigEndian>(ndigit)?;
+                        }
+                    }
+                    padding = false;
+                }
+
+                nptr += 1;
+
+                ndigit += digit * (PG_NBASE_I / 10i16.pow(nptr));
+
+                scale += 1;
+                uscale += 1;
+
+                if nptr > 3 {
+                    if padding && weight < 0 {
+                        weight -= 1;
+                    } else {
+                        ndigits += 1;
                         buf.write_i16::<BigEndian>(ndigit)?;
                     }
+
+                    nptr = 0;
+                    ndigit = 0;
                 }
-                padding = false;
-            }
 
-            nptr += 1;
-
-            ndigit += digit * (PG_NBASE_I / 10i16.pow(nptr));
-
-            scale += 1;
-            uscale += 1;
-
-            if nptr > 3 {
-                if padding && weight < 0 {
-                    weight -= 1;
+                Ok(if uscale < precision {
+                    Ok(state)
                 } else {
-                    ndigits += 1;
-                    buf.write_i16::<BigEndian>(ndigit)?;
-                }
-
-                nptr = 0;
-                ndigit = 0;
-            }
-
-            Ok(if uscale < precision {
-                Ok(state)
-            } else {
-                Err(state)
-            })
-        })?;
+                    Err(state)
+                })
+            },
+        )?;
 
         if nptr != 0 && !padding {
             ndigits += 1;
