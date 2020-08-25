@@ -34,10 +34,8 @@
 //! assert_eq!(None, F8::try_to_convert_from(f16_256));
 //! ```
 
-
-
-use num::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, One};
 use generic::{read_generic_integer, GenericInteger};
+use num::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, One};
 
 use super::GenericFraction;
 
@@ -47,7 +45,6 @@ use super::{BigInt, BigUint};
 pub trait TryToConvertFrom<F>: Sized {
     fn try_to_convert_from(src: F) -> Option<Self>;
 }
-
 
 macro_rules! convert_impl {
     (unsigned; $($T:ty),+) => {
@@ -109,7 +106,6 @@ convert_impl!(unsigned; BigUint);
 #[cfg(feature = "with-bigint")]
 convert_impl!(signed; BigInt);
 
-
 impl<T, F> TryToConvertFrom<GenericFraction<F>> for GenericFraction<T>
 where
     T: TryToConvertFrom<F> + Clone + Integer,
@@ -133,7 +129,6 @@ where
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

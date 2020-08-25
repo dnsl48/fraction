@@ -1,4 +1,4 @@
-#![doc(test(attr(deny(warnings),allow(deprecated))))]
+#![doc(test(attr(deny(warnings), allow(deprecated))))]
 
 //! Fraction is designed to be a precise lossless drop-in replacement for floating types (f32, f64).
 //!
@@ -103,12 +103,13 @@ pub use num::rational::{ParseRatioError, Ratio};
 
 pub use num::{
     /*#[cfg(feature="std")] Float,*/
-    Bounded, CheckedAdd, CheckedDiv,
-    CheckedMul, CheckedSub, Integer,
-    Num, One, Signed, ToPrimitive, Zero,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One, Signed, ToPrimitive,
+    Zero,
 };
 
-#[cfg(test)] #[macro_use] mod tests;
+#[cfg(test)]
+#[macro_use]
+mod tests;
 
 pub mod convert;
 
@@ -126,11 +127,19 @@ pub use self::prelude::*;
 
 // ====================================== FEATURES ======================================
 
-#[cfg(feature = "with-juniper-support")] extern crate juniper;
-#[cfg(feature = "with-postgres-support")] #[macro_use] extern crate postgres;
+#[cfg(feature = "with-juniper-support")]
+extern crate juniper;
+#[cfg(feature = "with-postgres-support")]
+#[macro_use]
+extern crate postgres;
 
-#[cfg(feature = "with-serde-support")] #[macro_use] extern crate serde_derive;
-#[cfg(feature = "with-serde-support")] extern crate serde;
+#[cfg(feature = "with-serde-support")]
+#[macro_use]
+extern crate serde_derive;
+#[cfg(feature = "with-serde-support")]
+extern crate serde;
 
-#[cfg(feature = "with-decimal")] mod decimal;
-#[cfg(feature = "with-dynaint")] pub mod dynaint;
+#[cfg(feature = "with-decimal")]
+mod decimal;
+#[cfg(feature = "with-dynaint")]
+pub mod dynaint;

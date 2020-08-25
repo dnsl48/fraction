@@ -2,11 +2,9 @@
 //!
 //! Contains error types utilised by other modules within the crate
 
-
 use std::error::Error;
 use std::fmt;
 use std::io;
-
 
 /// Happens when we parse stuff from strings
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -19,7 +17,7 @@ pub enum ParseError {
 
     /// The base is not supported. E.g. a type only supports base 10, but we try to
     /// parse with the base 7.
-    UnsupportedBase
+    UnsupportedBase,
 }
 
 unsafe impl Send for ParseError {}
@@ -30,14 +28,12 @@ impl fmt::Display for ParseError {
         match self {
             ParseError::OverflowError => write!(f, "Overflow"),
             ParseError::ParseIntError => write!(f, "Could not parse integer"),
-            ParseError::UnsupportedBase => write!(f, "Unsupported base")
+            ParseError::UnsupportedBase => write!(f, "Unsupported base"),
         }
     }
 }
 
-
 impl Error for ParseError {}
-
 
 /// Could not perform division, or fill in the resulting buffer
 #[derive(Debug)]
@@ -53,7 +49,7 @@ pub enum DivisionError {
 
     /// Errors external to the division algorithm still may be passed
     /// through the co-routines wrapped up with this constructor
-    ExternalError(Box<dyn Error + Send + Sync>)
+    ExternalError(Box<dyn Error + Send + Sync>),
 }
 
 unsafe impl Sync for DivisionError {}
@@ -71,7 +67,6 @@ impl fmt::Display for DivisionError {
         }
     }
 }
-
 
 impl Error for DivisionError {}
 

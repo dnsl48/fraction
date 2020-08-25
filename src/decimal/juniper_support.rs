@@ -1,7 +1,7 @@
 use juniper::{
-    meta::MetaType, Executor, FromInputValue, GraphQLType,
-    InputValue, ParseScalarValue, ParseScalarResult,
-    Registry, parser::ScalarToken, ScalarRefValue, ScalarValue, Selection, ToInputValue, Value,
+    meta::MetaType, parser::ScalarToken, Executor, FromInputValue, GraphQLType, InputValue,
+    ParseScalarResult, ParseScalarValue, Registry, ScalarRefValue, ScalarValue, Selection,
+    ToInputValue, Value,
 };
 
 use generic::GenericInteger;
@@ -19,9 +19,9 @@ where
 {
     fn from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
         match value {
-            ScalarToken::String(val) |
-            ScalarToken::Int(val) |
-            ScalarToken::Float(val) => Ok(S::from(val.to_owned()))
+            ScalarToken::String(val) | ScalarToken::Int(val) | ScalarToken::Float(val) => {
+                Ok(S::from(val.to_owned()))
+            }
         }
     }
 }
@@ -50,7 +50,12 @@ where
             .into_meta()
     }
 
-    fn resolve(&self, _: &(), _: Option<&[Selection<S>]>, _: &Executor<Self::Context, S>) -> Value<S> {
+    fn resolve(
+        &self,
+        _: &(),
+        _: Option<&[Selection<S>]>,
+        _: &Executor<Self::Context, S>,
+    ) -> Value<S> {
         Value::scalar(S::from(format!("{}", self)))
     }
 }
@@ -72,7 +77,7 @@ where
     S: ScalarValue,
     for<'a> &'a S: ScalarRefValue<'a>,
     T: Clone + GenericInteger,
-    P: Copy + GenericInteger + Into<usize> + From<u8>
+    P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
     fn from_input_value(value: &InputValue<S>) -> Option<Self> {
         let val = match value.as_scalar() {
@@ -81,7 +86,7 @@ where
                 let s: Option<&String> = scalar.into();
                 match s {
                     Some(v) => v,
-                    _ => return None
+                    _ => return None,
                 }
             }
         };

@@ -6,20 +6,18 @@
 //! * Whole numbers: `+1`, `-2`
 //! * Fractions: `+1/2`, `-3/4`
 
-
 use generic::GenericInteger;
 
 use juniper::{
-    meta::MetaType, Executor, FromInputValue, GraphQLType,
-    InputValue, ParseScalarValue, ParseScalarResult,
-    Registry, parser::ScalarToken, ScalarRefValue, ScalarValue, Selection, ToInputValue, Value,
+    meta::MetaType, parser::ScalarToken, Executor, FromInputValue, GraphQLType, InputValue,
+    ParseScalarResult, ParseScalarValue, Registry, ScalarRefValue, ScalarValue, Selection,
+    ToInputValue, Value,
 };
 
 use super::{CheckedAdd, CheckedMul, CheckedSub, Integer, Num, One};
 use std::fmt::Display;
 
 use super::{GenericFraction, Sign};
-
 
 impl<S, T> ParseScalarValue<S> for GenericFraction<T>
 where
@@ -29,13 +27,12 @@ where
 {
     fn from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
         match value {
-            ScalarToken::String(val) |
-            ScalarToken::Int(val) |
-            ScalarToken::Float(val) => Ok(S::from(val.to_owned()))
+            ScalarToken::String(val) | ScalarToken::Int(val) | ScalarToken::Float(val) => {
+                Ok(S::from(val.to_owned()))
+            }
         }
     }
 }
-
 
 impl<S, T> GraphQLType<S> for GenericFraction<T>
 where
@@ -60,11 +57,15 @@ where
             .into_meta()
     }
 
-    fn resolve(&self, _: &(), _: Option<&[Selection<S>]>, _: &Executor<Self::Context, S>) -> Value<S> {
+    fn resolve(
+        &self,
+        _: &(),
+        _: Option<&[Selection<S>]>,
+        _: &Executor<Self::Context, S>,
+    ) -> Value<S> {
         Value::scalar(S::from(self.to_string()))
     }
 }
-
 
 impl<S, T> ToInputValue<S> for GenericFraction<T>
 where
@@ -90,7 +91,7 @@ where
                 let s: Option<&String> = scalar.into();
                 match s {
                     Some(v) => v,
-                    _ => return None
+                    _ => return None,
                 }
             }
         };
@@ -175,7 +176,8 @@ mod tests {
                 BigFraction::from_str_radix(
                     "42090291092428642826240949012091044820/42090291092428642826240949012091044821",
                     10,
-                ).unwrap(),
+                )
+                .unwrap(),
             ),
         ]
     }
@@ -212,7 +214,8 @@ mod tests {
         #[cfg(features = "with-bigint")]
         {
             for (s, v) in get_big_tests() {
-                let value = <BigFraction as FromInputValue>::from_input_value(&InputValue::string(s));
+                let value =
+                    <BigFraction as FromInputValue>::from_input_value(&InputValue::string(s));
                 assert_eq!(value, Some(v));
             }
         }

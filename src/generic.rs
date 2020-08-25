@@ -5,7 +5,7 @@
 //! some common traits.
 
 use super::{
-    /*Zero, One, */Integer,  CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ToPrimitive,
+    CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, /*Zero, One, */ Integer, ToPrimitive,
 };
 use std::cmp::PartialOrd;
 use Sign;
@@ -14,7 +14,6 @@ use Sign;
 use super::{BigInt, BigUint, One, Signed, Zero};
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
-
 
 /// Methods common to all integer types that
 /// could be used generically in abstract algorithms
@@ -234,12 +233,10 @@ where
     let mut result: T = T::_0();
 
     loop {
-        vptr = match F::_10r()
-            .map_or_else(
-                || vptr.checked_mul(&GenericInteger::_10()),
-                |_10| vptr.checked_mul(_10)
-            )
-        {
+        vptr = match F::_10r().map_or_else(
+            || vptr.checked_mul(&GenericInteger::_10()),
+            |_10| vptr.checked_mul(_10),
+        ) {
             Some(v) => v,
             None => break,
         };
@@ -248,110 +245,81 @@ where
 
         let mut rdelta: T = T::_0();
 
-        let mut vldelta: F = vdelta.checked_div(
-            &F::_10r().map_or_else(
-                || vptr.checked_div(&GenericInteger::_10()),
-                |_10| vptr.checked_div(_10)
-            )?
-        )?;
+        let mut vldelta: F = vdelta.checked_div(&F::_10r().map_or_else(
+            || vptr.checked_div(&GenericInteger::_10()),
+            |_10| vptr.checked_div(_10),
+        )?)?;
 
         loop {
-            if F::_0r()
-                .map_or_else(
-                    || vldelta == GenericInteger::_0(),
-                    |v| vldelta == *v
-                )
-            {
+            if F::_0r().map_or_else(|| vldelta == GenericInteger::_0(), |v| vldelta == *v) {
                 break;
             }
 
             rdelta = T::_1r()
-                .map_or_else(
-                    || rdelta.checked_add(&T::_1()),
-                    |_1| rdelta.checked_add(_1)
-                )?;
+                .map_or_else(|| rdelta.checked_add(&T::_1()), |_1| rdelta.checked_add(_1))?;
 
-            vldelta = F::_1r()
-                .map_or_else(
-                    || {
-                        if sign == Sign::Plus {
-                            vldelta.checked_sub(&GenericInteger::_1())
-                        } else {
-                            vldelta.checked_add(&GenericInteger::_1())
-                        }
-                    },
-                    |_1| {
-                        if sign == Sign::Plus {
-                            vldelta.checked_sub(_1)
-                        } else {
-                            vldelta.checked_add(_1)
-                        }
+            vldelta = F::_1r().map_or_else(
+                || {
+                    if sign == Sign::Plus {
+                        vldelta.checked_sub(&GenericInteger::_1())
+                    } else {
+                        vldelta.checked_add(&GenericInteger::_1())
                     }
-                )?;
+                },
+                |_1| {
+                    if sign == Sign::Plus {
+                        vldelta.checked_sub(_1)
+                    } else {
+                        vldelta.checked_add(_1)
+                    }
+                },
+            )?;
         }
 
         result = result.checked_add(&rdelta.checked_mul(&rptr)?)?;
         val = val.checked_sub(&vdelta)?;
 
-        if F::_0r()
-            .map_or_else(
-                || val == GenericInteger::_0(),
-                |_0| val == *_0
-            )
-        {
+        if F::_0r().map_or_else(|| val == GenericInteger::_0(), |_0| val == *_0) {
             break;
         }
 
-        rptr = T::_10r()
-            .map_or_else(
-                || rptr.checked_mul(&GenericInteger::_10()),
-                |_10| rptr.checked_mul(_10)
-            )?;
+        rptr = T::_10r().map_or_else(
+            || rptr.checked_mul(&GenericInteger::_10()),
+            |_10| rptr.checked_mul(_10),
+        )?;
     }
 
-    if F::_0r()
-        .map_or_else(
-            || val != GenericInteger::_0(),
-            |_0| val != *_0
-        )
-    {
+    if F::_0r().map_or_else(|| val != GenericInteger::_0(), |_0| val != *_0) {
         let mut vldelta: F = val.checked_div(&vptr)?;
 
         let mut rdelta: T = T::_0();
 
         loop {
-            if F::_0r()
-                .map_or_else(
-                    || vldelta == GenericInteger::_0(),
-                    |_0| vldelta == *_0
-                )
-            {
+            if F::_0r().map_or_else(|| vldelta == GenericInteger::_0(), |_0| vldelta == *_0) {
                 break;
             }
 
-            rdelta = T::_1r()
-                .map_or_else(
-                    || rdelta.checked_add(&GenericInteger::_1()),
-                    |_1| rdelta.checked_add(_1)
-                )?;
+            rdelta = T::_1r().map_or_else(
+                || rdelta.checked_add(&GenericInteger::_1()),
+                |_1| rdelta.checked_add(_1),
+            )?;
 
-            vldelta = F::_1r()
-                .map_or_else(
-                    || {
-                        if sign == Sign::Plus {
-                            vldelta.checked_sub(&GenericInteger::_1())
-                        } else {
-                            vldelta.checked_add(&GenericInteger::_1())
-                        }
-                    },
-                    |_1| {
-                        if sign == Sign::Plus {
-                            vldelta.checked_sub(_1)
-                        } else {
-                            vldelta.checked_add(_1)
-                        }
+            vldelta = F::_1r().map_or_else(
+                || {
+                    if sign == Sign::Plus {
+                        vldelta.checked_sub(&GenericInteger::_1())
+                    } else {
+                        vldelta.checked_add(&GenericInteger::_1())
                     }
-                )?;
+                },
+                |_1| {
+                    if sign == Sign::Plus {
+                        vldelta.checked_sub(_1)
+                    } else {
+                        vldelta.checked_add(_1)
+                    }
+                },
+            )?;
         }
         result = result.checked_add(&rdelta.checked_mul(&rptr)?)?;
     }
