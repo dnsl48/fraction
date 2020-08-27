@@ -31,6 +31,8 @@ pub trait GenericInteger:
     + Mul
     + Rem
     + Sub
+    + Zero
+    + One
     + AddAssign
     + DivAssign
     + MulAssign
@@ -47,12 +49,6 @@ pub trait GenericInteger:
     + for<'a> RemAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
 {
-    /// Returns value 0 of the type
-    fn _0() -> Self;
-
-    /// Returns value 1 of the type
-    fn _1() -> Self;
-
     /// Returns value 10 of the type
     fn _10() -> Self;
 
@@ -83,14 +79,6 @@ lazy_static! {
 #[cfg(feature = "with-bigint")]
 impl GenericInteger for BigUint {
     #[inline]
-    fn _0() -> Self {
-        BigUint::zero()
-    }
-    #[inline]
-    fn _1() -> Self {
-        BigUint::one()
-    }
-    #[inline]
     fn _10() -> Self {
         _10_BU.clone()
     }
@@ -115,14 +103,6 @@ impl GenericInteger for BigUint {
 
 #[cfg(feature = "with-bigint")]
 impl GenericInteger for BigInt {
-    #[inline]
-    fn _0() -> Self {
-        BigInt::zero()
-    }
-    #[inline]
-    fn _1() -> Self {
-        BigInt::one()
-    }
     #[inline]
     fn _10() -> Self {
         _10_BI.clone()
@@ -158,10 +138,6 @@ macro_rules! generic_integer_for_uint {
         $(
             impl GenericInteger for $t {
                 #[inline]
-                fn _0() -> Self { 0 }
-                #[inline]
-                fn _1() -> Self { 1 }
-                #[inline]
                 fn _10() -> Self { 10 }
                 #[inline]
                 fn _0r() -> Option<&'static Self> { None }
@@ -183,10 +159,6 @@ macro_rules! generic_integer_for_int {
     ($($t:ty),*) => {
         $(
             impl GenericInteger for $t {
-                #[inline]
-                fn _0() -> Self { 0 }
-                #[inline]
-                fn _1() -> Self { 1 }
                 #[inline]
                 fn _10() -> Self { 10 }
                 #[inline]
@@ -228,9 +200,9 @@ where
 {
     let (sign, mut val) = val.get_signed_value();
 
-    let mut vptr: F = F::_1();
-    let mut rptr: T = T::_1();
-    let mut result: T = T::_0();
+    let mut vptr: F = F::one();
+    let mut rptr: T = T::one();
+    let mut result: T = T::zero();
 
     loop {
         vptr = match F::_10r().map_or_else(
@@ -243,27 +215,28 @@ where
 
         let vdelta: F = val.checked_sub(&val.checked_div(&vptr)?.checked_mul(&vptr)?)?;
 
-        let mut rdelta: T = T::_0();
+        let mut rdelta: T = T::zero();
 
-        let mut vldelta: F = vdelta.checked_div(&F::_10r().map_or_else(
-            || vptr.checked_div(&GenericInteger::_10()),
-            |_10| vptr.checked_div(_10),
-        )?)?;
+        let mut vldelta: F = vdelta.checked_div(
+            &F::_10r().map_or_else(|| vptr.checked_div(&F::_10()), |_10| vptr.checked_div(_10))?,
+        )?;
 
         loop {
-            if F::_0r().map_or_else(|| vldelta == GenericInteger::_0(), |v| vldelta == *v) {
+            if F::_0r().map_or_else(|| vldelta == F::zero(), |v| vldelta == *v) {
                 break;
             }
 
-            rdelta = T::_1r()
-                .map_or_else(|| rdelta.checked_add(&T::_1()), |_1| rdelta.checked_add(_1))?;
+            rdelta = T::_1r().map_or_else(
+                || rdelta.checked_add(&T::one()),
+                |_1| rdelta.checked_add(_1),
+            )?;
 
             vldelta = F::_1r().map_or_else(
                 || {
                     if sign == Sign::Plus {
-                        vldelta.checked_sub(&GenericInteger::_1())
+                        vldelta.checked_sub(&F::one())
                     } else {
-                        vldelta.checked_add(&GenericInteger::_1())
+                        vldelta.checked_add(&F::one())
                     }
                 },
                 |_1| {
@@ -279,37 +252,35 @@ where
         result = result.checked_add(&rdelta.checked_mul(&rptr)?)?;
         val = val.checked_sub(&vdelta)?;
 
-        if F::_0r().map_or_else(|| val == GenericInteger::_0(), |_0| val == *_0) {
+        if F::_0r().map_or_else(|| val == F::zero(), |_0| val == *_0) {
             break;
         }
 
-        rptr = T::_10r().map_or_else(
-            || rptr.checked_mul(&GenericInteger::_10()),
-            |_10| rptr.checked_mul(_10),
-        )?;
+        rptr =
+            T::_10r().map_or_else(|| rptr.checked_mul(&T::_10()), |_10| rptr.checked_mul(_10))?;
     }
 
-    if F::_0r().map_or_else(|| val != GenericInteger::_0(), |_0| val != *_0) {
+    if F::_0r().map_or_else(|| val != F::zero(), |_0| val != *_0) {
         let mut vldelta: F = val.checked_div(&vptr)?;
 
-        let mut rdelta: T = T::_0();
+        let mut rdelta: T = T::zero();
 
         loop {
-            if F::_0r().map_or_else(|| vldelta == GenericInteger::_0(), |_0| vldelta == *_0) {
+            if F::_0r().map_or_else(|| vldelta == F::zero(), |_0| vldelta == *_0) {
                 break;
             }
 
             rdelta = T::_1r().map_or_else(
-                || rdelta.checked_add(&GenericInteger::_1()),
+                || rdelta.checked_add(&T::one()),
                 |_1| rdelta.checked_add(_1),
             )?;
 
             vldelta = F::_1r().map_or_else(
                 || {
                     if sign == Sign::Plus {
-                        vldelta.checked_sub(&GenericInteger::_1())
+                        vldelta.checked_sub(&F::one())
                     } else {
-                        vldelta.checked_add(&GenericInteger::_1())
+                        vldelta.checked_add(&F::one())
                     }
                 },
                 |_1| {

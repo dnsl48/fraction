@@ -8,7 +8,7 @@
 use error::DivisionError;
 use generic::GenericInteger;
 
-use std::cmp::{Eq, PartialEq};
+use std::cmp::{Eq, Ordering, PartialEq};
 use std::fmt::Write;
 
 /// Division state encapsulates remainder and divisor
@@ -89,42 +89,46 @@ where
     }
 
     /* === Figuring out the number size === */
-    let mut ptr: I = if dividend == divisor {
-        consumer(1u8)?;
-        return Ok(DivisionState::new(I::zero(), divisor));
-    } else if dividend < divisor {
-        consumer(0u8)?;
-        return Ok(DivisionState::new(dividend, divisor));
-    } else {
-        let mut ptr: I = I::_1();
+    let mut ptr: I = match dividend.cmp(&divisor) {
+        Ordering::Equal => {
+            consumer(1u8)?;
+            return Ok(DivisionState::new(I::zero(), divisor));
+        }
+        Ordering::Less => {
+            consumer(0u8)?;
+            return Ok(DivisionState::new(dividend, divisor));
+        }
+        Ordering::Greater => {
+            let mut ptr: I = I::one();
 
-        loop {
-            if ptr > dividend {
-                if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
-                    I::_10r().map(|_10| ptr /= _10).or_else(|| {
-                        ptr /= I::_10();
-                        None
-                    });
+            loop {
+                if ptr > dividend {
+                    if I::_1r().map_or_else(|| ptr > I::one(), |_1| ptr > *_1) {
+                        I::_10r().map(|_10| ptr /= _10).or_else(|| {
+                            ptr /= I::_10();
+                            None
+                        });
+                    }
+                    break;
                 }
-                break;
+
+                ptr = match I::_10r()
+                    .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
+                {
+                    Some(n) => n,
+                    None => break,
+                };
             }
 
-            ptr = match I::_10r()
-                .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
-            {
-                Some(n) => n,
-                None => break,
-            };
+            ptr
         }
-
-        ptr
     };
 
     let mut passed_leading_zeroes: bool = false;
     loop {
         let digit = dividend.div_floor(&ptr).div_floor(&divisor);
 
-        if I::_0r().map_or_else(|| digit > I::_0(), |_0| digit > *_0) {
+        if I::_0r().map_or_else(|| digit > I::zero(), |_0| digit > *_0) {
             passed_leading_zeroes = true;
             dividend -= digit.clone() * &divisor * &ptr;
         }
@@ -141,7 +145,7 @@ where
             };
         }
 
-        if I::_1r().map_or_else(|| ptr == I::_1(), |_1| ptr == *_1) {
+        if I::_1r().map_or_else(|| ptr == I::one(), |_1| ptr == *_1) {
             break;
         }
 
@@ -371,7 +375,7 @@ pub fn division_result_max_char_length<I>(dividend: &I, precision: usize) -> usi
 where
     I: Clone + GenericInteger,
 {
-    let mut ptr: I = I::_1();
+    let mut ptr: I = I::one();
     let mut len: usize = 0;
 
     loop {
