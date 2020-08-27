@@ -80,6 +80,28 @@ impl Neg for Sign {
     }
 }
 
+impl PartialOrd for Sign {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Sign::Minus, Sign::Minus) => Some(Ordering::Equal),
+            (Sign::Plus, Sign::Minus) => Some(Ordering::Greater),
+            (Sign::Minus, Sign::Plus) => Some(Ordering::Less),
+            (Sign::Plus, Sign::Plus) => Some(Ordering::Equal),
+        }
+    }
+}
+
+impl Ord for Sign {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Sign::Minus, Sign::Minus) => Ordering::Equal,
+            (Sign::Plus, Sign::Minus) => Ordering::Greater,
+            (Sign::Minus, Sign::Plus) => Ordering::Less,
+            (Sign::Plus, Sign::Plus) => Ordering::Equal,
+        }
+    }
+}
+
 impl fmt::Display for Sign {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let format = display::Format::new(f);
@@ -574,15 +596,7 @@ impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
             GenericFraction::NaN => None,
             GenericFraction::Infinity(sign) => match *other {
                 GenericFraction::NaN => None,
-                GenericFraction::Infinity(osign) => {
-                    if sign == osign {
-                        Some(Ordering::Equal)
-                    } else if sign == Sign::Minus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
+                GenericFraction::Infinity(osign) => sign.partial_cmp(&osign),
                 GenericFraction::Rational(_, _) => {
                     if sign == Sign::Plus {
                         Some(Ordering::Greater)
