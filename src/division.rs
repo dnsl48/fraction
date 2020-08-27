@@ -20,10 +20,7 @@ pub struct DivisionState<I> {
 
 impl<I> DivisionState<I> {
     pub fn new(remainder: I, divisor: I) -> Self {
-        DivisionState {
-            remainder: remainder,
-            divisor: divisor,
-        }
+        DivisionState { remainder, divisor }
     }
 }
 
@@ -596,7 +593,7 @@ where
             keep_going = false;
             result
         }
-        result @ _ => result,
+        result => result,
     })?;
 
     if !keep_going {
@@ -625,7 +622,7 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result,
+                                result => result,
                             }?;
 
                             if !keep_going {
@@ -641,7 +638,7 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result,
+                                result => result,
                             }?;
 
                             if !keep_going {
@@ -654,7 +651,7 @@ where
                                 keep_going = false;
                                 result
                             }
-                            result @ _ => result,
+                            result => result,
                         }?;
 
                         if !keep_going {
@@ -678,7 +675,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {
@@ -694,7 +691,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {
@@ -710,7 +707,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {

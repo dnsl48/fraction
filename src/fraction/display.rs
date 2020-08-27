@@ -76,17 +76,7 @@ impl Format {
             align: formatter.align(),
             width: formatter.width(),
             precision: formatter.precision(),
-            flags: flags,
-        }
-    }
-
-    pub fn clone(&self) -> Self {
-        Format {
-            fill: self.fill(),
-            align: self.cloned_align(),
-            width: self.width().clone(),
-            precision: self.precision().clone(),
-            flags: self.flags,
+            flags,
         }
     }
 
@@ -186,6 +176,18 @@ impl Format {
         }
 
         self
+    }
+}
+
+impl Clone for Format {
+    fn clone(&self) -> Self {
+        Format {
+            fill: self.fill(),
+            align: self.cloned_align(),
+            width: *self.width(),
+            precision: *self.precision(),
+            flags: self.flags,
+        }
     }
 }
 

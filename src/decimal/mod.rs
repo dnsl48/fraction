@@ -712,7 +712,7 @@ where
 
     fn from_str_radix(value: &str, base: u32) -> Result<Self, error::ParseError> {
         if base != 10 {
-            Err(error::ParseError::UnsupportedBase)?;
+            return Err(error::ParseError::UnsupportedBase);
         }
 
         Ok(GenericDecimal(
