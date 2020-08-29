@@ -16,7 +16,7 @@ where
     T: Clone + GenericInteger + From<u16>,
     P: Copy + GenericInteger + Into<usize> + Bounded + TryToConvertFrom<i16> + fmt::Display,
 {
-    fn from_sql(ty: &Type, raw: &[u8]) -> Result<Self, Box<Error + Sync + Send>> {
+    fn from_sql(ty: &Type, raw: &[u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
         if raw.len() < 8 {
             return Err("unexpected data package from the database".into());
         }
@@ -53,7 +53,7 @@ where
     T: Clone + GenericInteger + From<u8> + fmt::Debug,
     P: Copy + GenericInteger + Into<usize> + fmt::Debug,
 {
-    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<Error + Sync + Send>> {
+    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         match *self {
             GenericDecimal(ref fraction, precision) => {
                 fraction_to_sql_buf(fraction, ty, buf, precision.into())

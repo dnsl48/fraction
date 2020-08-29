@@ -19,7 +19,7 @@ const PG_NBASE_I: i16 = 10000;
 pub const PG_MAX_PRECISION: usize = 16383;
 
 #[inline]
-pub fn read_i16(mut buf: &[u8]) -> Result<i16, Box<Error + Sync + Send>> {
+pub fn read_i16(mut buf: &[u8]) -> Result<i16, Box<dyn Error + Sync + Send>> {
     match buf.read_i16::<BigEndian>() {
         Ok(n) => Ok(n),
         Err(e) => Err(e.into()),
@@ -27,7 +27,7 @@ pub fn read_i16(mut buf: &[u8]) -> Result<i16, Box<Error + Sync + Send>> {
 }
 
 #[inline]
-pub fn read_u16(mut buf: &[u8]) -> Result<u16, Box<Error + Sync + Send>> {
+pub fn read_u16(mut buf: &[u8]) -> Result<u16, Box<dyn Error + Sync + Send>> {
     match buf.read_u16::<BigEndian>() {
         Ok(n) => Ok(n),
         Err(e) => Err(e.into()),
@@ -35,7 +35,7 @@ pub fn read_u16(mut buf: &[u8]) -> Result<u16, Box<Error + Sync + Send>> {
 }
 
 #[inline]
-pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), Box<Error + Sync + Send>> {
+pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), Box<dyn Error + Sync + Send>> {
     match buf.write_i16::<BigEndian>(value) {
         Ok(()) => Ok(()),
         Err(e) => Err(e.into()),
@@ -43,7 +43,7 @@ pub fn write_i16(mut buf: &mut [u8], value: i16) -> Result<(), Box<Error + Sync 
 }
 
 #[inline]
-pub fn write_u16(mut buf: &mut [u8], value: u16) -> Result<(), Box<Error + Sync + Send>> {
+pub fn write_u16(mut buf: &mut [u8], value: u16) -> Result<(), Box<dyn Error + Sync + Send>> {
     match buf.write_u16::<BigEndian>(value) {
         Ok(()) => Ok(()),
         Err(e) => Err(e.into()),
@@ -54,7 +54,7 @@ impl<T> FromSql for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u16>,
 {
-    fn from_sql(_ty: &Type, raw: &[u8]) -> Result<Self, Box<Error + Sync + Send>> {
+    fn from_sql(_ty: &Type, raw: &[u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
         if raw.len() < 8 {
             return Err("unexpected data package from the database".into());
         }
@@ -212,7 +212,7 @@ impl<T> ToSql for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u8> + fmt::Debug,
 {
-    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<Error + Sync + Send>> {
+    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         fraction_to_sql_buf(self, ty, buf, PG_MAX_PRECISION)
     }
 
@@ -226,7 +226,7 @@ pub fn fraction_to_sql_buf<T>(
     _ty: &Type,
     buf: &mut Vec<u8>,
     precision: usize,
-) -> Result<IsNull, Box<Error + Sync + Send>>
+) -> Result<IsNull, Box<dyn Error + Sync + Send>>
 where
     T: Clone + GenericInteger + From<u8>,
 {
