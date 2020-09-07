@@ -1784,13 +1784,13 @@ impl<T: Clone + Integer> Num for GenericFraction<T> {
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         if str.starts_with('-') {
             Ratio::from_str_radix(&str[1..], radix)
-                .and_then(|ratio| Ok(GenericFraction::Rational(Sign::Minus, ratio)))
+                .map(|ratio| GenericFraction::Rational(Sign::Minus, ratio))
         } else if str.starts_with('+') {
             Ratio::from_str_radix(&str[1..], radix)
-                .and_then(|ratio| Ok(GenericFraction::Rational(Sign::Plus, ratio)))
+                .map(|ratio| GenericFraction::Rational(Sign::Plus, ratio))
         } else {
             Ratio::from_str_radix(str, radix)
-                .and_then(|ratio| Ok(GenericFraction::Rational(Sign::Plus, ratio)))
+                .map(|ratio| GenericFraction::Rational(Sign::Plus, ratio))
         }
     }
 }

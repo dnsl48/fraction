@@ -861,8 +861,8 @@ where
 
     fn from_str_radix(s: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         T::from_str_radix(s, radix)
-            .and_then(|v| Ok(DynaInt::S(v)))
-            .or_else(|_| G::from_str_radix(s, radix).and_then(|v| Ok(DynaInt::h(v))))
+            .map(|v| DynaInt::S(v))
+            .or_else(|_| G::from_str_radix(s, radix).map(|v| DynaInt::h(v)))
     }
 }
 
