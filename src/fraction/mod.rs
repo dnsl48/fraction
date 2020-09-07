@@ -539,25 +539,20 @@ impl<T: Bounded + Clone + Integer> Bounded for GenericFraction<T> {
 
 impl<T: Clone + Integer> PartialEq for GenericFraction<T> {
     fn eq(&self, other: &Self) -> bool {
-        match *self {
-            GenericFraction::NaN => match *other {
-                GenericFraction::NaN => true,
-                _ => false,
-            },
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::Infinity(osign) => sign == osign,
-                _ => false,
-            },
-            GenericFraction::Rational(ref ls, ref l) => match *other {
-                GenericFraction::Rational(ref rs, ref r) => {
-                    if ls == rs {
-                        l.eq(r)
-                    } else {
-                        l.is_zero() && r.is_zero()
-                    }
+        match (self, other) {
+            (GenericFraction::NaN, GenericFraction::NaN) => true,
+            (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign == osign,
+            (
+                GenericFraction::Rational(ref ls, ref l),
+                GenericFraction::Rational(ref rs, ref r),
+            ) => {
+                if ls == rs {
+                    l.eq(r)
+                } else {
+                    l.is_zero() && r.is_zero()
                 }
-                _ => false,
-            },
+            }
+            _ => false,
         }
     }
 }
@@ -2001,10 +1996,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::new (0, 0).is_nan ());
     /// ```
     pub fn is_nan(&self) -> bool {
-        match *self {
-            GenericFraction::NaN => true,
-            _ => false,
-        }
+        matches!(*self, GenericFraction::NaN)
     }
 
     /// Returns true if the value is Infinity (does not matter positive or negative)
@@ -2020,10 +2012,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::new_neg (1u8, 0).is_infinite ());
     /// ```
     pub fn is_infinite(&self) -> bool {
-        match *self {
-            GenericFraction::Infinity(_) => true,
-            _ => false,
-        }
+        matches!(*self, GenericFraction::Infinity(_))
     }
 
     /// Returns true if the value is not Infinity (does not matter positive or negative)
@@ -2039,10 +2028,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (! F::new_neg (1u8, 0).is_finite ());
     /// ```
     pub fn is_finite(&self) -> bool {
-        match *self {
-            GenericFraction::Infinity(_) => false,
-            _ => true,
-        }
+        !matches!(*self, GenericFraction::Infinity(_))
     }
 
     /// Returns true if the number is neither zero, Infinity or NaN
