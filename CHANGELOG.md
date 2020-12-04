@@ -1,5 +1,16 @@
 # Change Log
 
+## [0.7.0] - 2020-12-05
+### Added
+ - fraction::display::Format implements Clone trait (becomes cloneable)
+ - fraction::Sign implements PartialOrd and Ord traits (becomes orderable)
+ - GenericDecimal::calc_precision max_precision optional argument to limit the calculation
+
+### Changed
+ - Decimal::from_fraction now limits precision calculation to 255
+ - rustfmt for the whole codebase
+ - small readability refactoring for some methods
+
 ## [0.6.3] - 2020-05-07
 ### Added
  - std::iter::{Sum, Product} implemented for GenericFraction and GenericDecimal
