@@ -765,6 +765,7 @@ where
     T: Clone + GenericInteger,
     P: Copy + GenericInteger + Into<usize>,
 {
+    /// Returns Some(Sign) of the decimal, or None if NaN is the value
     pub fn sign(&self) -> Option<Sign>
     where
         T: CheckedAdd + CheckedMul + CheckedSub,
@@ -772,19 +773,70 @@ where
         self.apply_ref(|f, _| f.sign())
     }
 
+    /// Sets representational precision for the Decimal
+    /// The precision is only used for comparison and representation, not for calculations.
+    ///
+    /// This is suggested method for you to utilise if you know what precision you want to
+    /// work with.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::GenericDecimal;
+    ///
+    /// type D = GenericDecimal<u32, u8>;
+    ///
+    /// let first = D::from("0.004")  // initial precision is 4
+    ///             .set_precision(2);  // but we want to work with 2
+    /// let second = D::from("0.006").set_precision(2);
+    ///
+    /// // Even though "first" and "second" both have precision 2
+    /// // the actual calculations are still performed with their
+    /// // exact initial precision
+    /// assert_eq!(first + second, D::from("0.01"));
+    ///
+    /// // The comparison, on the other hand, takes the precision into account
+    /// // so the actual compared numbers will be calculated up the highest
+    /// // precision of both operands
+    /// assert_ne!(  // compares "0.010" with "0.011"
+    ///     D::from("0.01"),  // has precision 2
+    ///     D::from("0.011")  // has precision 3
+    /// );
+    ///
+    /// assert_eq!(  // compares "0.01" with "0.01"
+    ///     D::from("0.01").set_precision(2),
+    ///     D::from("0.011").set_precision(2)
+    /// );
+    /// ```
     pub fn set_precision(self, precision: P) -> Self {
         match self {
             GenericDecimal(fraction, _) => GenericDecimal(fraction, precision),
         }
     }
 
+    /// Returns the current representational precision for the Decimal
     pub fn get_precision(&self) -> P {
         match self {
             GenericDecimal(_, precision) => *precision,
         }
     }
 
-    pub fn calc_precision(self) -> Self
+    /// Try to recalculate the representational precision
+    /// depending on the internal Fraction, which is the actual value.
+    ///
+    /// Performs the actual division until the exact decimal value is calculated,
+    /// the precision type (P) capacity is reached (e.g. 255 for u8) or max_precision
+    /// is reached, if it is given.
+    ///
+    /// # WARNING
+    /// You only need this method if you want to find the max available
+    /// precision for the current decimal value.
+    /// However, keep in mind that irrational values (such as 1/3) do not have finite precision,
+    /// so if this method returns P::MAX (or max_precision), most likely you have
+    /// an irrational value.
+    /// Be careful with max numbers for `usize` - that can take very long time to
+    /// compute (more than a minute)
+    pub fn calc_precision(self, max_precision: Option<P>) -> Self
     where
         T: CheckedMul + DivAssign + MulAssign + SubAssign + ToPrimitive + GenericInteger,
         P: Bounded + CheckedAdd,
@@ -796,6 +848,7 @@ where
                     GenericFraction::Infinity(_) => P::zero(),
                     GenericFraction::Rational(_, ref ratio) => {
                         let mut precision: P = P::zero();
+                        let max_precision: P = max_precision.unwrap_or_else(|| P::max_value());
 
                         let num = ratio.numer();
                         let den = ratio.denom();
@@ -810,6 +863,11 @@ where
                                     div_state.remainder,
                                     div_state.divisor,
                                     |s, _| {
+                                        if precision >= max_precision {
+                                            // stop here, we have reached the limit
+                                            return Ok(Err(s));
+                                        }
+
                                         precision = if let Some(p) = precision.checked_add(&_1) {
                                             p
                                         } else {
@@ -1018,7 +1076,11 @@ where
         T: GenericInteger + ToPrimitive,
         P: Bounded + CheckedAdd,
     {
-        GenericDecimal(fraction, P::zero()).calc_precision()
+        let two = P::one() + P::one();
+        let hun = P::_10() * P::_10();
+        let max_precision = two * hun + hun / two + P::_10() / two; // 255
+
+        GenericDecimal(fraction, P::zero()).calc_precision(Some(max_precision))
     }
 }
 
@@ -1120,6 +1182,54 @@ mod tests {
         let values = vec![Decimal::from(152.568), Decimal::from(328.76842)];
         let product: Decimal = values.iter().product();
         assert_eq!(product, values[0] * values[1])
+    }
+
+    #[test]
+    fn calc_precision() {
+        use super::BigUint;
+        type BigDecimal = GenericDecimal<BigUint, usize>;
+
+        let one = BigDecimal::from(1);
+        let two = BigDecimal::from(2);
+        let three = BigDecimal::from(3);
+        let half = BigDecimal::from(1) / BigDecimal::from(2);
+        let onethird = BigDecimal::from(1) / BigDecimal::from(3);
+
+        assert_eq!(0, one.get_precision());
+        assert_eq!(0, two.get_precision());
+        assert_eq!(0, three.get_precision());
+        assert_eq!(0, half.get_precision());
+        assert_eq!(0, onethird.get_precision());
+        assert_eq!(1, half.clone().calc_precision(None).get_precision());
+        assert_eq!(0, half.clone().calc_precision(Some(0)).get_precision());
+        assert_eq!(1, half.clone().calc_precision(Some(1)).get_precision());
+        assert_eq!(1, half.clone().calc_precision(Some(255)).get_precision());
+
+        assert_eq!(0, onethird.clone().calc_precision(Some(0)).get_precision());
+        assert_eq!(1, onethird.clone().calc_precision(Some(1)).get_precision());
+        assert_eq!(
+            255,
+            onethird.clone().calc_precision(Some(255)).get_precision()
+        );
+        assert_eq!(
+            2056,
+            onethird.clone().calc_precision(Some(2056)).get_precision()
+        );
+
+        type D = GenericDecimal<u64, u8>;
+        let one = D::from(1);
+        let two = D::from(2);
+        let three = D::from(3);
+        let half = one / two;
+        let onethird = one / three;
+
+        assert_eq!(0, one.get_precision());
+        assert_eq!(0, two.get_precision());
+        assert_eq!(0, three.get_precision());
+        assert_eq!(0, half.get_precision());
+        assert_eq!(0, onethird.get_precision());
+        assert_eq!(1, half.calc_precision(None).get_precision());
+        assert_eq!(255, onethird.calc_precision(None).get_precision());
     }
 
     // TODO: more tests
