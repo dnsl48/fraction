@@ -40,20 +40,20 @@ use fraction::Fraction;
 use fraction::ToPrimitive;
 use fraction::Zero;
 
-fn main () {
-  let mut fr = Fraction::zero ();
+fn main() {
+  let mut fr = Fraction::zero();
 
-  fr = fr + Fraction::from (2);   // 0 + 2   = 2
-  fr = fr / Fraction::from (0.5); // 2 / 0.5 = 4
+  fr = fr + Fraction::from(2);   // 0 + 2   = 2
+  fr = fr / Fraction::from(0.5); // 2 / 0.5 = 4
 
-  assert_eq! (fr, Fraction::from (4));
-  assert_eq! (4.0f64, fr.to_f64 ().unwrap());
+  assert_eq!(fr, Fraction::from(4));
+  assert_eq!(4.0f64, fr.to_f64().unwrap());
 }
 ```
 
 ## Decimal
 ```rust
-fn main () {
+fn main() {
   type D = fraction::Decimal;
 
   let result = D::from(0.5) / D::from(0.3);
@@ -67,16 +67,16 @@ use std::collections::HashMap;
 use fraction::Fraction;
 
 fn main () {
-  let f = Fraction::from (0.75);
+  let f = Fraction::from(0.75);
 
-  let mut map: HashMap<Fraction, ()> = HashMap::new ();
+  let mut map: HashMap<Fraction, ()> = HashMap::new();
 
-  map.insert (f, ());
+  map.insert(f, ());
 
-  assert! (map.contains_key (&Fraction::new (3u64, 4u64)));   // 0.75 == 3/4
-  assert! (map.contains_key (&Fraction::new (6u64, 8u64)));   // 0.75 == 6/8
-  assert! (map.contains_key (&Fraction::new (12u64, 16u64))); // 0.75 == 12/16
-  assert! (! map.contains_key (&Fraction::from (0.5))); // 0.75 != 1/2
+  assert!(map.contains_key(&Fraction::new(3u64, 4u64)));   // 0.75 == 3/4
+  assert!(map.contains_key(&Fraction::new(6u64, 8u64)));   // 0.75 == 6/8
+  assert!(map.contains_key(&Fraction::new(12u64, 16u64))); // 0.75 == 12/16
+  assert!(! map.contains_key(&Fraction::from(0.5))); // 0.75 != 1/2
 }
 ```
 
@@ -97,14 +97,14 @@ fn main() {
 use fraction::Fraction;
 
 fn main () {
-  let f14 = Fraction::new (1u64, 4u64); // 1/4 == 0.25
-  let f12 = Fraction::new (1u64, 2u64); // 1/2 == 0.50
-  let f24 = Fraction::new (2u64, 4u64); // 2/4 == 0.50
-  let f34 = Fraction::new (3u64, 4u64); // 3/4 == 0.75
+  let f14 = Fraction::new(1u64, 4u64); // 1/4 == 0.25
+  let f12 = Fraction::new(1u64, 2u64); // 1/2 == 0.50
+  let f24 = Fraction::new(2u64, 4u64); // 2/4 == 0.50
+  let f34 = Fraction::new(3u64, 4u64); // 3/4 == 0.75
 
-  assert_eq! (f12, f24);                   // 1/2 == 2/4
-  assert_eq! (f34, f12 + f14);             // 3/4 == 1/2 + 1/4
-  assert_eq! (f14, Fraction::from (0.25)); // 1/4 == 0.25
+  assert_eq!(f12, f24);                   // 1/2 == 2/4
+  assert_eq!(f34, f12 + f14);             // 3/4 == 1/2 + 1/4
+  assert_eq!(f14, Fraction::from(0.25)); // 1/4 == 0.25
 }
 ```
 
