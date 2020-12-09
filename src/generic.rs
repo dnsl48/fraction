@@ -72,12 +72,12 @@ pub trait GenericInteger:
 
 #[cfg(feature = "with-bigint")]
 lazy_static! {
-    static ref _0_BU: BigUint =  BigUint::zero() ;
-    static ref _1_BU: BigUint =  BigUint::one() ;
-    static ref _10_BU: BigUint =  BigUint::from(10u8) ;
-    static ref _0_BI: BigInt =  BigInt::zero() ;
-    static ref _1_BI: BigInt =  BigInt::one() ;
-    static ref _10_BI: BigInt =  BigInt::from(10i8) ;
+    static ref _0_BU: BigUint = BigUint::zero();
+    static ref _1_BU: BigUint = BigUint::one();
+    static ref _10_BU: BigUint = BigUint::from(10u8);
+    static ref _0_BI: BigInt = BigInt::zero();
+    static ref _1_BI: BigInt = BigInt::one();
+    static ref _10_BI: BigInt = BigInt::from(10i8);
 }
 
 #[cfg(feature = "with-bigint")]

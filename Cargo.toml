@@ -47,3 +47,10 @@ with-dynaint = []
 with-juniper-support = ["juniper"]
 with-postgres-support = ["postgres", "byteorder"]
 with-serde-support = ["serde", "serde_derive", "num/serde"]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bench_fraction"
+harness = false

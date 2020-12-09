@@ -3,7 +3,7 @@ use error;
 
 use num::integer::Integer;
 use num::traits::{
-    /*Float, */ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Num, One, Signed,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Num, One, Signed,
     ToPrimitive, Zero,
 };
 
@@ -285,17 +285,14 @@ macro_rules! dec_impl {
     (impl_trait_from_float; $($t:ty),*) => {$(
         impl<T, P> From<$t> for GenericDecimal<T, P>
         where
-            T: Clone + GenericInteger,
+            T: Copy + Clone + GenericInteger + FromPrimitive,
             P: Copy + GenericInteger + Into<usize> + From<u8>
         {
             fn from(value: $t) -> Self {
                 if value.is_nan () { return GenericDecimal::nan() };
                 if value.is_infinite () { return if value.is_sign_negative () { GenericDecimal::neg_infinity() } else { GenericDecimal::infinity() } };
 
-                /* TODO: without the String conversion (probably through .to_bits) */
-                let src = format! ("{:+}", value);
-
-                GenericDecimal::from_decimal_str(&src).unwrap_or_else(|_| GenericDecimal::nan())
+                GenericDecimal(GenericFraction::from(value), P::zero())
             }
         }
     )*}

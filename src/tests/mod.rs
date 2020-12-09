@@ -1914,5 +1914,15 @@ fn fraction_from_float() {
             )*
         };
     };
+
+    macro_rules! test_for_larger_t {
+        ( $($t:ty),*) => {
+            $(
+                let f = GenericFraction::<$t>::from(15978.649);
+                assert_eq!(format!("{}", f), "15978649/1000");
+            )*
+        };
+    };
     test_for_t!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
+    test_for_larger_t!(u32, i32, u64, i64, u128, i128, usize, isize);
 }
