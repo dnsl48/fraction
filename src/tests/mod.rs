@@ -1906,11 +1906,15 @@ macro_rules! generate_ops_tests {
 
 #[test]
 fn fraction_from_float() {
-    macro_rules! test_for_t {
+    macro_rules! test_for_smaller_t {
         ( $($t:ty),*) => {
             $(
+                let f = GenericFraction::<$t>::from(2.0);
+                assert_eq!(format!("{}", f), "2");
                 let f = GenericFraction::<$t>::from(0.5);
                 assert_eq!(format!("{}", f), "1/2");
+                let f = GenericFraction::<$t>::from(15978.649);
+                assert_eq!(format!("{}", f), "NaN");
             )*
         };
     };
@@ -1918,11 +1922,15 @@ fn fraction_from_float() {
     macro_rules! test_for_larger_t {
         ( $($t:ty),*) => {
             $(
+                let f = GenericFraction::<$t>::from(2.0);
+                assert_eq!(format!("{}", f), "2");
+                let f = GenericFraction::<$t>::from(0.5);
+                assert_eq!(format!("{}", f), "1/2");
                 let f = GenericFraction::<$t>::from(15978.649);
                 assert_eq!(format!("{}", f), "15978649/1000");
             )*
         };
     };
-    test_for_t!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
+    test_for_smaller_t!(u8, i8, u16, i16);
     test_for_larger_t!(u32, i32, u64, i64, u128, i128, usize, isize);
 }
