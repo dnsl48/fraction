@@ -1,3 +1,5 @@
+use super::fraction::GenericFraction;
+
 macro_rules! generate_ops_tests {
     (
         Zero => $_0:block;
@@ -1900,4 +1902,19 @@ macro_rules! generate_ops_tests {
             assert_eq!(thr_, one);
         }
     };
+}
+
+#[test]
+fn fraction_from_float() {
+    macro_rules! test_for_t {
+        ( $($t:ty),*) => {
+            $(
+                let expect = GenericFraction::<$t>::new(1, 2);
+                let f = GenericFraction::<$t>::from(0.5);
+                assert_eq!(f, expect);
+            )*
+        };
+    };
+    // test_for_t!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
+    test_for_t!(u8, i8, i32, i64);
 }

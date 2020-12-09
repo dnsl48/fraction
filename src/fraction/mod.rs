@@ -1,11 +1,10 @@
-#[cfg(feature = "with-bigint")]
 use super::{BigInt, BigUint};
-
+#[cfg(feature = "with-bigint")]
 use error::ParseError;
 use std::iter::{Product, Sum};
 
 use super::{
-    /*Float, */ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One,
+    gcd, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
     ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
 };
 
@@ -519,7 +518,102 @@ where
 
         Ok(GenericFraction::Rational(sign, Ratio::new(num, den)))
     }
+
+    /// Parse a decimal f64 into a fraction and return the result.
+    /// Returns ParseError::OverflowError if there's not enough space in T to represent the decimal (use BigFraction in such a case)
+    /// Returns ParseError::ParseIntError if the string contains incorrect junk data (e.g. non-numeric characters).
+    /// May return ParseIntError if there is not enough volume in T to read whole part of the number into it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::Fraction;
+    ///
+    /// let f = Fraction::from_decimal_f64(1.5_f64);
+    /// assert_eq! (f, Ok (Fraction::new(3u8, 2u8)));
+    /// ```
+    pub fn from_decimal_f64(src: f64) -> Result<Self, ParseError>
+    where
+        T: Copy + Clone + From<i32> + Integer + CheckedAdd + CheckedMul + CheckedSub,
+    {
+        let sign = if src < 0.0 { Sign::Minus } else { Sign::Plus };
+
+        // Using https://math.stackexchange.com/a/1049723/17452
+        // Find the max precision of this number
+        // Note: all computations happen in i32 until the end.
+        let mut p: i32 = 1;
+        let mut new_src = src;
+        loop {
+            if (new_src.round() - new_src).abs() < std::f64::EPSILON {
+                // Yay, we've found the precision of this number
+                break;
+            }
+            // Multiply by the precision
+            new_src *= 10_f64.powi(p);
+            p += 1;
+        }
+
+        // let ten: i32 = 10;
+        // for _ in 0..10 {
+        //     ten = ten + ten;
+        // }
+
+        // Compute the GCD
+        let src_u = new_src as i32;
+        let denom = 10_i32.pow(p as u32);
+
+        let g = gcd(src_u, denom);
+        let num = src_u / g;
+        let den = denom / g;
+
+        Ok(GenericFraction::Rational(
+            sign,
+            Ratio::new(num.into(), den.into()),
+        ))
+    }
 }
+
+// macro_rules! impl_trait_from_float {
+//     ($u:ty, $f:ty) => {
+//         impl From<$f> for GenericFraction<$u> {
+//             fn from(src: $f) -> Self {
+//                 let sign = if src < 0.0 { Sign::Minus } else { Sign::Plus };
+
+//                 // Using https://math.stackexchange.com/a/1049723/17452
+//                 // Find the max precision of this number
+//                 let mut p: $u = 0;
+//                 let mut new_src = src;
+//                 loop {
+//                     if (new_src.round() - new_src).abs() < 2e-16 {
+//                         // Yay, we've found the precision of this number
+//                         break;
+//                     }
+//                     // Multiply by the precision
+//                     // let p_u: u32 = p.into();
+//                     new_src *= 10_f64.powi(p as i32);
+//                     p = p + 1;
+//                 }
+
+//                 let ten: $u = 10;
+//                 // for _ in 0..10 {
+//                 //     ten = ten + ten;
+//                 // }
+
+//                 // Compute the GCD
+//                 let src_u = new_src as $u;
+//                 let denom: $u = ten.pow(p as u32);
+
+//                 let g = gcd(src_u, denom);
+//                 let num = src_u / g;
+//                 let den = p / g;
+
+//                 GenericFraction::Rational(sign, Ratio::new(num, den))
+//             }
+//         }
+//     };
+// }
+
+// impl_trait_from_float!(u128, f64);
 
 impl<T: Bounded + Clone + Integer> Bounded for GenericFraction<T> {
     fn min_value() -> Self {
@@ -2337,15 +2431,38 @@ fraction_from_generic_int!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usi
 macro_rules! generic_fraction_from_float {
     ( $($from:ty),*) => {
         $(
-        impl<T: Clone + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
+        impl<T: Copy + Clone + FromPrimitive + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
             fn from (val: $from) -> GenericFraction<T> {
                 if val.is_nan () { return GenericFraction::NaN };
                 if val.is_infinite () { return GenericFraction::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
 
-                /* TODO: without the String conversion (probably through .to_bits) */
-                let src = format! ("{:+}", val);
+                let sign = if val < 0.0 { Sign::Minus } else { Sign::Plus };
 
-                Self::from_decimal_str(&src).unwrap_or(GenericFraction::nan())
+                // Using https://math.stackexchange.com/a/1049723/17452
+                // Find the max precision of this number
+                // Note: all computations happen in i32 until the end.
+                let mut p: i32 = 0;
+                let mut new_val = val;
+                let ten: $from = 10.0;
+                loop {
+                    if (new_val.round() - new_val).abs() < <$from>::EPSILON {
+                        // Yay, we've found the precision of this number
+                        break;
+                    }
+                    // Multiply by the precision
+                    p += 1;
+                    new_val *= ten.powi(p);
+                }
+
+                // Compute the GCD
+                let src_u: T = T::from_f64(new_val.into()).unwrap();
+                let denom: T = T::from_i32(10_i32.pow(p as u32)).unwrap();
+
+                let g = gcd(src_u, denom);
+                let num = src_u / g;
+                let den = denom / g;
+
+                GenericFraction::Rational(sign, Ratio::new(num, den))
             }
         }
         )*
