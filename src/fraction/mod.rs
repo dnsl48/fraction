@@ -1,5 +1,5 @@
-use super::{BigInt, BigUint};
 #[cfg(feature = "with-bigint")]
+use super::{BigInt, BigUint};
 use error::ParseError;
 use std::iter::{Product, Sum};
 
@@ -2338,8 +2338,8 @@ macro_rules! generic_fraction_from_float {
         $(
         impl<T: Copy + Clone + FromPrimitive + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
             fn from(val: $from) -> GenericFraction<T> {
-                if val.is_nan () { return GenericFraction::NaN };
-                if val.is_infinite () { return GenericFraction::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
+                if val.is_nan () { return Self::NaN };
+                if val.is_infinite () { return Self::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
 
                 let sign = if val < 0.0 { Sign::Minus } else { Sign::Plus };
 
@@ -2367,7 +2367,7 @@ macro_rules! generic_fraction_from_float {
                     None => {
                         // Could not convert, let's revert to the string method
                         let src = format! ("{:+}", val);
-                        return Self::from_decimal_str(&src).unwrap_or(GenericFraction::nan());
+                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
                     }
                 };
                 let denom: T = match T::from_f64(ten.powi(p).into()) {
@@ -2375,7 +2375,7 @@ macro_rules! generic_fraction_from_float {
                     None => {
                         // Could not convert, let's revert to the string method
                         let src = format! ("{:+}", val);
-                        return Self::from_decimal_str(&src).unwrap_or(GenericFraction::nan());
+                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
                     }
                 };
 
@@ -2383,7 +2383,7 @@ macro_rules! generic_fraction_from_float {
                 let num = src_u / g;
                 let den = denom / g;
 
-                GenericFraction::Rational(sign, Ratio::new(num, den))
+                Self::Rational(sign, Ratio::new(num, den))
             }
         }
         )*
@@ -2698,13 +2698,12 @@ mod tests {
 
     #[test]
     fn from_f32() {
-        // let f = Fraction::from(0f32);
-        // assert_eq!(Sign::Plus, f.sign().unwrap());
-        // assert_eq!(0, *f.numer().unwrap());
-        // assert_eq!(1, *f.denom().unwrap());
+        let f = Fraction::from(0f32);
+        assert_eq!(Sign::Plus, f.sign().unwrap());
+        assert_eq!(0, *f.numer().unwrap());
+        assert_eq!(1, *f.denom().unwrap());
 
         let f = Fraction::from(0.01f32);
-        println!("{}", f);
         assert_eq!(Sign::Plus, f.sign().unwrap());
         assert_eq!(1, *f.numer().unwrap());
         assert_eq!(100, *f.denom().unwrap());
