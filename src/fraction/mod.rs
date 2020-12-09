@@ -2456,7 +2456,7 @@ macro_rules! generic_fraction_from_float {
 
                 // Compute the GCD
                 let src_u: T = T::from_f64(new_val.into()).unwrap();
-                let denom: T = T::from_i32(10_i32.pow(p as u32)).unwrap();
+                let denom: T = T::from_f64(ten.powi(p).into()).unwrap();
 
                 let g = gcd(src_u, denom);
                 let num = src_u / g;

@@ -1909,12 +1909,10 @@ fn fraction_from_float() {
     macro_rules! test_for_t {
         ( $($t:ty),*) => {
             $(
-                let expect = GenericFraction::<$t>::new(1, 2);
                 let f = GenericFraction::<$t>::from(0.5);
-                assert_eq!(f, expect);
+                assert_eq!(format!("{}", f), "1/2");
             )*
         };
     };
-    // test_for_t!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
-    test_for_t!(u8, i8, i32, i64);
+    test_for_t!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
 }
