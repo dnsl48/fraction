@@ -285,14 +285,17 @@ macro_rules! dec_impl {
     (impl_trait_from_float; $($t:ty),*) => {$(
         impl<T, P> From<$t> for GenericDecimal<T, P>
         where
-            T: Copy + Clone + GenericInteger + FromPrimitive,
-            P: Copy + GenericInteger + Into<usize> + From<u8>
+            T: Clone + GenericInteger + FromPrimitive,
+            P: Copy + GenericInteger + Into<usize> + From<u8> + Bounded
         {
             fn from(value: $t) -> Self {
                 if value.is_nan () { return GenericDecimal::nan() };
                 if value.is_infinite () { return if value.is_sign_negative () { GenericDecimal::neg_infinity() } else { GenericDecimal::infinity() } };
 
-                GenericDecimal(GenericFraction::from(value), P::zero())
+                let two = P::one() + P::one();
+                let hun = P::_10() * P::_10();
+                let max_precision = two * hun + hun / two + P::_10() / two; // 255
+                GenericDecimal(GenericFraction::from(value), P::zero()).calc_precision(Some(max_precision))
             }
         }
     )*}

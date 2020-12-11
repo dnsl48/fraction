@@ -101,8 +101,6 @@ pub use num::bigint::{BigInt, BigUint};
 
 pub use num::rational::{ParseRatioError, Ratio};
 
-pub use num::integer::gcd;
-
 pub use num::{
     Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
     Signed, ToPrimitive, Zero,

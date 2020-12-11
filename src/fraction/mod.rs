@@ -4,7 +4,7 @@ use error::ParseError;
 use std::iter::{Product, Sum};
 
 use super::{
-    gcd, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
     ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
 };
 
@@ -2336,16 +2336,16 @@ fraction_from_generic_int!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usi
 macro_rules! generic_fraction_from_float {
     ( $($from:ty),*) => {
         $(
-        impl<T: Copy + Clone + FromPrimitive + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
+        impl<T: Clone + FromPrimitive + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
             fn from(val: $from) -> GenericFraction<T> {
                 if val.is_nan () { return Self::NaN };
                 if val.is_infinite () { return Self::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
 
                 let sign = if val < 0.0 { Sign::Minus } else { Sign::Plus };
 
-                // Using https://math.stackexchange.com/a/1049723/17452
+                // Using https://math.stackexchange.com/a/1049723/17452 , but rely on Ratio::new to compute the gcd.
                 // Find the max precision of this number
-                // Note: all computations happen in i32 until the end.
+                // Note: the power computations happen in i32 until the end.
                 let mut p: i32 = 0;
                 let mut new_val = val;
                 let ten: $from = 10.0;
@@ -2359,10 +2359,14 @@ macro_rules! generic_fraction_from_float {
                     // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=b760579f103b7192c20413ebbe167b90
                     p += 1;
                     new_val = val * ten.powi(p);
+                    if new_val.is_infinite() {
+                        // We're overflowing, revert to the string method
+                        let src = format! ("{:+}", val);
+                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
+                    }
                 }
 
-                // Compute the GCD
-                let src_u: T = match T::from_f64(new_val.into()) {
+                let numer: T = match T::from_f64(new_val.into()) {
                     Some(v) => v,
                     None => {
                         // Could not convert, let's revert to the string method
@@ -2379,11 +2383,7 @@ macro_rules! generic_fraction_from_float {
                     }
                 };
 
-                let g = gcd(src_u, denom);
-                let num = src_u / g;
-                let den = denom / g;
-
-                Self::Rational(sign, Ratio::new(num, den))
+                Self::Rational(sign, Ratio::new(numer, denom))
             }
         }
         )*
