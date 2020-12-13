@@ -20,10 +20,7 @@ pub struct DivisionState<I> {
 
 impl<I> DivisionState<I> {
     pub fn new(remainder: I, divisor: I) -> Self {
-        DivisionState {
-            remainder: remainder,
-            divisor: divisor,
-        }
+        DivisionState { remainder, divisor }
     }
 }
 

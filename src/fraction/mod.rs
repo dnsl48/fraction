@@ -42,17 +42,11 @@ pub enum Sign {
 
 impl Sign {
     pub fn is_positive(self) -> bool {
-        match self {
-            Sign::Plus => true,
-            _ => false,
-        }
+        matches!(self, Sign::Plus)
     }
 
     pub fn is_negative(self) -> bool {
-        match self {
-            Sign::Minus => true,
-            _ => false,
-        }
+        matches!(self, Sign::Minus)
     }
 }
 
@@ -433,7 +427,7 @@ where
     where
         T: Clone + GenericInteger,
     {
-        return Some(format!("{:.1$}", &self, precision));
+        Some(format!("{:.1$}", &self, precision))
     }
 
     /// Parse a decimal string into a fraction and return the result.
@@ -462,10 +456,9 @@ where
         };
 
         let dot = src.find('.');
-        let who = if dot.is_some() {
-            &src[start..dot.unwrap()]
-        } else {
-            &src[start..]
+        let who = match dot {
+            Some(dot) => &src[start..dot],
+            None => &src[start..],
         };
 
         let mut num = match T::from_str_radix(who, 10) {
@@ -927,12 +920,10 @@ impl<T: Clone + Integer> Sub for GenericFraction<T> {
                         GenericFraction::Rational(Sign::Plus, l.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l.add(r))
+                    } else if l < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l))
                     } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l.sub(r))
                     }
                 }
             },
@@ -974,12 +965,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l.add(r))
+                    } else if l < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l))
                     } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l.sub(r))
                     }
                 }
             },
@@ -1023,14 +1012,12 @@ where
                     } else if rs == Sign::Plus {
                         l.checked_add(r)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                    } else if l < r {
+                        r.checked_sub(l)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
                     } else {
-                        if l < r {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        } else {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        }
+                        l.checked_sub(r)
+                            .map(|value| GenericFraction::Rational(Sign::Minus, value))
                     }
                 }
             },
@@ -1069,12 +1056,10 @@ impl<T: Clone + Integer> SubAssign for GenericFraction<T> {
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
+                    } else if l_ < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     } else {
-                        if l_ < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l_.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l_.sub(r))
                     }
                 }
             },
@@ -1116,12 +1101,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
+                    } else if l_ < *r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     } else {
-                        if l_ < *r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l_.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l_.sub(r))
                     }
                 }
             },
@@ -1168,9 +1151,7 @@ impl<T: Clone + Integer> Mul for GenericFraction<T> {
                     }
                 }
                 GenericFraction::Rational(osign, r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
+                    let s = if l.is_zero() || r.is_zero() || sign == osign {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1224,9 +1205,7 @@ where
                     }
                 }
                 GenericFraction::Rational(osign, ref r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
+                    let s = if l.is_zero() || r.is_zero() || sign == osign {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1281,9 +1260,7 @@ where
                 }
                 GenericFraction::Rational(osign, ref r) => l.checked_mul(r).map(|value| {
                     GenericFraction::Rational(
-                        if l.is_zero() || r.is_zero() {
-                            Sign::Plus
-                        } else if sign == osign {
+                        if l.is_zero() || r.is_zero() || sign == osign {
                             Sign::Plus
                         } else {
                             Sign::Minus
@@ -1325,9 +1302,7 @@ impl<T: Clone + Integer> MulAssign for GenericFraction<T> {
                 GenericFraction::Rational(rs, r) => {
                     let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
 
-                    let s = if l_.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if ls == rs {
+                    let s = if l_.is_zero() || r.is_zero() || ls == rs {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1372,9 +1347,7 @@ where
                 GenericFraction::Rational(rs, ref r) => {
                     let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
 
-                    let s = if l_.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if ls == rs {
+                    let s = if l_.is_zero() || r.is_zero() || ls == rs {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1800,14 +1773,10 @@ impl<T: Clone + Integer> Signed for GenericFraction<T> {
             GenericFraction::Infinity(sign) => match *other {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity(osign) => {
-                    if sign == Sign::Minus {
+                    if sign == Sign::Minus || osign == Sign::Plus {
                         GenericFraction::zero()
                     } else {
-                        if osign == Sign::Plus {
-                            GenericFraction::zero()
-                        } else {
-                            GenericFraction::Infinity(Sign::Plus)
-                        }
+                        GenericFraction::Infinity(Sign::Plus)
                     }
                 }
                 GenericFraction::Rational(_, _) => {
@@ -1823,12 +1792,10 @@ impl<T: Clone + Integer> Signed for GenericFraction<T> {
                 GenericFraction::Infinity(osign) => {
                     if osign == Sign::Plus {
                         GenericFraction::zero()
+                    } else if sign == Sign::Minus {
+                        GenericFraction::Infinity(Sign::Minus)
                     } else {
-                        if sign == Sign::Minus {
-                            GenericFraction::Infinity(Sign::Minus)
-                        } else {
-                            GenericFraction::Infinity(Sign::Plus)
-                        }
+                        GenericFraction::Infinity(Sign::Plus)
                     }
                 }
                 GenericFraction::Rational(_, ref r) => {
@@ -3308,14 +3275,14 @@ mod tests {
             Frac::new_neg(2, 1)
         );
         assert_eq!(
-            &Frac::new_neg(1, 1) + &Frac::new_neg(1, 1),
+            Frac::new_neg(1, 1) + Frac::new_neg(1, 1),
             Frac::new_neg(2, 1)
         );
 
         assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(1, 1), Frac::zero());
         assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(2, 1), Frac::one());
-        assert_eq!(&Frac::new_neg(1, 1) - &Frac::new_neg(1, 1), Frac::zero());
-        assert_eq!(&Frac::new_neg(1, 1) - &Frac::new_neg(2, 1), Frac::one());
+        assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(1, 1), Frac::zero());
+        assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(2, 1), Frac::one());
 
         assert_eq!(Frac::new(1, 255), Frac::min_positive_value());
 

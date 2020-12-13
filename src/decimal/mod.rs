@@ -97,7 +97,7 @@ where
         match *self {
             GenericDecimal(ref fraction, precision) => {
                 let prec = precision.into();
-                let debug_prec = f.precision().unwrap_or_else(|| 32);
+                let debug_prec = f.precision().unwrap_or(32);
                 write!(
                     f,
                     "GenericDecimal({} | prec={}; {:?}; {})",
@@ -845,7 +845,7 @@ where
                     GenericFraction::Infinity(_) => P::zero(),
                     GenericFraction::Rational(_, ref ratio) => {
                         let mut precision: P = P::zero();
-                        let max_precision: P = max_precision.unwrap_or_else(|| P::max_value());
+                        let max_precision: P = max_precision.unwrap_or(P::max_value());
 
                         let num = ratio.numer();
                         let den = ratio.denom();
