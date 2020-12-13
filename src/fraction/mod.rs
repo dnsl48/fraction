@@ -2343,12 +2343,13 @@ macro_rules! generic_fraction_from_float {
 
                 let sign = if val < 0.0 { Sign::Minus } else { Sign::Plus };
 
-                // Using https://math.stackexchange.com/a/1049723/17452 , but rely on Ratio::new to compute the gcd.
+                // Using https://math.stackexchange.com/a/1049723/17452 , but rely on Ratio::new() to compute the gcd.
                 // Find the max precision of this number
                 // Note: the power computations happen in i32 until the end.
                 let mut p: i32 = 0;
                 let mut new_val = val;
                 let ten: $from = 10.0;
+                let fallback_to_string_conversion = || Self::from_decimal_str(&format!("{:+}", val)).unwrap_or(Self::NaN);
                 loop {
                     if (new_val.floor() - new_val).abs() < <$from>::EPSILON {
                         // Yay, we've found the precision of this number
@@ -2360,26 +2361,26 @@ macro_rules! generic_fraction_from_float {
                     p += 1;
                     new_val = val * ten.powi(p);
                     if new_val.is_infinite() {
-                        // We're overflowing, revert to the string method
-                        let src = format! ("{:+}", val);
-                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
+                        return fallback_to_string_conversion();
                     }
+                }
+
+                // We store the sign of the ratio externally, so let's oppose the numerator if need be.
+                // The denominator is always positive.
+                if new_val < 0.0 {
+                    new_val = -new_val;
                 }
 
                 let numer: T = match T::from_f64(new_val.into()) {
                     Some(v) => v,
                     None => {
-                        // Could not convert, let's revert to the string method
-                        let src = format! ("{:+}", val);
-                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
+                        return fallback_to_string_conversion();
                     }
                 };
                 let denom: T = match T::from_f64(ten.powi(p).into()) {
                     Some(v) => v,
                     None => {
-                        // Could not convert, let's revert to the string method
-                        let src = format! ("{:+}", val);
-                        return Self::from_decimal_str(&src).unwrap_or(Self::nan());
+                        return fallback_to_string_conversion();
                     }
                 };
 
@@ -4448,5 +4449,179 @@ mod tests {
         let values = vec![Fraction::new(2u64, 3u64), Fraction::new(1u64, 3u64)];
         let product: Fraction = values.iter().product();
         assert_eq!(product, Fraction::new(2u8, 9u8));
+    }
+
+    #[test]
+    fn fraction_from_float() {
+        macro_rules! test_for_smaller_t {
+            ( $($t:ty),*) => {
+                $(
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    assert_eq!(format!("{}", f), "1");
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        macro_rules! test_for_larger_t {
+            ( $($t:ty),*) => {
+                $(
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "15978649/1000");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        #[cfg(feature = "with-bigint")]
+        macro_rules! test_for_big_t {
+            ( $($t:ty),*) => {
+                $(
+                    // Note: we don't test min/max for big_t because the value depends on the type
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "15978649/1000");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        test_for_smaller_t!(u8, i8, u16, i16);
+        test_for_larger_t!(u32, i32, u64, i64, usize, isize);
+        test_for_big_t!(u128, i128);
+
+        #[cfg(feature = "with-bigint")]
+        {
+            use crate::{BigInt, BigUint};
+            test_for_big_t!(BigUint, BigInt);
+        }
     }
 }
