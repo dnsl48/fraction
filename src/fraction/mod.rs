@@ -3275,14 +3275,14 @@ mod tests {
             Frac::new_neg(2, 1)
         );
         assert_eq!(
-            Frac::new_neg(1, 1) + Frac::new_neg(1, 1),
+            &Frac::new_neg(1, 1) + &Frac::new_neg(1, 1),
             Frac::new_neg(2, 1)
         );
 
         assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(1, 1), Frac::zero());
         assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(2, 1), Frac::one());
-        assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(1, 1), Frac::zero());
-        assert_eq!(Frac::new_neg(1, 1) - Frac::new_neg(2, 1), Frac::one());
+        assert_eq!(&Frac::new_neg(1, 1) - &Frac::new_neg(1, 1), Frac::zero());
+        assert_eq!(&Frac::new_neg(1, 1) - &Frac::new_neg(2, 1), Frac::one());
 
         assert_eq!(Frac::new(1, 255), Frac::min_positive_value());
 
