@@ -3,7 +3,7 @@ use error;
 
 use num::integer::Integer;
 use num::traits::{
-    /*Float, */ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Num, One, Signed,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Num, One, Signed,
     ToPrimitive, Zero,
 };
 
@@ -97,7 +97,7 @@ where
         match *self {
             GenericDecimal(ref fraction, precision) => {
                 let prec = precision.into();
-                let debug_prec = f.precision().unwrap_or_else(|| 32);
+                let debug_prec = f.precision().unwrap_or(32);
                 write!(
                     f,
                     "GenericDecimal({} | prec={}; {:?}; {})",
@@ -285,17 +285,14 @@ macro_rules! dec_impl {
     (impl_trait_from_float; $($t:ty),*) => {$(
         impl<T, P> From<$t> for GenericDecimal<T, P>
         where
-            T: Clone + GenericInteger,
-            P: Copy + GenericInteger + Into<usize> + From<u8>
+            T: Clone + GenericInteger + FromPrimitive,
+            P: Copy + GenericInteger + Into<usize> + From<u8> + Bounded
         {
             fn from(value: $t) -> Self {
                 if value.is_nan () { return GenericDecimal::nan() };
                 if value.is_infinite () { return if value.is_sign_negative () { GenericDecimal::neg_infinity() } else { GenericDecimal::infinity() } };
 
-                /* TODO: without the String conversion (probably through .to_bits) */
-                let src = format! ("{:+}", value);
-
-                GenericDecimal::from_decimal_str(&src).unwrap_or_else(|_| GenericDecimal::nan())
+                GenericDecimal(GenericFraction::from(value), P::zero()).calc_precision(None)
             }
         }
     )*}
@@ -848,7 +845,7 @@ where
                     GenericFraction::Infinity(_) => P::zero(),
                     GenericFraction::Rational(_, ref ratio) => {
                         let mut precision: P = P::zero();
-                        let max_precision: P = max_precision.unwrap_or_else(|| P::max_value());
+                        let max_precision: P = max_precision.unwrap_or(P::max_value());
 
                         let num = ratio.numer();
                         let den = ratio.denom();

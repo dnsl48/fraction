@@ -76,7 +76,7 @@ impl Format {
             align: formatter.align(),
             width: formatter.width(),
             precision: formatter.precision(),
-            flags: flags,
+            flags,
         }
     }
 

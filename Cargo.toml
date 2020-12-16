@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless fractions and decimals; drop-in float replacement"
@@ -47,3 +47,10 @@ with-dynaint = []
 with-juniper-support = ["juniper"]
 with-postgres-support = ["postgres", "byteorder"]
 with-serde-support = ["serde", "serde_derive", "num/serde"]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bench_fraction"
+harness = false

@@ -1,11 +1,10 @@
 #[cfg(feature = "with-bigint")]
 use super::{BigInt, BigUint};
-
 use error::ParseError;
 use std::iter::{Product, Sum};
 
 use super::{
-    /*Float, */ Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
     ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
 };
 
@@ -43,17 +42,11 @@ pub enum Sign {
 
 impl Sign {
     pub fn is_positive(self) -> bool {
-        match self {
-            Sign::Plus => true,
-            _ => false,
-        }
+        matches!(self, Sign::Plus)
     }
 
     pub fn is_negative(self) -> bool {
-        match self {
-            Sign::Minus => true,
-            _ => false,
-        }
+        matches!(self, Sign::Minus)
     }
 }
 
@@ -434,7 +427,7 @@ where
     where
         T: Clone + GenericInteger,
     {
-        return Some(format!("{:.1$}", &self, precision));
+        Some(format!("{:.1$}", &self, precision))
     }
 
     /// Parse a decimal string into a fraction and return the result.
@@ -463,10 +456,9 @@ where
         };
 
         let dot = src.find('.');
-        let who = if dot.is_some() {
-            &src[start..dot.unwrap()]
-        } else {
-            &src[start..]
+        let who = match dot {
+            Some(dot) => &src[start..dot],
+            None => &src[start..],
         };
 
         let mut num = match T::from_str_radix(who, 10) {
@@ -928,12 +920,10 @@ impl<T: Clone + Integer> Sub for GenericFraction<T> {
                         GenericFraction::Rational(Sign::Plus, l.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l.add(r))
+                    } else if l < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l))
                     } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l.sub(r))
                     }
                 }
             },
@@ -975,12 +965,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l.add(r))
+                    } else if l < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l))
                     } else {
-                        if l < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l.sub(r))
                     }
                 }
             },
@@ -1024,14 +1012,12 @@ where
                     } else if rs == Sign::Plus {
                         l.checked_add(r)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                    } else if l < r {
+                        r.checked_sub(l)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
                     } else {
-                        if l < r {
-                            r.checked_sub(l)
-                                .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                        } else {
-                            l.checked_sub(r)
-                                .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                        }
+                        l.checked_sub(r)
+                            .map(|value| GenericFraction::Rational(Sign::Minus, value))
                     }
                 }
             },
@@ -1070,12 +1056,10 @@ impl<T: Clone + Integer> SubAssign for GenericFraction<T> {
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
+                    } else if l_ < r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     } else {
-                        if l_ < r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l_.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l_.sub(r))
                     }
                 }
             },
@@ -1117,12 +1101,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
+                    } else if l_ < *r {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     } else {
-                        if l_ < *r {
-                            GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                        } else {
-                            GenericFraction::Rational(Sign::Minus, l_.sub(r))
-                        }
+                        GenericFraction::Rational(Sign::Minus, l_.sub(r))
                     }
                 }
             },
@@ -1169,9 +1151,7 @@ impl<T: Clone + Integer> Mul for GenericFraction<T> {
                     }
                 }
                 GenericFraction::Rational(osign, r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
+                    let s = if l.is_zero() || r.is_zero() || sign == osign {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1225,9 +1205,7 @@ where
                     }
                 }
                 GenericFraction::Rational(osign, ref r) => {
-                    let s = if l.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if sign == osign {
+                    let s = if l.is_zero() || r.is_zero() || sign == osign {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1282,9 +1260,7 @@ where
                 }
                 GenericFraction::Rational(osign, ref r) => l.checked_mul(r).map(|value| {
                     GenericFraction::Rational(
-                        if l.is_zero() || r.is_zero() {
-                            Sign::Plus
-                        } else if sign == osign {
+                        if l.is_zero() || r.is_zero() || sign == osign {
                             Sign::Plus
                         } else {
                             Sign::Minus
@@ -1326,9 +1302,7 @@ impl<T: Clone + Integer> MulAssign for GenericFraction<T> {
                 GenericFraction::Rational(rs, r) => {
                     let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
 
-                    let s = if l_.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if ls == rs {
+                    let s = if l_.is_zero() || r.is_zero() || ls == rs {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1373,9 +1347,7 @@ where
                 GenericFraction::Rational(rs, ref r) => {
                     let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
 
-                    let s = if l_.is_zero() || r.is_zero() {
-                        Sign::Plus
-                    } else if ls == rs {
+                    let s = if l_.is_zero() || r.is_zero() || ls == rs {
                         Sign::Plus
                     } else {
                         Sign::Minus
@@ -1801,14 +1773,10 @@ impl<T: Clone + Integer> Signed for GenericFraction<T> {
             GenericFraction::Infinity(sign) => match *other {
                 GenericFraction::NaN => GenericFraction::NaN,
                 GenericFraction::Infinity(osign) => {
-                    if sign == Sign::Minus {
+                    if sign == Sign::Minus || osign == Sign::Plus {
                         GenericFraction::zero()
                     } else {
-                        if osign == Sign::Plus {
-                            GenericFraction::zero()
-                        } else {
-                            GenericFraction::Infinity(Sign::Plus)
-                        }
+                        GenericFraction::Infinity(Sign::Plus)
                     }
                 }
                 GenericFraction::Rational(_, _) => {
@@ -1824,12 +1792,10 @@ impl<T: Clone + Integer> Signed for GenericFraction<T> {
                 GenericFraction::Infinity(osign) => {
                     if osign == Sign::Plus {
                         GenericFraction::zero()
+                    } else if sign == Sign::Minus {
+                        GenericFraction::Infinity(Sign::Minus)
                     } else {
-                        if sign == Sign::Minus {
-                            GenericFraction::Infinity(Sign::Minus)
-                        } else {
-                            GenericFraction::Infinity(Sign::Plus)
-                        }
+                        GenericFraction::Infinity(Sign::Plus)
                     }
                 }
                 GenericFraction::Rational(_, ref r) => {
@@ -2337,15 +2303,55 @@ fraction_from_generic_int!(u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usi
 macro_rules! generic_fraction_from_float {
     ( $($from:ty),*) => {
         $(
-        impl<T: Clone + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
-            fn from (val: $from) -> GenericFraction<T> {
-                if val.is_nan () { return GenericFraction::NaN };
-                if val.is_infinite () { return GenericFraction::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
+        impl<T: Clone + FromPrimitive + Integer + CheckedAdd + CheckedMul + CheckedSub> From<$from> for GenericFraction<T> {
+            fn from(val: $from) -> GenericFraction<T> {
+                if val.is_nan () { return Self::NaN };
+                if val.is_infinite () { return Self::Infinity (if val.is_sign_negative () { Sign::Minus } else { Sign::Plus }) };
 
-                /* TODO: without the String conversion (probably through .to_bits) */
-                let src = format! ("{:+}", val);
+                let sign = if val < 0.0 { Sign::Minus } else { Sign::Plus };
 
-                Self::from_decimal_str(&src).unwrap_or(GenericFraction::nan())
+                // Using https://math.stackexchange.com/a/1049723/17452 , but rely on Ratio::new() to compute the gcd.
+                // Find the max precision of this number
+                // Note: the power computations happen in i32 until the end.
+                let mut p: i32 = 0;
+                let mut new_val = val;
+                let ten: $from = 10.0;
+                let fallback_to_string_conversion = || Self::from_decimal_str(&format!("{:+}", val)).unwrap_or(Self::NaN);
+                loop {
+                    if (new_val.floor() - new_val).abs() < <$from>::EPSILON {
+                        // Yay, we've found the precision of this number
+                        break;
+                    }
+                    // Multiply by the precision
+                    // Note: we multiply by powers of ten to avoid this kind of round error with f32s:
+                    // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=b760579f103b7192c20413ebbe167b90
+                    p += 1;
+                    new_val = val * ten.powi(p);
+                    if new_val.is_infinite() {
+                        return fallback_to_string_conversion();
+                    }
+                }
+
+                // We store the sign of the ratio externally, so let's oppose the numerator if need be.
+                // The denominator is always positive.
+                if new_val < 0.0 {
+                    new_val = -new_val;
+                }
+
+                let numer: T = match T::from_f64(new_val.into()) {
+                    Some(v) => v,
+                    None => {
+                        return fallback_to_string_conversion();
+                    }
+                };
+                let denom: T = match T::from_f64(ten.powi(p).into()) {
+                    Some(v) => v,
+                    None => {
+                        return fallback_to_string_conversion();
+                    }
+                };
+
+                Self::Rational(sign, Ratio::new(numer, denom))
             }
         }
         )*
@@ -4410,5 +4416,179 @@ mod tests {
         let values = vec![Fraction::new(2u64, 3u64), Fraction::new(1u64, 3u64)];
         let product: Fraction = values.iter().product();
         assert_eq!(product, Fraction::new(2u8, 9u8));
+    }
+
+    #[test]
+    fn fraction_from_float() {
+        macro_rules! test_for_smaller_t {
+            ( $($t:ty),*) => {
+                $(
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    assert_eq!(format!("{}", f), "1");
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        macro_rules! test_for_larger_t {
+            ( $($t:ty),*) => {
+                $(
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MIN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::MAX);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "15978649/1000");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        #[cfg(feature = "with-bigint")]
+        macro_rules! test_for_big_t {
+            ( $($t:ty),*) => {
+                $(
+                    // Note: we don't test min/max for big_t because the value depends on the type
+                    // f32 tests
+                    let f = GenericFraction::<$t>::from(-std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f32::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f32::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f32);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f32);
+                    assert_eq!(format!("{}", f), "1");
+                    // f64 tests
+                    let f = GenericFraction::<$t>::from(-std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(std::f64::NAN);
+                    assert_eq!(format!("{}", f), "NaN");
+                    let f = GenericFraction::<$t>::from(-std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "-inf");
+                    let f = GenericFraction::<$t>::from(std::f64::INFINITY);
+                    assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-1.0_f64);
+                    assert_eq!(format!("{}", f), "-1");
+                    let f = GenericFraction::<$t>::from(1.0_f64);
+                    assert_eq!(format!("{}", f), "1");
+                    // Arbitrary tests
+                    let f = GenericFraction::<$t>::from(2.0);
+                    assert_eq!(format!("{}", f), "2");
+                    let f = GenericFraction::<$t>::from(0.5);
+                    assert_eq!(format!("{}", f), "1/2");
+                    let f = GenericFraction::<$t>::from(15978.649);
+                    assert_eq!(format!("{}", f), "15978649/1000");
+                    let f = GenericFraction::<$t>::from(-0.75);
+                    assert_eq!(format!("{}", f), "-3/4");
+                )*
+            };
+        };
+
+        test_for_smaller_t!(u8, i8, u16, i16);
+        test_for_larger_t!(u32, i32, u64, i64, usize, isize);
+        test_for_big_t!(u128, i128);
+
+        #[cfg(feature = "with-bigint")]
+        {
+            use crate::{BigInt, BigUint};
+            test_for_big_t!(BigUint, BigInt);
+        }
     }
 }
