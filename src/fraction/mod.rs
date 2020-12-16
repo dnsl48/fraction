@@ -4440,6 +4440,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f32::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f32);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f32);
@@ -4461,6 +4465,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f64::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f64);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f64);
@@ -4499,6 +4507,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f32::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f32);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f32);
@@ -4520,6 +4532,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f64::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f64);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f64);
@@ -4537,7 +4553,6 @@ mod tests {
             };
         };
 
-        #[cfg(feature = "with-bigint")]
         macro_rules! test_for_big_t {
             ( $($t:ty),*) => {
                 $(
@@ -4551,6 +4566,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f32::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f32);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f32);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f32);
@@ -4564,6 +4583,10 @@ mod tests {
                     assert_eq!(format!("{}", f), "-inf");
                     let f = GenericFraction::<$t>::from(std::f64::INFINITY);
                     assert_eq!(format!("{}", f), "inf");
+                    let f = GenericFraction::<$t>::from(-0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
+                    let f = GenericFraction::<$t>::from(0.0_f64);
+                    assert_eq!(format!("{}", f), "0");
                     let f = GenericFraction::<$t>::from(-1.0_f64);
                     assert_eq!(format!("{}", f), "-1");
                     let f = GenericFraction::<$t>::from(1.0_f64);
@@ -4577,6 +4600,8 @@ mod tests {
                     assert_eq!(format!("{}", f), "15978649/1000");
                     let f = GenericFraction::<$t>::from(-0.75);
                     assert_eq!(format!("{}", f), "-3/4");
+                    let f = GenericFraction::<$t>::from(-0.5);
+                    assert_eq!(format!("{}", f), "-1/2");
                 )*
             };
         };
