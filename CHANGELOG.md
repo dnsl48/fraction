@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.8.0] - 2020-12-17
+### Changed
+ - More efficient f32/f64 conversion to Fractions and Decimals (up to 10 times faster and not using memory allocation anymore)
+   Special thanks to Christopher Rabotin for the contribution!
+
 ## [0.7.0] - 2020-12-05
 ### Added
  - fraction::display::Format implements Clone trait (becomes cloneable)
