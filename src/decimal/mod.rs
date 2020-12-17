@@ -71,6 +71,19 @@ where
 {
 }
 
+impl<T, P> Default for GenericDecimal<T, P>
+where
+    T: Clone + Integer,
+    P: Copy + Integer + Into<usize>
+{
+    fn default() -> GenericDecimal<T, P> {
+        GenericDecimal (
+            GenericFraction::zero(),
+            P::zero()
+        )
+    }
+}
+
 impl<T, P> fmt::Display for GenericDecimal<T, P>
 where
     T: Clone + GenericInteger,
