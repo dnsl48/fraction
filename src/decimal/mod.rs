@@ -71,6 +71,16 @@ where
 {
 }
 
+impl<T, P> Default for GenericDecimal<T, P>
+where
+    T: Clone + Integer,
+    P: Copy + Integer + Into<usize>,
+{
+    fn default() -> Self {
+        Self(GenericFraction::default(), P::zero())
+    }
+}
+
 impl<T, P> fmt::Display for GenericDecimal<T, P>
 where
     T: Clone + GenericInteger,
@@ -1227,6 +1237,21 @@ mod tests {
         assert_eq!(0, onethird.get_precision());
         assert_eq!(1, half.calc_precision(None).get_precision());
         assert_eq!(255, onethird.calc_precision(None).get_precision());
+    }
+
+    #[test]
+    fn decimal_test_default() {
+        let dec = D::default();
+        assert_eq!("0", format!("{}", dec));
+        assert_eq!(0, dec.get_precision());
+
+        #[cfg(feature = "with-bigint")]
+        {
+            use crate::BigDecimal;
+            let dec = BigDecimal::default();
+            assert_eq!("0", format!("{}", dec));
+            assert_eq!(0, dec.get_precision());
+        }
     }
 
     // TODO: more tests

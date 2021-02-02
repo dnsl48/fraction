@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.8.1] - Unreleased
+### Added
+ - Default trait implementation for GenericFraction and GenericDecimal
+
 ## [0.8.0] - 2020-12-17
 ### Changed
  - More efficient f32/f64 conversion to Fractions and Decimals (up to 10 times faster and not using memory allocation anymore)

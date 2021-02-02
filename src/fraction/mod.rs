@@ -154,6 +154,15 @@ where
 /// Copy semantics to be applied for the target type, but only if T also has it.
 impl<T> Copy for GenericFraction<T> where T: Copy + Integer {}
 
+impl<T> Default for GenericFraction<T>
+where
+    T: Clone + Integer,
+{
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl<T> GenericFraction<T>
 where
     T: Clone + Integer,
@@ -4614,6 +4623,20 @@ mod tests {
         {
             use crate::{BigInt, BigUint};
             test_for_big_t!(BigUint, BigInt);
+        }
+    }
+
+    #[test]
+    fn fraction_test_default() {
+        let fra = Frac::default();
+        assert_eq!(fra.numer(), Some(&0u8));
+        assert_eq!(fra.denom(), Some(&1u8));
+
+        #[cfg(feature = "with-bigint")]
+        {
+            let fra = BigFraction::default();
+            assert_eq!(fra.numer(), Some(&BigUint::from(0u8)));
+            assert_eq!(fra.denom(), Some(&BigUint::from(1u8)));
         }
     }
 }
