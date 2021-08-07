@@ -37,6 +37,8 @@ impl<I> Eq for DivisionState<I> where I: Eq {}
 
 /// Divide two numbers and produce every single digit of the whole part of the resulting number
 ///
+/// WARNING: Negative numbers as arguments are not supported.
+///
 /// Returns remainder of the division
 /// If the consumer returns `Ok(true)` keeps on calculation
 /// If the consumer returns `Ok(false)` stops calculation and returns the remainder
@@ -155,6 +157,8 @@ where
 }
 
 /// Produces the fractional part of the decimal from a rest part left after division
+///
+/// WARNING: Negative numbers as arguments are not supported.
 ///
 /// Returns remainder of the division
 /// If the consumer returns `Ok(Ok(state))` keeps on calculation
@@ -357,6 +361,8 @@ where
 /// Calculate the max possible length of division in characters (including floating point)
 /// This may be useful for string/vector pre-allocations
 ///
+/// WARNING: Negative numbers as arguments are not supported.
+///
 /// # Examples
 /// ```
 /// use fraction::division::division_result_max_char_length;
@@ -392,6 +398,8 @@ where
 }
 
 /// Divide a fraction into a [`String`]
+///
+/// WARNING: Negative numbers as arguments are not supported.
 ///
 ///  - Makes only one allocation for the resulting string
 ///  - Does not round the last digit
@@ -433,6 +441,8 @@ where
 }
 
 /// Divide a fraction into a [`Vec<u8>`] of ASCII(utf8) chars
+///
+/// WARNING: Negative numbers as arguments are not supported.
 ///
 ///  - Makes only one allocation for the resulting vector
 ///  - Does not round the last digit
@@ -491,6 +501,8 @@ where
 ///
 /// Makes the division and puts the result into the formatter.
 /// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// WARNING: Negative numbers as arguments are not supported.
 ///
 /// # Examples
 ///
@@ -554,6 +566,8 @@ where
 /// - Makes no allocations
 ///
 /// Uses [`divide_integral`] and [`divide_rem`] functions internally.
+///
+/// WARNING: Negative numbers as arguments are not supported.
 ///
 /// # Callback
 ///
