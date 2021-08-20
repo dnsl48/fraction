@@ -4494,7 +4494,7 @@ mod tests {
                     assert_eq!(format!("{}", f), "-3/4");
                 )*
             };
-        };
+        }
 
         macro_rules! test_for_larger_t {
             ( $($t:ty),*) => {
@@ -4560,7 +4560,7 @@ mod tests {
                     assert_eq!(format!("{}", f), "-3/4");
                 )*
             };
-        };
+        }
 
         macro_rules! test_for_big_t {
             ( $($t:ty),*) => {
@@ -4613,7 +4613,7 @@ mod tests {
                     assert_eq!(format!("{}", f), "-1/2");
                 )*
             };
-        };
+        }
 
         test_for_smaller_t!(u8, i8, u16, i16);
         test_for_larger_t!(u32, i32, u64, i64, usize, isize);
