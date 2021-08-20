@@ -1,8 +1,12 @@
 # Change Log
 
-## [0.8.1] - Unreleased
+## [0.9.0] - Unreleased
+
 ### Added
  - Default trait implementation for GenericFraction and GenericDecimal
+
+### Changed
+ - Juniper supported version upgraded from 0.11 to 0.15
 
 ## [0.8.0] - 2020-12-17
 ### Changed
