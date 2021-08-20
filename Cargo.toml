@@ -27,7 +27,8 @@ all-features = true
 num = { version =  "^0.2", default-features = false }
 
 byteorder = { version = "^1", optional = true }
-postgres = { version = "^0.15", optional = true }
+bytes = { version = "1", optional = true }
+postgres-types = { version = "^0.2", optional = true }
 
 serde = { version = "^1", optional = true }
 serde_derive = { version = "^1", optional = true }
@@ -45,7 +46,7 @@ with-decimal = []
 with-dynaint = []
 
 with-juniper-support = ["juniper"]
-with-postgres-support = ["postgres", "byteorder"]
+with-postgres-support = ["postgres-types", "byteorder", "bytes"]
 with-serde-support = ["serde", "serde_derive", "num/serde"]
 
 [dev-dependencies]

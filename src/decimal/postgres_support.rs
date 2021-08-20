@@ -1,5 +1,8 @@
+extern crate bytes;
+
+use self::bytes::BytesMut;
 use num::traits::Bounded;
-use postgres::types::{FromSql, IsNull, ToSql, Type, NUMERIC};
+use postgres_types::{FromSql, IsNull, ToSql, Type};
 
 use std::error::Error;
 use std::fmt;
@@ -11,7 +14,7 @@ use generic::GenericInteger;
 
 use fraction::postgres_support::{fraction_to_sql_buf, read_i16, PG_MAX_PRECISION};
 
-impl<T, P> FromSql for GenericDecimal<T, P>
+impl<'a, T, P> FromSql<'a> for GenericDecimal<T, P>
 where
     T: Clone + GenericInteger + From<u16>,
     P: Copy + GenericInteger + Into<usize> + Bounded + TryToConvertFrom<i16> + fmt::Display,
@@ -53,7 +56,11 @@ where
     T: Clone + GenericInteger + From<u8> + fmt::Debug,
     P: Copy + GenericInteger + Into<usize> + fmt::Debug,
 {
-    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+    fn to_sql(
+        &self,
+        ty: &Type,
+        buf: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         match *self {
             GenericDecimal(ref fraction, precision) => {
                 fraction_to_sql_buf(fraction, ty, buf, precision.into())
@@ -220,7 +227,7 @@ mod tests {
     #[test]
     fn test_to_sql() {
         let t = Type::from_oid(NUMERIC_OID).unwrap();
-        let mut buf = Vec::with_capacity(1024);
+        let mut buf = BytesMut::with_capacity(1024);
 
         for ref test in &get_tests() {
             buf.clear();

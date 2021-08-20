@@ -1,7 +1,9 @@
 extern crate byteorder;
+extern crate bytes;
 
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use postgres::types::{FromSql, IsNull, ToSql, Type, NUMERIC};
+use self::bytes::{BufMut, BytesMut};
+use postgres_types::{FromSql, IsNull, ToSql, Type};
 
 use super::{GenericFraction, Sign, Zero};
 use division::{divide_integral, divide_rem};
@@ -50,11 +52,11 @@ pub fn write_u16(mut buf: &mut [u8], value: u16) -> Result<(), Box<dyn Error + S
     }
 }
 
-impl<T> FromSql for GenericFraction<T>
+impl<'a, T> FromSql<'a> for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u16>,
 {
-    fn from_sql(_ty: &Type, raw: &[u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
+    fn from_sql(_ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
         if raw.len() < 8 {
             return Err("unexpected data package from the database".into());
         }
@@ -212,7 +214,11 @@ impl<T> ToSql for GenericFraction<T>
 where
     T: Clone + GenericInteger + From<u8> + fmt::Debug,
 {
-    fn to_sql(&self, ty: &Type, buf: &mut Vec<u8>) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+    fn to_sql(
+        &self,
+        ty: &Type,
+        buf: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         fraction_to_sql_buf(self, ty, buf, PG_MAX_PRECISION)
     }
 
@@ -224,7 +230,7 @@ where
 pub fn fraction_to_sql_buf<T>(
     source: &GenericFraction<T>,
     _ty: &Type,
-    buf: &mut Vec<u8>,
+    buf: &mut BytesMut,
     precision: usize,
 ) -> Result<IsNull, Box<dyn Error + Sync + Send>>
 where
@@ -237,7 +243,7 @@ where
     };
 
     let buffer_offset: usize = buf.len();
-    buf.write_u64::<BigEndian>(0)?; // fill in the first 8 bytes
+    buf.put_u64(0); // fill in the first 8 bytes
 
     if source.is_zero() {
         return Ok(IsNull::No);
@@ -295,7 +301,7 @@ where
             }
 
             ndigits += 1;
-            buf.write_i16::<BigEndian>(ndigit)?;
+            buf.put_i16(ndigit);
             ndigit = 0;
         }
 
@@ -344,7 +350,7 @@ where
             rpad = 0;
         }
 
-        buf.write_i16::<BigEndian>(ndigit)?;
+        buf.put_i16(ndigit);
         ndigit = 0;
     }
 
@@ -365,7 +371,7 @@ where
                     if padding && weight > 0 {
                         ndigits += weight;
                         for _ in 0..weight {
-                            buf.write_i16::<BigEndian>(ndigit)?;
+                            buf.put_i16(ndigit);
                         }
                     }
                     padding = false;
@@ -383,7 +389,7 @@ where
                         weight -= 1;
                     } else {
                         ndigits += 1;
-                        buf.write_i16::<BigEndian>(ndigit)?;
+                        buf.put_i16(ndigit);
                     }
 
                     nptr = 0;
@@ -400,7 +406,7 @@ where
 
         if nptr != 0 && !padding {
             ndigits += 1;
-            buf.write_i16::<BigEndian>(ndigit)?;
+            buf.put_i16(ndigit);
         }
     }
 
@@ -597,7 +603,7 @@ mod tests {
     #[test]
     fn test_to_sql() {
         let t = Type::from_oid(NUMERIC_OID).unwrap();
-        let mut buf = Vec::with_capacity(1024);
+        let mut buf = BytesMut::with_capacity(1024);
 
         for ref test in &get_tests() {
             buf.clear();

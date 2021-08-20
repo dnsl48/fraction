@@ -130,7 +130,7 @@ pub use self::prelude::*;
 extern crate juniper;
 #[cfg(feature = "with-postgres-support")]
 #[macro_use]
-extern crate postgres;
+extern crate postgres_types;
 
 #[cfg(feature = "with-serde-support")]
 #[macro_use]
