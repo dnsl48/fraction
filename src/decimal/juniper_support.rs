@@ -1,46 +1,55 @@
-use juniper::{
-    meta::MetaType, parser::ScalarToken, Executor, FromInputValue, GraphQLType, InputValue,
-    ParseScalarResult, ParseScalarValue, Registry, ScalarRefValue, ScalarValue, Selection,
-    ToInputValue, Value,
-};
-
+use super::GenericDecimal;
 use generic::GenericInteger;
-use num::Integer;
+use juniper::{ParseScalarResult, ParseScalarValue, Value};
 use std::fmt;
 
-use super::GenericDecimal;
-
-impl<S, T, P> ParseScalarValue<S> for GenericDecimal<T, P>
+impl<__S, T, P> ::juniper::GraphQLValueAsync<__S> for GenericDecimal<T, P>
 where
-    S: ScalarValue,
-    for<'a> &'a S: ScalarRefValue<'a>,
+    Self: Sync,
+    Self::TypeInfo: Sync,
+    Self::Context: Sync,
     T: Clone + GenericInteger + From<u8> + fmt::Display,
     P: Copy + GenericInteger + Into<usize> + From<u8>,
+    __S: ::juniper::ScalarValue + Send + Sync,
 {
-    fn from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
-        match value {
-            ScalarToken::String(val) | ScalarToken::Int(val) | ScalarToken::Float(val) => {
-                Ok(S::from(val.to_owned()))
-            }
-        }
+    fn resolve_async<'a>(
+        &'a self,
+        info: &'a Self::TypeInfo,
+        selection_set: Option<&'a [::juniper::Selection<__S>]>,
+        executor: &'a ::juniper::Executor<Self::Context, __S>,
+    ) -> ::juniper::BoxFuture<'a, ::juniper::ExecutionResult<__S>> {
+        use juniper::futures::future;
+        let v = ::juniper::GraphQLValue::resolve(self, info, selection_set, executor);
+        Box::pin(future::ready(v))
     }
 }
-
-impl<S, T, P> GraphQLType<S> for GenericDecimal<T, P>
+impl<S, T, P> ::juniper::marker::IsInputType<S> for GenericDecimal<T, P>
 where
-    S: ScalarValue,
-    for<'a> &'a S: ScalarRefValue<'a>,
+    S: ::juniper::ScalarValue,
     T: Clone + GenericInteger + From<u8> + fmt::Display,
     P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
-    type Context = ();
-    type TypeInfo = ();
-
-    fn name(_: &()) -> Option<&str> {
+}
+impl<S, T, P> ::juniper::marker::IsOutputType<S> for GenericDecimal<T, P>
+where
+    S: ::juniper::ScalarValue,
+    T: Clone + GenericInteger,
+    P: Copy + GenericInteger + Into<usize> + From<u8>,
+{
+}
+impl<S, T, P> ::juniper::GraphQLType<S> for GenericDecimal<T, P>
+where
+    S: ::juniper::ScalarValue,
+    T: Clone + GenericInteger + From<u8> + fmt::Display,
+    P: Copy + GenericInteger + Into<usize> + From<u8>,
+{
+    fn name(_: &Self::TypeInfo) -> Option<&'static str> {
         Some("Decimal")
     }
-
-    fn meta<'r>(info: &(), registry: &mut Registry<'r, S>) -> MetaType<'r, S>
+    fn meta<'r>(
+        info: &Self::TypeInfo,
+        registry: &mut ::juniper::Registry<'r, S>,
+    ) -> ::juniper::meta::MetaType<'r, S>
     where
         S: 'r,
     {
@@ -49,49 +58,63 @@ where
             .description("Decimal")
             .into_meta()
     }
-
+}
+impl<S, T, P> ::juniper::GraphQLValue<S> for GenericDecimal<T, P>
+where
+    S: ::juniper::ScalarValue,
+    T: Clone + GenericInteger + From<u8> + fmt::Display,
+    P: Copy + GenericInteger + Into<usize> + From<u8>,
+{
+    type Context = ();
+    type TypeInfo = ();
+    fn type_name<'__i>(&self, info: &'__i Self::TypeInfo) -> Option<&'__i str> {
+        <Self as ::juniper::GraphQLType<S>>::name(info)
+    }
     fn resolve(
         &self,
-        _: &(),
-        _: Option<&[Selection<S>]>,
-        _: &Executor<Self::Context, S>,
-    ) -> Value<S> {
-        Value::scalar(S::from(format!("{}", self)))
+        _info: &(),
+        _selection: Option<&[::juniper::Selection<S>]>,
+        _executor: &::juniper::Executor<Self::Context, S>,
+    ) -> ::juniper::ExecutionResult<S> {
+        Ok(Value::scalar(format!("{}", self)))
     }
 }
-
-impl<S, T, P> ToInputValue<S> for GenericDecimal<T, P>
+impl<S, T, P> ::juniper::ToInputValue<S> for GenericDecimal<T, P>
 where
-    S: ScalarValue,
-    for<'a> &'a S: ScalarRefValue<'a>,
-    T: Clone + GenericInteger + fmt::Display + From<u8>,
-    P: Copy + Integer + Into<usize>,
+    S: ::juniper::ScalarValue,
+    T: Clone + GenericInteger,
+    P: Copy + GenericInteger + Into<usize>,
 {
-    fn to_input_value(&self) -> InputValue<S> {
-        ToInputValue::to_input_value(&format!("{}", self))
+    fn to_input_value(&self) -> ::juniper::InputValue<S> {
+        ::juniper::ToInputValue::to_input_value(&format!("{}", self))
     }
 }
-
-impl<S, T, P> FromInputValue<S> for GenericDecimal<T, P>
+impl<S, T, P> ::juniper::FromInputValue<S> for GenericDecimal<T, P>
 where
-    S: ScalarValue,
-    for<'a> &'a S: ScalarRefValue<'a>,
+    S: ::juniper::ScalarValue,
     T: Clone + GenericInteger,
     P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
-    fn from_input_value(value: &InputValue<S>) -> Option<Self> {
-        let val = match value.as_scalar() {
-            None => return None,
-            Some(scalar) => {
-                let s: Option<&String> = scalar.into();
-                match s {
-                    Some(v) => v,
-                    _ => return None,
-                }
-            }
-        };
-
-        Some(GenericDecimal::from_decimal_str(val).ok())?
+    fn from_input_value(value: &::juniper::InputValue<S>) -> Option<Self> {
+        {
+            let val = match value.as_string_value() {
+                None => return None,
+                Some(string) => string,
+            };
+            Some(Self::from_decimal_str(val).ok())?
+        }
+    }
+}
+impl<S, T, P> ::juniper::ParseScalarValue<S> for GenericDecimal<T, P>
+where
+    S: ::juniper::ScalarValue,
+    T: Clone + GenericInteger,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn from_str<'a>(value: ::juniper::parser::ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        {
+            <String as ParseScalarValue<S>>::from_str(value)
+        }
     }
 }
 
@@ -99,6 +122,7 @@ where
 mod tests {
     use super::*;
     use fraction::GenericFraction;
+    use juniper::{FromInputValue, InputValue, ToInputValue};
 
     type D = GenericDecimal<u64, u8>;
     type F = GenericFraction<u64>;
