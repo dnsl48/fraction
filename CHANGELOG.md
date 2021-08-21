@@ -5,6 +5,7 @@
 ### Added
  - Default trait implementation for GenericFraction and GenericDecimal
  - `postgres-types: ^0.2` and `bytes: 1` are new optional dependencies (feature: with-postgres-support)
+ - `GenericFraction::new_raw_signed` constructor
 
 ### Changed
  - Juniper supported version upgraded from 0.11 to 0.15
@@ -12,6 +13,7 @@
 
 ### Removed
  - `postgres` crate is not a dependency any longer
+ - Deprecated fn `GenericFraction::format_as_decimal` is removed
 
 ## [0.8.0] - 2020-12-17
 ### Changed

@@ -280,6 +280,8 @@ where
 
     /// The same as [fn new_raw](enum.GenericFraction.html#method.new_raw), but produces negative fractions.
     ///
+    /// DEPRECATED! Use [fn new_raw_signed](enum.GenericFraction.html#method.new_raw_signed) instead
+    ///
     /// # Examples
     ///
     /// ```
@@ -288,8 +290,23 @@ where
     ///
     /// let _f = F::new_raw_neg (1u8, 2u8);
     /// ```
+    #[deprecated(note = "Use `new_raw_signed` instead")]
     pub fn new_raw_neg(num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational(Sign::Minus, Ratio::new_raw(num, den))
+    }
+
+    /// The same as [fn new_raw](enum.GenericFraction.html#method.new_raw), but allows explicitly set sign.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fraction::{GenericFraction, Sign};
+    /// type F = GenericFraction<u8>;
+    ///
+    /// let _f = F::new_raw_signed(Sign::Minus, 1u8, 2u8);
+    /// ```
+    pub fn new_raw_signed(sign: Sign, num: T, den: T) -> GenericFraction<T> {
+        GenericFraction::Rational(sign, Ratio::new_raw(num, den))
     }
 
     /// Returns a reference to the numerator value
