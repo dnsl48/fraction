@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.9.0] - Unreleased
+## [0.9.0] - 2021-08-22
 
 ### Added
  - Default trait implementation for GenericFraction and GenericDecimal
@@ -9,7 +9,7 @@
 
 ### Changed
  - Juniper supported version upgraded from 0.11 to 0.15
- - Postgres supported version upgraded from 0.15 to _at least_ 0.19.
+ - Postgres supported version upgraded from 0.15 to 0.19 (might be down to 0.16, but untested).
 
 ### Removed
  - `postgres` crate is not a dependency any longer
