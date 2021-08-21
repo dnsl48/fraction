@@ -435,69 +435,69 @@ mod tests {
     fn get_tests() -> Vec<(Fraction, &'static [u8])> {
         vec![
             (
-                Fraction::new_raw_neg(12345678901234u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 12345678901234u128, 1u128),
                 &[0, 4, 0, 3, 64, 0, 0, 0, 0, 12, 13, 128, 30, 210, 4, 210],
             ),
             (
-                Fraction::new_raw_neg(12345678u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 12345678u128, 1u128),
                 &[0, 2, 0, 1, 64, 0, 0, 0, 4, 210, 22, 46],
             ),
             (
-                Fraction::new_raw_neg(10000000000000000001u128, 10000000000u128),
+                Fraction::new_raw_signed(Sign::Minus, 10000000000000000001u128, 10000000000u128),
                 &[
                     0, 6, 0, 2, 64, 0, 0, 10, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100,
                 ],
             ),
             (
-                Fraction::new_raw_neg(1000000000u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 1000000000u128, 1u128),
                 &[0, 1, 0, 2, 64, 0, 0, 0, 0, 10],
             ),
             (
-                Fraction::new_raw_neg(1234u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 1234u128, 1u128),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 4, 210],
             ),
             (
-                Fraction::new_raw_neg(256u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 256u128, 1u128),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 1, 0],
             ),
             (
-                Fraction::new_raw_neg(42u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 42u128, 1u128),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 0, 42],
             ),
             (
-                Fraction::new_raw_neg(1u128, 1u128),
+                Fraction::new_raw_signed(Sign::Minus, 1u128, 1u128),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 0, 1],
             ),
             (
-                Fraction::new_raw_neg(1u128, 2u128),
+                Fraction::new_raw_signed(Sign::Minus, 1u128, 2u128),
                 &[0, 1, 255, 255, 64, 0, 0, 1, 19, 136],
             ),
             (
-                Fraction::new_raw_neg(1u128, 10u128),
+                Fraction::new_raw_signed(Sign::Minus, 1u128, 10u128),
                 &[0, 1, 255, 255, 64, 0, 0, 1, 3, 232],
             ),
             (
-                Fraction::new_raw_neg(66u128, 100u128),
+                Fraction::new_raw_signed(Sign::Minus, 66u128, 100u128),
                 &[0, 1, 255, 255, 64, 0, 0, 2, 25, 200],
             ),
             (
-                Fraction::new_raw_neg(6172839450617u128, 50000000000000u128),
+                Fraction::new_raw_signed(Sign::Minus, 6172839450617u128, 50000000000000u128),
                 &[0, 4, 255, 255, 64, 0, 0, 14, 4, 210, 22, 46, 35, 52, 13, 72],
             ),
             (
-                Fraction::new_raw_neg(1u128, 100u128),
+                Fraction::new_raw_signed(Sign::Minus, 1u128, 100u128),
                 &[0, 1, 255, 255, 64, 0, 0, 2, 0, 100],
             ),
             (
-                Fraction::new_raw_neg(601u128, 2500u128),
+                Fraction::new_raw_signed(Sign::Minus, 601u128, 2500u128),
                 &[0, 1, 255, 255, 64, 0, 0, 4, 9, 100],
             ),
             (
-                Fraction::new_raw_neg(1u128, 1000000000u128),
+                Fraction::new_raw_signed(Sign::Minus, 1u128, 1000000000u128),
                 &[0, 1, 255, 253, 64, 0, 0, 9, 3, 232],
             ),
             (
-                Fraction::new_raw_neg(617283945061706172839450617u128, 50000000000000u128),
+                Fraction::new_raw_signed(Sign::Minus, 617283945061706172839450617u128, 50000000000000u128),
                 &[
                     0, 8, 0, 3, 64, 0, 0, 14, 0, 12, 13, 128, 30, 210, 4, 210, 4, 210, 22, 46, 35,
                     52, 13, 72,
