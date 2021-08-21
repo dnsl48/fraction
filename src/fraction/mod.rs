@@ -1775,11 +1775,11 @@ impl<T: Clone + Integer> Num for GenericFraction<T> {
     type FromStrRadixErr = ParseRatioError;
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        if str.starts_with('-') {
-            Ratio::from_str_radix(&str[1..], radix)
+        if let Some(rem) = str.strip_prefix('-') {
+            Ratio::from_str_radix(rem, radix)
                 .map(|ratio| GenericFraction::Rational(Sign::Minus, ratio))
-        } else if str.starts_with('+') {
-            Ratio::from_str_radix(&str[1..], radix)
+        } else if let Some(rem) = str.strip_prefix('+') {
+            Ratio::from_str_radix(rem, radix)
                 .map(|ratio| GenericFraction::Rational(Sign::Plus, ratio))
         } else {
             Ratio::from_str_radix(str, radix)

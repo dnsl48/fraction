@@ -55,7 +55,7 @@ impl Format {
         }
     }
 
-    pub fn new<'a>(formatter: &fmt::Formatter<'a>) -> Self {
+    pub fn new(formatter: &fmt::Formatter) -> Self {
         let sign_plus = if formatter.sign_plus() { SIGN_PLUS } else { 0 };
         let sign_minus = if formatter.sign_minus() {
             SIGN_MINUS
@@ -371,14 +371,12 @@ where
                 buffer.write_char(sign.unwrap().into())?;
             }
 
-            if width <= sign_len + value_len {
-                value(buffer, format)?;
-            } else {
+            if width > sign_len + value_len {
                 for _ in sign_len + value_len..width {
                     buffer.write_char('0')?;
                 }
-                value(buffer, format)?;
             }
+            value(buffer, format)?;
         } else {
             match format.align() {
                 Some(fmt::Alignment::Center) => {

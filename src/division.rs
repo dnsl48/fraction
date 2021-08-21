@@ -8,7 +8,7 @@
 use error::DivisionError;
 use generic::GenericInteger;
 
-use std::cmp::{Eq, PartialEq};
+use std::cmp::{Eq, PartialEq, Ordering};
 use std::fmt::Write;
 
 /// Division state encapsulates remainder and divisor
@@ -91,35 +91,39 @@ where
     }
 
     /* === Figuring out the number size === */
-    let mut ptr: I = if dividend == divisor {
-        consumer(1u8)?;
-        return Ok(DivisionState::new(I::zero(), divisor));
-    } else if dividend < divisor {
-        consumer(0u8)?;
-        return Ok(DivisionState::new(dividend, divisor));
-    } else {
-        let mut ptr: I = I::_1();
-
-        loop {
-            if ptr > dividend {
-                if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
-                    I::_10r().map(|_10| ptr /= _10).or_else(|| {
-                        ptr /= I::_10();
-                        None
-                    });
-                }
-                break;
-            }
-
-            ptr = match I::_10r()
-                .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
-            {
-                Some(n) => n,
-                None => break,
-            };
+    let mut ptr: I = match dividend.cmp(&divisor) {
+        Ordering::Equal => {
+            consumer(1u8)?;
+            return Ok(DivisionState::new(I::zero(), divisor));
         }
-
-        ptr
+        Ordering::Less => {
+            consumer(0u8)?;
+            return Ok(DivisionState::new(dividend, divisor));
+        }
+        Ordering::Greater => {
+            let mut ptr: I = I::_1();
+    
+            loop {
+                if ptr > dividend {
+                    if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
+                        I::_10r().map(|_10| ptr /= _10).or_else(|| {
+                            ptr /= I::_10();
+                            None
+                        });
+                    }
+                    break;
+                }
+    
+                ptr = match I::_10r()
+                    .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
+                {
+                    Some(n) => n,
+                    None => break,
+                };
+            }
+    
+            ptr
+        }
     };
 
     let mut passed_leading_zeroes: bool = false;
@@ -294,11 +298,11 @@ where
                 digit
             })
             .or_else(|| {
-                let _10 = I::_10();
+                let ten = I::_10();
 
-                let (rem, digit) = state.remainder.checked_mul(&_10).map_or_else(
+                let (rem, digit) = state.remainder.checked_mul(&ten).map_or_else(
                     || {
-                        let (reduced_divisor, reduced_divisor_rem) = state.divisor.div_rem(&_10);
+                        let (reduced_divisor, reduced_divisor_rem) = state.divisor.div_rem(&ten);
 
                         let mut digit = state.remainder.div_floor(&reduced_divisor);
                         let mut remainder = state.remainder.clone();
@@ -306,21 +310,21 @@ where
                         remainder -= digit.clone() * &reduced_divisor;
 
                         let mut red_div_rem_diff =
-                            (reduced_divisor_rem.clone() * &digit).div_rem(&_10);
+                            (reduced_divisor_rem.clone() * &digit).div_rem(&ten);
 
                         loop {
                             if red_div_rem_diff.0 > remainder {
                                 digit -= I::one();
                                 remainder += &reduced_divisor;
                                 red_div_rem_diff =
-                                    (reduced_divisor_rem.clone() * &digit).div_rem(&_10);
+                                    (reduced_divisor_rem.clone() * &digit).div_rem(&ten);
                             } else {
                                 break;
                             }
                         }
 
                         remainder -= red_div_rem_diff.0;
-                        remainder *= &_10;
+                        remainder *= &ten;
 
                         if red_div_rem_diff.1 > remainder {
                             digit -= I::one();
@@ -607,7 +611,7 @@ where
             keep_going = false;
             result
         }
-        result @ _ => result,
+        result => result,
     })?;
 
     if !keep_going {
@@ -636,7 +640,7 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result,
+                                result => result,
                             }?;
 
                             if !keep_going {
@@ -652,7 +656,7 @@ where
                                     keep_going = false;
                                     result
                                 }
-                                result @ _ => result,
+                                result => result,
                             }?;
 
                             if !keep_going {
@@ -665,7 +669,7 @@ where
                                 keep_going = false;
                                 result
                             }
-                            result @ _ => result,
+                            result => result,
                         }?;
 
                         if !keep_going {
@@ -689,7 +693,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {
@@ -705,7 +709,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {
@@ -721,7 +725,7 @@ where
                         keep_going = false;
                         result
                     }
-                    result @ _ => result,
+                    result => result,
                 }?;
 
                 if !keep_going {

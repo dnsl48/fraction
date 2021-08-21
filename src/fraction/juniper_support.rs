@@ -142,7 +142,7 @@ where
     S: ::juniper::ScalarValue,
     T: Clone + GenericInteger,
 {
-    fn from_str<'a>(value: ::juniper::parser::ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+    fn from_str(value: ::juniper::parser::ScalarToken<'_>) -> ParseScalarResult<'_, S> {
         {
             <String as ParseScalarValue<S>>::from_str(value)
         }
