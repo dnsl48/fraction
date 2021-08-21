@@ -320,7 +320,7 @@ where
 
         for i in 0..digits {
             let pos = buffer_offset + 8 + i * 2;
-            let mut digit = read_i16(&mut buf[pos..pos + 2])?;
+            let mut digit = read_i16(&buf[pos..pos + 2])?;
 
             let mut tmp_rem: i16 = (digit - (digit / 10 * 10)) * 1000;
             digit /= 10;

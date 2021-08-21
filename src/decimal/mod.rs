@@ -855,7 +855,7 @@ where
                     GenericFraction::Infinity(_) => P::zero(),
                     GenericFraction::Rational(_, ref ratio) => {
                         let mut precision: P = P::zero();
-                        let max_precision: P = max_precision.unwrap_or(P::max_value());
+                        let max_precision: P = max_precision.unwrap_or_else(P::max_value);
 
                         let num = ratio.numer();
                         let den = ratio.denom();
@@ -864,7 +864,7 @@ where
                             division::divide_integral(num.clone(), den.clone(), |_| Ok(true))
                         {
                             if !div_state.remainder.is_zero() {
-                                let _1 = P::one();
+                                let one = P::one();
 
                                 let _result = division::divide_rem(
                                     div_state.remainder,
@@ -875,7 +875,7 @@ where
                                             return Ok(Err(s));
                                         }
 
-                                        precision = if let Some(p) = precision.checked_add(&_1) {
+                                        precision = if let Some(p) = precision.checked_add(&one) {
                                             p
                                         } else {
                                             return Ok(Err(s));
