@@ -8,7 +8,7 @@
 use error::DivisionError;
 use generic::GenericInteger;
 
-use std::cmp::{Eq, PartialEq, Ordering};
+use std::cmp::{Eq, Ordering, PartialEq};
 use std::fmt::Write;
 
 /// Division state encapsulates remainder and divisor
@@ -102,7 +102,7 @@ where
         }
         Ordering::Greater => {
             let mut ptr: I = I::_1();
-    
+
             loop {
                 if ptr > dividend {
                     if I::_1r().map_or_else(|| ptr > I::_1(), |_1| ptr > *_1) {
@@ -113,7 +113,7 @@ where
                     }
                     break;
                 }
-    
+
                 ptr = match I::_10r()
                     .map_or_else(|| ptr.checked_mul(&I::_10()), |_10| ptr.checked_mul(_10))
                 {
@@ -121,7 +121,7 @@ where
                     None => break,
                 };
             }
-    
+
             ptr
         }
     };

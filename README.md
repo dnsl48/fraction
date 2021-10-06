@@ -26,7 +26,7 @@ Lossless fractions and decimals; drop-in float replacement
 ```rust
 use fraction::Fraction;
 fn main() {
-  let fraction = Fraction::new(7u, 4u);
+  let fraction = Fraction::new(7u8, 4u8);
 
   assert_eq!("7/4", format!("{}", fraction));
   assert_eq!("1.75", format!("{:.2}", fraction));

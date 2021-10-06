@@ -64,7 +64,7 @@ pub type Fraction = GenericFraction<u64>;
 /// assert_eq! (first + second, BigFraction::new (5u8, 6u8));
 /// ```
 ///
-/// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
+/// [`BigUint`]: https://docs.rs/num-bigint/*/num_bigint/
 #[cfg(feature = "with-bigint")]
 pub type BigFraction = GenericFraction<BigUint>;
 
@@ -147,7 +147,7 @@ pub type Decimal = GenericDecimal<u64, u8>;
 /// assert_eq!(one + two, BigDecimal::from(42));
 /// ```
 ///
-/// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
+/// [`BigUint`]: https://docs.rs/num-bigint/*/num_bigint/
 #[cfg(all(feature = "with-decimal", feature = "with-bigint"))]
 pub type BigDecimal = GenericDecimal<BigUint, usize>;
 
@@ -173,7 +173,7 @@ pub type BigDecimal = GenericDecimal<BigUint, usize>;
 /// assert_eq!(d3, D::from("6254960104129183747.885873163232639"));
 /// ```
 ///
-/// [`BigUint`]: https://docs.rs/num-bigint/0.2.0/num_bigint/
+/// [`BigUint`]: https://docs.rs/num-bigint/*/num_bigint/
 #[cfg(all(
     feature = "with-decimal",
     feature = "with-bigint",
