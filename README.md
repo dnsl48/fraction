@@ -3,7 +3,7 @@
 Lossless fractions and decimals; drop-in float replacement
 ------
 
-[![CircleCI](https://circleci.com/gh/dnsl48/fraction/tree/master.svg?style=svg)](https://circleci.com/gh/dnsl48/fraction/tree/master) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/) [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]()
+[![GitHub Actions](https://github.com/dnsl48/fraction/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/dnsl48/fraction/actions/workflows/main.yml?query=branch%3Amaster) [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/) [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/) [![MIT / Apache2 License](https://img.shields.io/badge/license-MIT%20/%20Apache2-blue.svg)]()
 ------
 
 # Features
