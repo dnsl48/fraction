@@ -24,7 +24,7 @@ Lossless fractions and decimals; drop-in float replacement
 
 ## Simple use:
 
-```
+```rust
 type F = fraction::Fraction;  // choose the type accordingly with your needs (see prelude module docs)
 
 let two = F::from(0) + F::from(2);   // 0 + 2 = 2
@@ -40,7 +40,7 @@ assert_eq!("0.6666", format!("{:.4}", two_third));  // format as decimal and pri
 Decimal is implemented as a representation layer on top of Fraction.  
 Thus, it is also lossless and may require explicit control over "precision"
 for comparison and formatting operations.
-```
+```rust
 type D = fraction::Decimal;  // choose the type accordingly with your needs (see prelude module docs)
 
 let result = D::from(0.5) / D::from(0.3);
@@ -54,7 +54,7 @@ assert_eq!("1.6666", format!("{}", result.set_precision(4))); // the other way t
 ## Construct:
 
 Fraction:
-```
+```rust
 use fraction::{Fraction, Sign};
 
 fn main() {
@@ -73,7 +73,7 @@ fn main() {
 ```
 
 Decimal:
-```
+```rust
 use fraction::{Decimal, Fraction};
 
 fn main() {
@@ -96,7 +96,7 @@ fn main() {
 Formatting works the same for both Decimal and Fraction (Decimal uses Fraction internally).  
 The format implementation closely follows the rust Format trait documentation.
 
-```
+```rust
 type F = fraction::Fraction;
 
 let result = F::from(0.7) / F::from(0.4);
@@ -106,7 +106,7 @@ assert_eq!(format!("{:#.3}", result), "1.750");
 ```
 
 ### Generic integer conversion
-```
+```rust
 use fraction::{Sign, GenericFraction};
 
 type F = GenericFraction<u32>;
