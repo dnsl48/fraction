@@ -44,15 +44,15 @@
 //! To start using types see the [Prelude](self::prelude) module.
 //!
 //! # Examples
-//! 
+//!
 //! ## Simple use:
-//! 
+//!
 //! ```
 //! type F = fraction::Fraction; // choose the type accordingly to your needs (see prelude module docs)
-//! 
+//!
 //! let two = F::from(0) + F::from(2);   // 0 + 2 = 2
 //! let two_third = two / F::from(3);    // 2/3 = 0.666666[...]
-//! 
+//!
 //! assert_eq!(F::from(2), two);
 //! assert_eq!(F::new(2u64, 3u64), two_third);
 //!
@@ -67,10 +67,10 @@
 //! type D = fraction::Decimal;
 //!
 //! let result = D::from(0.5) / D::from(0.3);
-//! 
+//!
 //! assert_eq!(format!("{}", result), "1.6"); // calculation result uses precision of the operands
 //! assert_eq!(format!("{:.4}", result), "1.6666");  // explicitly passing precision to format
-//! 
+//!
 //! assert_eq!("1.6666", format!("{}", result.set_precision(4))); // the other way to set precision explicitly on Decimal
 //! ```
 //!
@@ -87,18 +87,18 @@
 //!     assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());  // with numerator/denominator of different integer types
 //!     assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
 //!     assert_eq!(f, Fraction::from_decimal_str("0.5").unwrap());  // parse a string
-//! 
+//!
 //!     // Raw construct with no extra calculations.
 //!     // Most performant, but does not look for common denominator and may lead to unexpected results
 //!     // in following calculations. Only use if you are sure numerator/denominator are already normalized.
 //!     assert_eq!(f, Fraction::new_raw(1u64, 2u64));
 //! }
 //! ```
-//! 
+//!
 //! Decimal:
 //! ```
 //! use fraction::{Decimal, Fraction};  // choose the type accordingly with your needs (see prelude module docs)
-//! 
+//!
 //! fn main() {
 //!     // There are similar ways to construct Decimal. Underneath it is always represented as Fraction.
 //!     // When constructed, Decimal preserves its precision (number of digits after floating point).
