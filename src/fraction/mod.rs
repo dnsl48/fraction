@@ -587,9 +587,7 @@ impl<T: Clone + Integer + Hash> Hash for GenericFraction<T> {
                 }
             }
             GenericFraction::Rational(sign, ratio) => {
-                if ratio.is_zero() {
-                    state.write_u8(3u8);
-                } else if let Sign::Plus = sign {
+                if *sign == Sign::Plus || ratio.is_zero() {
                     state.write_u8(3u8);
                 } else {
                     state.write_u8(4u8);
