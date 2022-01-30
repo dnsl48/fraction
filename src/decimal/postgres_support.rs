@@ -85,69 +85,69 @@ mod tests {
     fn get_tests() -> Vec<(Decimal, &'static [u8])> {
         vec![
             (
-                Decimal::from_decimal_str("-12345678901234").unwrap(),
+                Decimal::from_str("-12345678901234").unwrap(),
                 &[0, 4, 0, 3, 64, 0, 0, 0, 0, 12, 13, 128, 30, 210, 4, 210],
             ),
             (
-                Decimal::from_decimal_str("-12345678").unwrap(),
+                Decimal::from_str("-12345678").unwrap(),
                 &[0, 2, 0, 1, 64, 0, 0, 0, 4, 210, 22, 46],
             ),
             (
-                Decimal::from_decimal_str("-1000000000.0000000001").unwrap(),
+                Decimal::from_str("-1000000000.0000000001").unwrap(),
                 &[
                     0, 6, 0, 2, 64, 0, 0, 10, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100,
                 ],
             ),
             (
-                Decimal::from_decimal_str("-1000000000").unwrap(),
+                Decimal::from_str("-1000000000").unwrap(),
                 &[0, 1, 0, 2, 64, 0, 0, 0, 0, 10],
             ),
             (
-                Decimal::from_decimal_str("-1234").unwrap(),
+                Decimal::from_str("-1234").unwrap(),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 4, 210],
             ),
             (
-                Decimal::from_decimal_str("-256").unwrap(),
+                Decimal::from_str("-256").unwrap(),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 1, 0],
             ),
             (
-                Decimal::from_decimal_str("-42").unwrap(),
+                Decimal::from_str("-42").unwrap(),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 0, 42],
             ),
             (
-                Decimal::from_decimal_str("-1").unwrap(),
+                Decimal::from_str("-1").unwrap(),
                 &[0, 1, 0, 0, 64, 0, 0, 0, 0, 1],
             ),
             (
-                Decimal::from_decimal_str("-0.5").unwrap(),
+                Decimal::from_str("-0.5").unwrap(),
                 &[0, 1, 255, 255, 64, 0, 0, 1, 19, 136],
             ),
             (
-                Decimal::from_decimal_str("-0.1").unwrap(),
+                Decimal::from_str("-0.1").unwrap(),
                 &[0, 1, 255, 255, 64, 0, 0, 1, 3, 232],
             ),
             (
-                Decimal::from_decimal_str("-0.66").unwrap(),
+                Decimal::from_str("-0.66").unwrap(),
                 &[0, 1, 255, 255, 64, 0, 0, 2, 25, 200],
             ),
             (
-                Decimal::from_decimal_str("-0.12345678901234").unwrap(),
+                Decimal::from_str("-0.12345678901234").unwrap(),
                 &[0, 4, 255, 255, 64, 0, 0, 14, 4, 210, 22, 46, 35, 52, 13, 72],
             ),
             (
-                Decimal::from_decimal_str("-0.01").unwrap(),
+                Decimal::from_str("-0.01").unwrap(),
                 &[0, 1, 255, 255, 64, 0, 0, 2, 0, 100],
             ),
             (
-                Decimal::from_decimal_str("-0.2404").unwrap(),
+                Decimal::from_str("-0.2404").unwrap(),
                 &[0, 1, 255, 255, 64, 0, 0, 4, 9, 100],
             ),
             (
-                Decimal::from_decimal_str("-0.000000001").unwrap(),
+                Decimal::from_str("-0.000000001").unwrap(),
                 &[0, 1, 255, 253, 64, 0, 0, 9, 3, 232],
             ),
             (
-                Decimal::from_decimal_str("-12345678901234.12345678901234").unwrap(),
+                Decimal::from_str("-12345678901234.12345678901234").unwrap(),
                 &[
                     0, 8, 0, 3, 64, 0, 0, 14, 0, 12, 13, 128, 30, 210, 4, 210, 4, 210, 22, 46, 35,
                     52, 13, 72,
@@ -156,7 +156,7 @@ mod tests {
             (Decimal::zero(), &[0, 0, 0, 0, 0, 0, 0, 0]),
             (Decimal::nan(), &[0, 0, 0, 0, 192, 0, 0, 0]),
             (
-                Decimal::from_decimal_str("12345678901234.12345678901234").unwrap(),
+                Decimal::from_str("12345678901234.12345678901234").unwrap(),
                 &[
                     0, 8, 0, 3, 0, 0, 0, 14, 0, 12, 13, 128, 30, 210, 4, 210, 4, 210, 22, 46, 35,
                     52, 13, 72,
@@ -170,13 +170,13 @@ mod tests {
             (Decimal::from(0.01), &[0, 1, 255, 255, 0, 0, 0, 2, 0, 100]),
             (Decimal::from(0.66), &[0, 1, 255, 255, 0, 0, 0, 2, 25, 200]),
             (
-                Decimal::from_decimal_str("1000000.0000000000000001").unwrap(),
+                Decimal::from_str("1000000.0000000000000001").unwrap(),
                 &[
                     0, 6, 0, 1, 0, 0, 0, 16, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
                 ],
             ),
             (
-                Decimal::from_decimal_str("0.12345678901234").unwrap(),
+                Decimal::from_str("0.12345678901234").unwrap(),
                 &[0, 4, 255, 255, 0, 0, 0, 14, 4, 210, 22, 46, 35, 52, 13, 72],
             ),
             (Decimal::from(0.1), &[0, 1, 255, 255, 0, 0, 0, 1, 3, 232]),

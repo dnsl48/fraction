@@ -15,6 +15,7 @@ use std::num::FpCategory;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
 };
+use std::str::FromStr;
 
 use super::{GenericFraction, Sign};
 use division;
@@ -116,6 +117,51 @@ where
                     fraction,
                     format!("{:.1$}", fraction, debug_prec)
                 )
+            }
+        }
+    }
+}
+
+impl<T, P> FromStr for GenericDecimal<T, P>
+where
+    T: Clone + GenericInteger + CheckedAdd + CheckedMul + CheckedSub,
+    P: Copy + GenericInteger + Into<usize> + From<u8> + CheckedAdd,
+{
+    type Err = error::ParseError;
+
+    fn from_str(val: &str) -> Result<Self, Self::Err> {
+        if val == "NaN" {
+            Ok(Self::nan())
+        } else if val == "-inf" {
+            Ok(Self::neg_infinity())
+        } else if val == "+inf" || val == "inf" {
+            Ok(Self::infinity())
+        } else {
+            // Check if the number is float like (1.0, 123.456, etc).
+            if let Some(split_idx) = val.find('.') {
+                let mut prec_iter = val.len() - split_idx - 1;
+                let mut precision: P = P::zero();
+
+                loop {
+                    if prec_iter == 0 {
+                        break;
+                    }
+                    prec_iter -= 1;
+
+                    if let Some(p) = precision.checked_add(&P::one()) {
+                        precision = p;
+                    } else {
+                        break;
+                    }
+                }
+
+                Ok(GenericDecimal::from_str_radix(val, 10)?.set_precision(precision))
+            // Check if the number is fraction like (1/1, 123/456, etc).
+            } else if let Some(_) = val.find('/') {
+                Ok(GenericDecimal(GenericFraction::from_str(val)?, 16u8.into()))
+            // Check if the number is int like (1, 123, etc).
+            } else {
+                Ok(GenericDecimal::from_str_radix(val, 10)?.set_precision(P::zero()))
             }
         }
     }
@@ -317,7 +363,7 @@ where
     P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
     fn from(value: &'a str) -> Self {
-        GenericDecimal::from_decimal_str(value).unwrap_or_else(|_| GenericDecimal::nan())
+        GenericDecimal::from_str(value).unwrap_or_else(|_| GenericDecimal::nan())
     }
 }
 
@@ -723,7 +769,7 @@ where
         }
 
         Ok(GenericDecimal(
-            GenericFraction::from_decimal_str(value)?,
+            GenericFraction::from_str(value)?,
             16u8.into(),
         ))
     }
@@ -1019,6 +1065,7 @@ where
         }
     }
 
+    #[deprecated(note = "Use `FromStr::from_str` instead")]
     pub fn from_decimal_str(val: &str) -> Result<Self, error::ParseError>
     where
         T: CheckedAdd + CheckedMul + CheckedSub,

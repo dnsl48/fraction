@@ -78,6 +78,7 @@
 //!
 //! Fraction:
 //! ```
+//! use std::str::FromStr;
 //! use fraction::{Fraction, Sign};  // choose the type accordingly with your needs (see prelude module docs)
 //!
 //! fn main() {
@@ -86,7 +87,7 @@
 //!     let f = Fraction::new(1u8, 2u8);  // constructs with numerator/denominator and normalizes the fraction (finds least common denominator)
 //!     assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());  // with numerator/denominator of different integer types
 //!     assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
-//!     assert_eq!(f, Fraction::from_decimal_str("0.5").unwrap());  // parse a string
+//!     assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
 //!
 //!     // Raw construct with no extra calculations.
 //!     // Most performant, but does not look for common denominator and may lead to unexpected results
@@ -97,6 +98,7 @@
 //!
 //! Decimal:
 //! ```
+//! use std::str::FromStr;
 //! use fraction::{Decimal, Fraction};  // choose the type accordingly with your needs (see prelude module docs)
 //!
 //! fn main() {
@@ -109,9 +111,9 @@
 //!
 //!     let d = Decimal::from(1);  // from integer, precision = 0
 //!     assert_eq!(d, Decimal::from_fraction(Fraction::from(1))); // from fraction, precision is calculated from fraction
-//!     
+//!
 //!     let d = Decimal::from(1.3);  // from float (f32, f64)
-//!     assert_eq!(d, Decimal::from_decimal_str("1.3").unwrap());
+//!     assert_eq!(d, Decimal::from_str("1.3").unwrap());
 //! }
 //! ```
 //!

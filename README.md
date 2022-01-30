@@ -37,7 +37,7 @@ assert_eq!("2/3", format!("{}", two_third));  // print as Fraction (by default)
 assert_eq!("0.6666", format!("{:.4}", two_third));  // format as decimal and print up to 4 digits after floating point
 ```
 
-Decimal is implemented as a representation layer on top of Fraction.  
+Decimal is implemented as a representation layer on top of Fraction.
 Thus, it is also lossless and may require explicit control over "precision"
 for comparison and formatting operations.
 ```rust
@@ -55,6 +55,7 @@ assert_eq!("1.6666", format!("{}", result.set_precision(4))); // the other way t
 
 Fraction:
 ```rust
+use std::str::FromStr;
 use fraction::{Fraction, Sign};
 
 fn main() {
@@ -63,7 +64,8 @@ fn main() {
     let f = Fraction::new(1u8, 2u8);  // constructs with numerator/denominator and normalizes the fraction (finds least common denominator)
     assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());  // with numerator/denominator of different integer types
     assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
-    assert_eq!(f, Fraction::from_decimal_str("0.5").unwrap());  // parse a string
+    assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
+    assert_eq!(f, Fraction::from_str("1/2").unwrap());  // parse a string
 
     // Raw construct with no extra calculations.
     // Most performant, but does not look for common denominator and may lead to unexpected results
@@ -74,6 +76,7 @@ fn main() {
 
 Decimal:
 ```rust
+use std::str::FromStr;
 use fraction::{Decimal, Fraction};
 
 fn main() {
@@ -88,12 +91,15 @@ fn main() {
     assert_eq!(d, Decimal::from_fraction(Fraction::from(1))); // from fraction, precision is calculated from fraction
 
     let d = Decimal::from(1.3);  // from float (f32, f64)
-    assert_eq!(d, Decimal::from_decimal_str("1.3").unwrap());
+    assert_eq!(d, Decimal::from_str("1.3").unwrap());
+
+    let d = Decimal::from(0.5);  // from float (f32, f64)
+    assert_eq!(d, Decimal::from_str("1/2").unwrap());
 }
 ```
 
 ## Format (convert to string)
-Formatting works the same for both Decimal and Fraction (Decimal uses Fraction internally).  
+Formatting works the same for both Decimal and Fraction (Decimal uses Fraction internally).
 The format implementation closely follows the rust Format trait documentation.
 
 ```rust
