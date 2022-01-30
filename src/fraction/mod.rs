@@ -20,6 +20,7 @@ use std::ops::{
 use std::f64;
 use std::fmt;
 use std::mem;
+use std::str::FromStr;
 
 pub mod display;
 
@@ -160,6 +161,94 @@ where
 {
     fn default() -> Self {
         Self::zero()
+    }
+}
+
+impl<T> FromStr for GenericFraction<T>
+where
+    T: Clone + Integer + CheckedAdd + CheckedMul,
+{
+    type Err = ParseError;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        let (sign, start) = if src.starts_with('-') {
+            (Sign::Minus, 1)
+        } else if src.starts_with('+') {
+            (Sign::Plus, 1)
+        } else {
+            (Sign::Plus, 0)
+        };
+
+        if let Some(split_idx) = src.find('.') {
+            let who = &src[start..split_idx];
+
+            let mut num = match T::from_str_radix(who, 10) {
+                Err(_) => return Err(ParseError::ParseIntError),
+                Ok(value) => value,
+            };
+
+            let (fra, len) = (
+                T::from_str_radix(&src[split_idx + 1..], 10),
+                src.len() - split_idx - 1,
+            );
+
+            let fra = match fra {
+                Err(_) => return Err(ParseError::ParseIntError),
+                Ok(value) => value,
+            };
+
+            let mut den = T::one();
+
+            if len > 0 {
+                let mut t10 = T::one();
+                for _ in 0..9 {
+                    t10 = if let Some(t10) = t10.checked_add(&den) {
+                        t10
+                    } else {
+                        return Err(ParseError::OverflowError);
+                    };
+                }
+
+                for _ in 0..len {
+                    num = if let Some(num) = num.checked_mul(&t10) {
+                        num
+                    } else {
+                        return Err(ParseError::OverflowError);
+                    };
+                    den = if let Some(den) = den.checked_mul(&t10) {
+                        den
+                    } else {
+                        return Err(ParseError::OverflowError);
+                    };
+                }
+            }
+
+            let num = if let Some(num) = num.checked_add(&fra) {
+                num
+            } else {
+                return Err(ParseError::OverflowError);
+            };
+
+            Ok(GenericFraction::Rational(sign, Ratio::new(num, den)))
+        } else if let Some(split_idx) = src.find('/') {
+            let num = match T::from_str_radix(&src[start..split_idx], 10) {
+                Ok(value) => value,
+                Err(_) => return Err(ParseError::ParseIntError),
+            };
+            let den = match T::from_str_radix(&src[split_idx + 1..], 10) {
+                Ok(value) => value,
+                Err(_) => return Err(ParseError::ParseIntError),
+            };
+
+            Ok(GenericFraction::Rational(sign, Ratio::new(num, den)))
+        } else {
+            let num = match T::from_str_radix(&src[start..], 10) {
+                Ok(value) => value,
+                Err(_) => return Err(ParseError::ParseIntError),
+            };
+
+            Ok(GenericFraction::Rational(sign, Ratio::new(num, T::one())))
+        }
     }
 }
 
@@ -469,6 +558,7 @@ where
     /// let f = Fraction::from_decimal_str ("1.5");
     /// assert_eq! (f, Ok (Fraction::new(3u8, 2u8)));
     /// ```
+    #[deprecated(note = "Use `FromStr::from_str` instead")]
     pub fn from_decimal_str(src: &str) -> Result<Self, ParseError>
     where
         T: CheckedAdd + CheckedMul,
@@ -2340,7 +2430,7 @@ macro_rules! generic_fraction_from_float {
                 let mut p: i32 = 0;
                 let mut new_val = val;
                 let ten: $from = 10.0;
-                let fallback_to_string_conversion = || Self::from_decimal_str(&format!("{:+}", val)).unwrap_or(Self::NaN);
+                let fallback_to_string_conversion = || Self::from_str(&format!("{:+}", val)).unwrap_or(Self::NaN);
                 loop {
                     if (new_val.floor() - new_val).abs() < <$from>::EPSILON {
                         // Yay, we've found the precision of this number
@@ -2453,6 +2543,7 @@ mod tests {
 
     use std::collections::HashMap;
     use std::hash::{Hash, Hasher};
+    use std::str::FromStr;
 
     type Frac = GenericFraction<u8>;
 
@@ -2893,6 +2984,8 @@ mod tests {
 
     #[test]
     fn from_decimal_str() {
+        #![allow(deprecated)]
+
         assert_eq!(Ok(Frac::zero()), Frac::from_decimal_str("0"));
         assert_eq!(Ok(Frac::zero()), Frac::from_decimal_str("-0"));
         assert_eq!(Ok(Frac::zero()), Frac::from_decimal_str("+0"));
@@ -2975,6 +3068,96 @@ mod tests {
             Err(ParseError::OverflowError),
             Frac::from_decimal_str("255.255")
         );
+    }
+
+    #[test]
+    fn from_str() {
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("0"));
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("-0"));
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("+0"));
+
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("0.0"));
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("-0.0"));
+        assert_eq!(Ok(Frac::zero()), Frac::from_str("+0.0"));
+
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("0.000000"));
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("-0.000000"));
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("+0.000000"));
+
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("0/1"));
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("-0/1"));
+        assert_eq!(Ok(Fraction::zero()), Fraction::from_str("+0/1"));
+
+        #[cfg(feature = "with-bigint")]
+        {
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str(
+                    "00000000000000000000000000.0000000000000000000000000000000000000000000"
+                )
+            );
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str(
+                    "-0000000000000000000000000.0000000000000000000000000000000000000000000"
+                )
+            );
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str(
+                    "+0000000000000000000000000.0000000000000000000000000000000000000000000"
+                )
+            );
+
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str("00000000000000000000000000/1")
+            );
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str("-0000000000000000000000000/1")
+            );
+            assert_eq!(
+                Ok(BigFraction::zero()),
+                BigFraction::from_str("+0000000000000000000000000/1")
+            );
+        }
+
+        assert_eq!(Ok(Frac::one()), Frac::from_str("1"));
+        assert_eq!(Ok(Frac::new_neg(1, 1)), Frac::from_str("-1"));
+        assert_eq!(Ok(Frac::one()), Frac::from_str("+1"));
+
+        assert_eq!(Ok(Frac::one()), Frac::from_str("1.0"));
+        assert_eq!(Ok(Frac::new_neg(1, 1)), Frac::from_str("-1.0"));
+        assert_eq!(Ok(Frac::one()), Frac::from_str("+1.00"));
+
+        assert_eq!(Ok(Frac::one()), Frac::from_str("1/1"));
+        assert_eq!(Ok(Frac::new_neg(1, 1)), Frac::from_str("-1/1"));
+        assert_eq!(Ok(Frac::one()), Frac::from_str("+1/1"));
+
+        assert_eq!(Ok(Frac::new(1, 2)), Frac::from_str("0.5"));
+        assert_eq!(Ok(Frac::new(1, 2)), Frac::from_str("1/2"));
+
+        assert_eq!(
+            Ok(Fraction::new(3333u64, 5000u64)),
+            Fraction::from_str("0.6666")
+        );
+        assert_eq!(
+            Ok(Fraction::new(3333u64, 5000u64)),
+            Fraction::from_str("3333/5000")
+        );
+
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("test"));
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("1test"));
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("1.26t8"));
+
+        // this is due to the std library which issues ParseIntError on the whole part overflow
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("120202040"));
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("1.20602604"));
+
+        assert_eq!(Err(ParseError::OverflowError), Frac::from_str("255.255"));
+
+        assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("256/256"));
     }
 
     #[test]

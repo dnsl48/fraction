@@ -2,6 +2,7 @@ use super::GenericDecimal;
 use generic::GenericInteger;
 use juniper::{ParseScalarResult, ParseScalarValue, Value};
 use std::fmt;
+use std::str::FromStr;
 
 impl<__S, T, P> ::juniper::GraphQLValueAsync<__S> for GenericDecimal<T, P>
 where
@@ -101,7 +102,7 @@ where
                 None => return None,
                 Some(string) => string,
             };
-            Some(Self::from_decimal_str(val).ok())?
+            Some(Self::from_str(val).ok())?
         }
     }
 }
