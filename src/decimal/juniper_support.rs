@@ -102,7 +102,7 @@ where
                 None => return None,
                 Some(string) => string,
             };
-            Some(Self::from_str(val).ok())?
+            Some(FromStr::from_str(val).ok())?
         }
     }
 }

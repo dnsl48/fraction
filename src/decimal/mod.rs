@@ -157,7 +157,7 @@ where
 
                 Ok(GenericDecimal::from_str_radix(val, 10)?.set_precision(precision))
             // Check if the number is fraction like (1/1, 123/456, etc).
-            } else if let Some(_) = val.find('/') {
+            } else if val.find('/').is_some() {
                 Ok(GenericDecimal(GenericFraction::from_str(val)?, 16u8.into()))
             // Check if the number is int like (1, 123, etc).
             } else {
