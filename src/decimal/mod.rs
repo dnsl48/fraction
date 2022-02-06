@@ -109,13 +109,13 @@ where
             GenericDecimal(ref fraction, precision) => {
                 let prec = precision.into();
                 let debug_prec = f.precision().unwrap_or(32);
+                let value = format!("{:.1$}", fraction, prec);
+                let debug_value = format!("{:.1$}", fraction, debug_prec);
+
                 write!(
                     f,
                     "GenericDecimal({} | prec={}; {:?}; {})",
-                    format!("{:.1$}", fraction, prec),
-                    prec,
-                    fraction,
-                    format!("{:.1$}", fraction, debug_prec)
+                    value, prec, fraction, debug_value
                 )
             }
         }

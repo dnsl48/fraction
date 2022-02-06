@@ -1824,6 +1824,7 @@ impl<T: Clone + Integer> Sum for GenericFraction<T> {
 
 impl<'a, T: 'a + Clone + Integer> Sum<&'a GenericFraction<T>> for GenericFraction<T> {
     fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        #[allow(clippy::redundant_closure)]
         iter.fold(GenericFraction::<T>::zero(), |ref s, x| Add::add(s, x))
     }
 }
@@ -1836,6 +1837,7 @@ impl<T: Clone + Integer> Product for GenericFraction<T> {
 
 impl<'a, T: 'a + Clone + Integer> Product<&'a GenericFraction<T>> for GenericFraction<T> {
     fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        #[allow(clippy::redundant_closure)]
         iter.fold(GenericFraction::<T>::one(), |ref s, x| Mul::mul(s, x))
     }
 }
