@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.10.0]
+
+### Added
+ - `std::str::FromStr` trait implementation for GenericFraction and GenericDecimal
+  Special thanks to Scott Wilson for the contribution
+ - Deprecated `GenericFraction::from_decimal_str` and `GenericDecimal::from_decimal_str` in favour of of `std::str::FromStr`
+
+
 ## [0.9.0] - 2021-08-22
 
 ### Added
@@ -41,8 +49,8 @@
 
 ## [0.6.1] - 2019-03-29
 ### Added
- - dynaint, Into<BigUint> implementation
- - fraction, GenericFraction::into_fraction<I> method implementation
+ - dynaint, `Into<BigUint>` implementation
+ - fraction, `GenericFraction::into_fraction<I>` method implementation
 
 ## [0.6.0] - 2019-02-05
 ### Added
@@ -151,7 +159,7 @@
 
 ## [0.3.1] - 2016-11-12
 ### Added
-- `fn format_as_float` implemented for GenericFraction<T> (it was only available for BigFraction before)
+- `fn format_as_float` implemented for `GenericFraction<T>` (it was only available for BigFraction before)
 
 ### Changed
 - `Into<T>` to be used in bounds rather than `From<N>`, since it's more flexible (thanks to Alexander Altman for the patch)
@@ -160,11 +168,11 @@
 
 ## [0.3.0] - 2016-11-08
 ### Added
-- From<(N, D)> generic implementation (through std::fmt::Display)
+- `From<(N, D)>` generic implementation (through std::fmt::Display)
 
 ### Changed
-- GenericFraction<T> copy semantic to be applied only when `T: Clone`
-- GenericFraction impl, constructors refactoring (new, new_raw)
+- `GenericFraction<T>` copy semantic to be applied only when `T: Clone`
+- `GenericFraction` impl, constructors refactoring (new, new_raw)
 - `num` upgraded up to `0.1.36` (from `0.1.34`)
 
 ### Removed
