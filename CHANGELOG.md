@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.11.0]
+
+### Changed
+ - `num` dependency versions extended from `0.2` to `>=0.2,<5` (Thanks to Joel Natividad aka jqnatividad for the contribution!)
+ - `lazy_static` dependency versions extended from `1.1` to `1`
+
 ## [0.10.0]
 
 ### Added
