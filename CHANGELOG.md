@@ -1,12 +1,12 @@
 # Change Log
 
-## [0.11.0]
+## [0.11.0] - 2022-06-19
 
 ### Changed
  - `num` dependency versions extended from `0.2` to `>=0.2,<5` (Thanks to Joel Natividad aka jqnatividad for the contribution!)
  - `lazy_static` dependency versions extended from `1.1` to `1`
 
-## [0.10.0]
+## [0.10.0] - 2022-02-07
 
 ### Added
  - `std::str::FromStr` trait implementation for GenericFraction and GenericDecimal
