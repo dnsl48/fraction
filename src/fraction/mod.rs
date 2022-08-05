@@ -187,14 +187,16 @@ where
                 Ok(value) => value,
             };
 
-            let (fra, len) = (
-                T::from_str_radix(&src[split_idx + 1..], 10),
-                src.len() - split_idx - 1,
-            );
-
-            let fra = match fra {
-                Err(_) => return Err(ParseError::ParseIntError),
-                Ok(value) => value,
+            // skip trailing zeros
+            let len = src[split_idx + 1..].trim_end_matches('0').len();
+            let fra = if len > 0 {
+                let p = T::from_str_radix(&src[split_idx + 1..split_idx + 1 + len], 10);
+                match p {
+                    Err(_) => return Err(ParseError::ParseIntError),
+                    Ok(value) => value,
+                }
+            } else {
+                T::zero()
             };
 
             let mut den = T::one();
@@ -3089,6 +3091,11 @@ mod tests {
         assert_eq!(Ok(Fraction::zero()), Fraction::from_str("0/1"));
         assert_eq!(Ok(Fraction::zero()), Fraction::from_str("-0/1"));
         assert_eq!(Ok(Fraction::zero()), Fraction::from_str("+0/1"));
+
+        assert_eq!(
+            Ok(Fraction::from(10000000000000_u64)),
+            Fraction::from_str("10000000000000.0000000000")
+        );
 
         #[cfg(feature = "with-bigint")]
         {
