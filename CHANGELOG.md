@@ -1,5 +1,10 @@
 # Change Log
 
+## Unrealeased
+
+### Fixed
+ - Fix Fraction::from\_str behaviour regarding trailing zeroes
+
 ## [0.11.0] - 2022-06-19
 
 ### Changed
