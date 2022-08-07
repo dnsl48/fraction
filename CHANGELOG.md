@@ -1,9 +1,9 @@
 # Change Log
 
-## Unrealeased
+## [0.11.1] - 2022-08-07
 
 ### Fixed
- - Fix Fraction::from\_str behaviour regarding trailing zeroes
+ - Fraction::from\_str trims trailing zeroes before calculating denom (Thanks to @khigia for the contribution!)
 
 ## [0.11.0] - 2022-06-19
 
