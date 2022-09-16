@@ -15,7 +15,7 @@
 //! - [Display](fraction::display) implementation for fractions and decimals
 //! - [Fraction](GenericFraction) type, representing fractions
 //! - [Decimal](GenericDecimal) type, based on [Fraction](GenericFraction) type represents floats as lossless decimals
-//! - [DynaInt](dynaint) implements dinamically growing integer type that perfarms checked math and avoids stack overflows
+//! - [DynaInt](dynaint) implements dynamically growing integer type that perfarms checked math and avoids stack overflows
 //! - PostgreSQL binary protocol integration for both fractions and decimals
 //! - Juniper support for both fractions and decimals
 //! - [Generic integer conversions](generic), such as `i8 -> u8`, `usize -> u8` and so on
