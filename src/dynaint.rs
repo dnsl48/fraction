@@ -51,6 +51,7 @@ use generic::{read_generic_integer, GenericInteger};
 /// overflows happen. Every math operation on __H performs a read of the
 /// resulting number with [TryToConvertFrom::try_to_convert_from].
 /// Every math operation on S is checked for overflows.
+#[cfg_attr(feature = "with-serde-support", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum DynaInt<T, G>
 where
