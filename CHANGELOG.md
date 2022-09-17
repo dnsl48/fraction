@@ -1,5 +1,8 @@
 # Change Log
 
+## [0.11.2] - 2022-09-18
+- `DynaInt` now implements serde `Serialize & Unserialize` (Thanks to Richard Davies aka @optevo for the contribution!)
+
 ## [0.11.1] - 2022-08-07
 
 ### Fixed
