@@ -365,7 +365,7 @@ where
     ///
     /// let _f = F::new_raw (1u8, 2u8);
     /// ```
-    pub fn new_raw(num: T, den: T) -> GenericFraction<T> {
+    pub const fn new_raw(num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational(Sign::Plus, Ratio::new_raw(num, den))
     }
 
@@ -382,7 +382,7 @@ where
     /// let _f = F::new_raw_neg (1u8, 2u8);
     /// ```
     #[deprecated(note = "Use `new_raw_signed` instead")]
-    pub fn new_raw_neg(num: T, den: T) -> GenericFraction<T> {
+    pub const fn new_raw_neg(num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational(Sign::Minus, Ratio::new_raw(num, den))
     }
 
@@ -396,7 +396,7 @@ where
     ///
     /// let _f = F::new_raw_signed(Sign::Minus, 1u8, 2u8);
     /// ```
-    pub fn new_raw_signed(sign: Sign, num: T, den: T) -> GenericFraction<T> {
+    pub const fn new_raw_signed(sign: Sign, num: T, den: T) -> GenericFraction<T> {
         GenericFraction::Rational(sign, Ratio::new_raw(num, den))
     }
 
@@ -411,7 +411,7 @@ where
     /// let fra = F::new (5u8, 6u8);
     /// assert_eq! (5, *fra.numer ().unwrap ());
     /// ```
-    pub fn numer(&self) -> Option<&T> {
+    pub const fn numer(&self) -> Option<&T> {
         match *self {
             GenericFraction::Rational(_, ref r) => Some(r.numer()),
             _ => None,
@@ -429,7 +429,7 @@ where
     /// let fra = F::new (5u8, 6u8);
     /// assert_eq! (6, *fra.denom ().unwrap ());
     /// ```
-    pub fn denom(&self) -> Option<&T> {
+    pub const fn denom(&self) -> Option<&T> {
         match *self {
             GenericFraction::Rational(_, ref r) => Some(r.denom()),
             _ => None,
@@ -462,7 +462,7 @@ where
     /// let fra = F::nan ();
     /// assert_eq! (None, fra.sign ());
     /// ```
-    pub fn sign(&self) -> Option<Sign> {
+    pub const fn sign(&self) -> Option<Sign> {
         match self {
             GenericFraction::Rational(s, _) => Some(*s),
             GenericFraction::Infinity(s) => Some(*s),
