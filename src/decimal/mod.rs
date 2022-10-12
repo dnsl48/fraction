@@ -819,11 +819,11 @@ where
     P: Copy + GenericInteger + Into<usize>,
 {
     /// Returns Some(Sign) of the decimal, or None if NaN is the value
-    pub fn sign(&self) -> Option<Sign>
+    pub const fn sign(&self) -> Option<Sign>
     where
         T: CheckedAdd + CheckedMul + CheckedSub,
     {
-        self.apply_ref(|f, _| f.sign())
+        self.0.sign()
     }
 
     /// Sets representational precision for the Decimal
@@ -868,7 +868,7 @@ where
     }
 
     /// Returns the current representational precision for the Decimal
-    pub fn get_precision(&self) -> P {
+    pub const fn get_precision(&self) -> P {
         match self {
             GenericDecimal(_, precision) => *precision,
         }
@@ -969,24 +969,24 @@ where
         GenericDecimal(GenericFraction::min_positive_value(), P::max_value())
     }
 
-    pub fn is_nan(&self) -> bool {
-        self.apply_ref(|f, _| f.is_nan())
+    pub const fn is_nan(&self) -> bool {
+        self.0.is_nan()
     }
 
-    pub fn is_infinite(&self) -> bool {
-        self.apply_ref(|f, _| f.is_infinite())
+    pub const fn is_infinite(&self) -> bool {
+        self.0.is_infinite()
     }
 
-    pub fn is_finite(&self) -> bool {
-        self.apply_ref(|f, _| f.is_finite())
+    pub const fn is_finite(&self) -> bool {
+        self.0.is_finite()
     }
 
     pub fn is_normal(&self) -> bool {
-        self.apply_ref(|f, _| f.is_normal())
+        self.0.is_normal()
     }
 
     pub fn classify(&self) -> FpCategory {
-        self.apply_ref(|f, _| f.classify())
+        self.0.classify()
     }
 
     pub fn floor(&self) -> Self {
@@ -1025,12 +1025,12 @@ where
         self.map_ref(|f| f.signum())
     }
 
-    pub fn is_sign_positive(&self) -> bool {
-        self.apply_ref(|f, _| f.is_sign_positive())
+    pub const fn is_sign_positive(&self) -> bool {
+        self.0.is_sign_positive()
     }
 
-    pub fn is_sign_negative(&self) -> bool {
-        self.apply_ref(|f, _| f.is_sign_negative())
+    pub const fn is_sign_negative(&self) -> bool {
+        self.0.is_sign_negative()
     }
 
     pub fn mul_add(&self, a: Self, b: Self) -> Self {
@@ -1059,6 +1059,7 @@ where
         }
     }
 
+    #[deprecated(note = "Use `match decimal {GenericDecimal(fraction, precision) => ... }`")]
     pub fn apply_ref<R>(&self, fun: impl FnOnce(&GenericFraction<T>, P) -> R) -> R {
         match self {
             GenericDecimal(fra, pres) => fun(fra, *pres),

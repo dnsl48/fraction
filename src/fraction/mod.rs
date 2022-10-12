@@ -2003,7 +2003,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     ///
     /// assert_eq! (F::nan (), F::new (0, 0));
     /// ```
-    pub fn nan() -> Self {
+    pub const fn nan() -> Self {
         GenericFraction::NaN
     }
 
@@ -2017,7 +2017,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     ///
     /// assert_eq! (F::infinity (), F::new (1, 0));
     /// ```
-    pub fn infinity() -> Self {
+    pub const fn infinity() -> Self {
         GenericFraction::Infinity(Sign::Plus)
     }
 
@@ -2031,7 +2031,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     ///
     /// assert_eq! (F::neg_infinity (), F::new_neg (1, 0));
     /// ```
-    pub fn neg_infinity() -> Self {
+    pub const fn neg_infinity() -> Self {
         GenericFraction::Infinity(Sign::Minus)
     }
 
@@ -2079,7 +2079,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::nan ().is_nan ());
     /// assert! (F::new (0, 0).is_nan ());
     /// ```
-    pub fn is_nan(&self) -> bool {
+    pub const fn is_nan(&self) -> bool {
         matches!(*self, GenericFraction::NaN)
     }
 
@@ -2095,7 +2095,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::new (1u8, 0).is_infinite ());
     /// assert! (F::new_neg (1u8, 0).is_infinite ());
     /// ```
-    pub fn is_infinite(&self) -> bool {
+    pub const fn is_infinite(&self) -> bool {
         matches!(*self, GenericFraction::Infinity(_))
     }
 
@@ -2111,7 +2111,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (! F::new (1u8, 0).is_finite ());
     /// assert! (! F::new_neg (1u8, 0).is_finite ());
     /// ```
-    pub fn is_finite(&self) -> bool {
+    pub const fn is_finite(&self) -> bool {
         !matches!(*self, GenericFraction::Infinity(_))
     }
 
@@ -2294,19 +2294,19 @@ impl<T: Clone + Integer> GenericFraction<T> {
     pub fn signum(&self) -> Self {
         match *self {
             GenericFraction::NaN => GenericFraction::NaN,
-            GenericFraction::Infinity(s) => {
-                if s == Sign::Plus {
-                    GenericFraction::Rational(Sign::Plus, Ratio::new(T::one(), T::one()))
-                } else {
-                    GenericFraction::Rational(Sign::Minus, Ratio::new(T::one(), T::one()))
-                }
+
+            GenericFraction::Infinity(Sign::Plus) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::new(T::one(), T::one()))
             }
-            GenericFraction::Rational(s, _) => {
-                if s == Sign::Plus {
-                    GenericFraction::Rational(Sign::Plus, Ratio::new(T::one(), T::one()))
-                } else {
-                    GenericFraction::Rational(Sign::Minus, Ratio::new(T::one(), T::one()))
-                }
+            GenericFraction::Infinity(Sign::Minus) => {
+                GenericFraction::Rational(Sign::Minus, Ratio::new(T::one(), T::one()))
+            }
+
+            GenericFraction::Rational(Sign::Plus, _) => {
+                GenericFraction::Rational(Sign::Plus, Ratio::new(T::one(), T::one()))
+            }
+            GenericFraction::Rational(Sign::Minus, _) => {
+                GenericFraction::Rational(Sign::Minus, Ratio::new(T::one(), T::one()))
             }
         }
     }
@@ -2323,11 +2323,13 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::infinity ().is_sign_positive ());
     /// assert! (! F::nan ().is_sign_positive ());
     /// ```
-    pub fn is_sign_positive(&self) -> bool {
+    pub const fn is_sign_positive(&self) -> bool {
         match *self {
             GenericFraction::NaN => false,
-            GenericFraction::Infinity(sign) => sign == Sign::Plus,
-            GenericFraction::Rational(sign, _) => sign == Sign::Plus,
+            GenericFraction::Infinity(Sign::Plus) => true,
+            GenericFraction::Infinity(Sign::Minus) => false,
+            GenericFraction::Rational(Sign::Plus, _) => true,
+            GenericFraction::Rational(Sign::Minus, _) => false,
         }
     }
 
@@ -2344,11 +2346,13 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert! (F::neg_infinity ().is_sign_negative ());
     /// assert! (! F::nan ().is_sign_negative ());
     /// ```
-    pub fn is_sign_negative(&self) -> bool {
+    pub const fn is_sign_negative(&self) -> bool {
         match *self {
             GenericFraction::NaN => false,
-            GenericFraction::Infinity(sign) => sign == Sign::Minus,
-            GenericFraction::Rational(sign, _) => sign == Sign::Minus,
+            GenericFraction::Infinity(Sign::Plus) => false,
+            GenericFraction::Infinity(Sign::Minus) => true,
+            GenericFraction::Rational(Sign::Plus, _) => false,
+            GenericFraction::Rational(Sign::Minus, _) => true,
         }
     }
 

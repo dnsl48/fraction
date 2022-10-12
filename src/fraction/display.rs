@@ -45,7 +45,7 @@ const ALTERNATE: u8 = 4;
 const SIGAZEPAD: u8 = 8;
 
 impl Format {
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Format {
             fill: ' ',
             align: None,
@@ -80,11 +80,11 @@ impl Format {
         }
     }
 
-    pub fn fill(&self) -> char {
+    pub const fn fill(&self) -> char {
         self.fill
     }
 
-    pub fn cloned_align(&self) -> Option<fmt::Alignment> {
+    pub const fn cloned_align(&self) -> Option<fmt::Alignment> {
         match self.align {
             Some(ref align) => match *align {
                 fmt::Alignment::Left => Some(fmt::Alignment::Left),
@@ -95,38 +95,38 @@ impl Format {
         }
     }
 
-    pub fn align(&self) -> &Option<fmt::Alignment> {
+    pub const fn align(&self) -> &Option<fmt::Alignment> {
         &self.align
     }
 
-    pub fn set_align(mut self, align: Option<fmt::Alignment>) -> Self {
+    pub const fn set_align(mut self, align: Option<fmt::Alignment>) -> Self {
         self.align = align;
         self
     }
 
-    pub fn width(&self) -> &Option<usize> {
+    pub const fn width(&self) -> &Option<usize> {
         &self.width
     }
 
-    pub fn set_width(mut self, width: Option<usize>) -> Self {
+    pub const fn set_width(mut self, width: Option<usize>) -> Self {
         self.width = width;
         self
     }
 
-    pub fn precision(&self) -> &Option<usize> {
+    pub const fn precision(&self) -> &Option<usize> {
         &self.precision
     }
 
-    pub fn set_precision(mut self, precision: Option<usize>) -> Self {
+    pub const fn set_precision(mut self, precision: Option<usize>) -> Self {
         self.precision = precision;
         self
     }
 
-    pub fn sign_plus(&self) -> bool {
+    pub const fn sign_plus(&self) -> bool {
         self.flags & SIGN_PLUS > 0
     }
 
-    pub fn set_sign_plus(mut self, flag: bool) -> Self {
+    pub const fn set_sign_plus(mut self, flag: bool) -> Self {
         if flag {
             self.flags |= SIGN_PLUS;
         } else {
@@ -136,11 +136,11 @@ impl Format {
         self
     }
 
-    pub fn sign_minus(&self) -> bool {
+    pub const fn sign_minus(&self) -> bool {
         self.flags & SIGN_MINUS > 0
     }
 
-    pub fn set_sign_minus(mut self, flag: bool) -> Self {
+    pub const fn set_sign_minus(mut self, flag: bool) -> Self {
         if flag {
             self.flags |= SIGN_MINUS;
         } else {
@@ -150,11 +150,11 @@ impl Format {
         self
     }
 
-    pub fn alternate(&self) -> bool {
+    pub const fn alternate(&self) -> bool {
         self.flags & ALTERNATE > 0
     }
 
-    pub fn set_alternate(mut self, flag: bool) -> Self {
+    pub const fn set_alternate(mut self, flag: bool) -> Self {
         if flag {
             self.flags |= ALTERNATE;
         } else {
@@ -164,11 +164,11 @@ impl Format {
         self
     }
 
-    pub fn sign_aware_zero_pad(&self) -> bool {
+    pub const fn sign_aware_zero_pad(&self) -> bool {
         self.flags & SIGAZEPAD > 0
     }
 
-    pub fn set_sign_aware_zero_pad(mut self, flag: bool) -> Self {
+    pub const fn set_sign_aware_zero_pad(mut self, flag: bool) -> Self {
         if flag {
             self.flags |= SIGAZEPAD;
         } else {
