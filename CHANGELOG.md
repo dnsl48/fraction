@@ -1,5 +1,14 @@
 # Change Log
 
+## [0.12.0]
+
+### Changed
+ - Multiple functions made const in GenericFraction, GenericDecimal and fraction::display::Format
+   Special thanks to Stijn Frishert (aka stijnfrishert).
+
+### Deprecated
+ - GenericDecimal::apply_ref has been deprecated
+
 ## [0.11.2] - 2022-09-18
 - `DynaInt` now implements serde `Serialize & Unserialize` (Thanks to Richard Davies aka @optevo for the contribution!)
 
