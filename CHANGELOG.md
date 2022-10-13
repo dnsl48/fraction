@@ -1,13 +1,20 @@
 # Change Log
 
-## [0.12.0]
+## [0.12.0] - 2022-10-13
 
 ### Changed
+ - `num` version `0.4` is now required (`0.2`, `0.3` are no longer supported)
  - Multiple functions made const in GenericFraction, GenericDecimal and fraction::display::Format
    Special thanks to Stijn Frishert (aka stijnfrishert).
 
 ### Deprecated
- - GenericDecimal::apply_ref has been deprecated
+ - fn `decimal::GenericDecimal::apply_ref` is deprecated.
+
+### Removed
+ - Removed deprecated fn `decimal::GenericDecimal::from_decimal_str`. Use `FromStr::from_str` instead.
+ - Removed deprecated fn `fraction::GenericFraction::from_decimal_str`. Use `FromStr::from_str` instead.
+ - Removed deprecated fn `fraction::GenericFraction::format_as_decimal`. Use `format!(\"{:.1$}\", fraction, precision)` instead.
+ - Removed deprecated fn `fraction::GenericFraction::new_raw_neg`. Use `new_raw_signed` instead.
 
 ## [0.11.2] - 2022-09-18
 - `DynaInt` now implements serde `Serialize & Unserialize` (Thanks to Richard Davies aka @optevo for the contribution!)
