@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.11.2"
+version = "0.12.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless fractions and decimals; drop-in float replacement"
@@ -24,7 +24,7 @@ all-features = true
 
 [dependencies]
 
-num = { version =  ">=0.2,<0.5", default-features = false }
+num = { version = "0.4", default-features = false }
 
 byteorder = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
@@ -50,7 +50,7 @@ with-postgres-support = ["postgres-types", "byteorder", "bytes"]
 with-serde-support = ["serde", "serde_derive", "num/serde"]
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4"
 
 [[bench]]
 name = "bench_fraction"

@@ -1066,45 +1066,6 @@ where
         }
     }
 
-    #[deprecated(note = "Use `FromStr::from_str` instead")]
-    pub fn from_decimal_str(val: &str) -> Result<Self, error::ParseError>
-    where
-        T: CheckedAdd + CheckedMul + CheckedSub,
-        P: From<u8> + CheckedAdd,
-    {
-        if val == "NaN" {
-            Ok(Self::nan())
-        } else if val == "-inf" {
-            Ok(Self::neg_infinity())
-        } else if val == "+inf" || val == "inf" {
-            Ok(Self::infinity())
-        } else {
-            let precision: P = if let Some(split_idx) = val.find('.') {
-                let mut prec_iter = val.len() - split_idx - 1;
-                let mut precision: P = P::zero();
-
-                loop {
-                    if prec_iter == 0 {
-                        break;
-                    }
-                    prec_iter -= 1;
-
-                    if let Some(p) = precision.checked_add(&P::one()) {
-                        precision = p;
-                    } else {
-                        break;
-                    }
-                }
-
-                precision
-            } else {
-                P::zero()
-            };
-
-            Ok(GenericDecimal::from_str_radix(val, 10)?.set_precision(precision))
-        }
-    }
-
     /// Convert from a GenericFraction
     ///
     /// Automatically calculates precision, so for "bad" numbers
