@@ -1,5 +1,20 @@
 # Change Log
 
+## [0.12.1]
+
+### Added
+ - Support to `add` castable values (e.g. `f + 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `sub` castable values (e.g. `f - 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `div` castable values (e.g. `f / 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `mul` castable values (e.g. `f * 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `add_assign` castable values (e.g. `f += 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `sub_assign` castable values (e.g. `f -= 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `div_assign` castable values (e.g. `f /= 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+ - Support to `mul_assign` castable values (e.g. `f *= 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
+
+### Changed
+ - Refactoring of the fraction module. std::ops implementations moved into separate submodules.
+
 ## [0.12.0] - 2022-10-13
 
 ### Changed

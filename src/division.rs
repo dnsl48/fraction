@@ -398,7 +398,7 @@ where
         }
     }
 
-    len + precision + if precision > 0 { 1 } else { 0 }
+    len + precision + usize::from(precision > 0)
 }
 
 /// Divide a fraction into a [`String`]

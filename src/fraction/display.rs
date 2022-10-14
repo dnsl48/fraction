@@ -355,11 +355,7 @@ where
     if let Some(width) = format.width() {
         let width = *width;
         let sign_len = if let Some(sign) = sign {
-            if format.sign_plus() || (!format.sign_minus() && sign.is_negative()) {
-                1
-            } else {
-                0
-            }
+            usize::from(format.sign_plus() || (!format.sign_minus() && sign.is_negative()))
         } else {
             0
         };
