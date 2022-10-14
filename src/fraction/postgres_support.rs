@@ -5,7 +5,7 @@ use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use self::bytes::{BufMut, BytesMut};
 use postgres_types::{FromSql, IsNull, ToSql, Type};
 
-use super::{GenericFraction, Sign, Zero};
+use crate::{GenericFraction, Sign, Zero};
 use division::{divide_integral, divide_rem};
 use generic::GenericInteger;
 
