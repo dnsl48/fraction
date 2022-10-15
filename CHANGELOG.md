@@ -14,6 +14,9 @@
 
 ### Changed
  - Refactoring of the fraction module. std::ops implementations moved into separate submodules.
+ - generic::read_generic_integer performance improved for when target type matches source (~83% improvement, which is 5 times faster).
+   As the result this can affect GenericFraction::from performance for non-float types.
+ - From<(A, B)> implementation is migrated to GenericFraction::new_generic (~85% performance improvement and with no heap allocations, which is ~7 times faster).
 
 ## [0.12.0] - 2022-10-13
 

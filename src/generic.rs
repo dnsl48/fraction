@@ -4,10 +4,8 @@
 //! that work indifferently to particular types, relying on
 //! some common traits.
 
-use super::{
-    CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, /*Zero, One, */ Integer, ToPrimitive,
-};
-use std::cmp::PartialOrd;
+use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, ToPrimitive};
+use std::{any::TypeId, cmp::PartialOrd};
 use Sign;
 
 #[cfg(feature = "with-bigint")]
@@ -207,10 +205,13 @@ macro_rules! generic_integer_for_int {
 
 generic_integer_for_int!(i8, i16, i32, i64, i128, isize);
 
-/// Builds integer of type T from another integer of type F in a generic way
+/// Builds integer of type T from another integer of type F in a generic way.
+/// Guarantees to only return positive values.
 ///
 /// Allows safe runtime conversions between integer types when it's not possible
 /// statically. E.g: `i8 -> u8`, `u8 -> i8`, `usize -> u8` or even `BigUint -> u8` and so on.
+///
+/// Simply reinterprets type F as T when they are the same type.
 ///
 /// # Examples
 ///
@@ -227,6 +228,13 @@ where
     T: GenericInteger,
 {
     let (sign, mut val) = val.get_signed_value();
+
+    if TypeId::of::<T>() == TypeId::of::<F>() && val >= F::zero() {
+        let cast = Some((sign, unsafe { (&mut val as *mut F as *mut T).read() }));
+        let _ = std::mem::ManuallyDrop::new(val);
+
+        return cast;
+    }
 
     let mut vptr: F = F::_1();
     let mut rptr: T = T::_1();
