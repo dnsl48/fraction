@@ -1139,7 +1139,7 @@ macro_rules! fraction_from_generic_int {
             T: Clone + Integer + GenericInteger + CheckedAdd + CheckedMul + CheckedSub,
             $F: GenericInteger + CheckedAdd + CheckedDiv + CheckedMul + CheckedSub + PartialOrd
         {
-            fn from (val: $F) -> GenericFraction<T> {
+            fn from(val: $F) -> GenericFraction<T> {
                 if let Some((sign, value)) = read_generic_integer::<T, $F>(val) {
                     GenericFraction::Rational(sign, Ratio::new (value, T::one()))
                 } else {
@@ -1218,53 +1218,12 @@ generic_fraction_from_float!(f32, f64);
 
 impl<T, N, D> From<(N, D)> for GenericFraction<T>
 where
-    T: Clone + Integer,
-    N: fmt::Display,
-    D: fmt::Display,
+    T: Clone + GenericInteger,
+    N: GenericInteger + PartialOrd,
+    D: GenericInteger + PartialOrd,
 {
     fn from(pair: (N, D)) -> GenericFraction<T> {
-        let (num, den) = pair;
-
-        let num = format!("{:+}", num);
-
-        let n_sign = if num.starts_with('-') {
-            Sign::Minus
-        } else if num.starts_with('+') {
-            Sign::Plus
-        } else {
-            return GenericFraction::NaN;
-        };
-
-        let n: Result<T, T::FromStrRadixErr> = T::from_str_radix(&num[1..], 10);
-
-        if n.is_err() {
-            return GenericFraction::NaN;
-        }
-
-        let den = format!("{:+}", den);
-
-        let d_sign = if den.starts_with('-') {
-            Sign::Minus
-        } else if den.starts_with('+') {
-            Sign::Plus
-        } else {
-            return GenericFraction::NaN;
-        };
-
-        let d: Result<T, T::FromStrRadixErr> = T::from_str_radix(&den[1..], 10);
-
-        if d.is_err() {
-            return GenericFraction::NaN;
-        }
-
-        GenericFraction::Rational(
-            if n_sign == d_sign {
-                Sign::Plus
-            } else {
-                Sign::Minus
-            },
-            Ratio::new(n.ok().unwrap(), d.ok().unwrap()),
-        )
+        GenericFraction::new_generic(Sign::Plus, pair.0, pair.1).unwrap_or(GenericFraction::NaN)
     }
 }
 
