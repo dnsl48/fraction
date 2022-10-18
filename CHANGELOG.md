@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.12.1]
+## [0.12.1] - 2022-10-18
 
 ### Added
  - Support to `add` castable values (e.g. `f + 1u8`, 1u8 will be transparently casted to `Fraction` with `.into()`)
