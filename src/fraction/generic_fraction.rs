@@ -518,18 +518,17 @@ impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
 
 impl<T: Clone + Integer> Ord for GenericFraction<T> {
      fn cmp(&self, other: &Self) -> Ordering {
-         match self {
-             GenericFraction::NaN => {
-                 match other {
-                     GenericFraction::NaN => Ordering::Equal,
-                     _ => Ordering::Less,
-		 }
-             },
-             _ => {
-                 match other {
-                     GenericFraction::NaN => Ordering::Greater,
-                     _ => self.partial_cmp(other).unwrap(),
-                 }
+         if *self == GenericFraction::NaN {
+             if *other == GenericFraction::NaN {
+                 Ordering::Equal
+             } else {
+                 Ordering::Less
+             }
+         } else {
+             if *other == GenericFraction::NaN {
+                 Ordering::Greater
+             } else {
+                 self.partial_cmp(other).unwrap()        
              }
          }
      }
