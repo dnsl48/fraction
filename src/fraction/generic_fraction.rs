@@ -528,7 +528,7 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
              if *other == GenericFraction::NaN {
                  Ordering::Greater
              } else {
-                 self.partial_cmp(other).unwrap()        
+                 self.partial_cmp(other).expect("Well when I wrote this the only way partial_cmp() would return None was if one of the argument was NaN, which they weren't in this case.")        
              }
          }
      }
