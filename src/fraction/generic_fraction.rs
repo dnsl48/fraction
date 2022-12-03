@@ -516,6 +516,25 @@ impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
     }
 }
 
+impl<T: Clone + Integer> Ord for GenericFraction<T> {
+     fn cmp(&self, other: &Self) -> Ordering {
+         if *self == GenericFraction::NaN {
+             if *other == GenericFraction::NaN {
+                 Ordering::Equal
+             } else {
+                 Ordering::Less
+             }
+         } else {
+             if *other == GenericFraction::NaN {
+                 Ordering::Greater
+             } else {
+                 self.partial_cmp(other).expect("Well when I wrote this the only way partial_cmp() would return None was if one of the argument was NaN, which they weren't in this case.")        
+             }
+         }
+     }
+}
+
+
 impl<T: Clone + Integer> Neg for GenericFraction<T> {
     type Output = GenericFraction<T>;
 
