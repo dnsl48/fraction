@@ -517,23 +517,17 @@ impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
 }
 
 impl<T: Clone + Integer> Ord for GenericFraction<T> {
-     fn cmp(&self, other: &Self) -> Ordering {
-         if *self == GenericFraction::NaN {
-             if *other == GenericFraction::NaN {
-                 Ordering::Equal
-             } else {
-                 Ordering::Less
-             }
-         } else {
-             if *other == GenericFraction::NaN {
-                 Ordering::Greater
-             } else {
-                 self.partial_cmp(other).expect("Well when I wrote this the only way partial_cmp() would return None was if one of the argument was NaN, which they weren't in this case.")        
-             }
-         }
-     }
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (GenericFraction::NaN, GenericFraction::NaN) => Ordering::Equal,
+            (GenericFraction::NaN, _) => Ordering::Less,
+            (_, GenericFraction::NaN) => Ordering::Greater,
+            (_, _) => self
+                .partial_cmp(other)
+                .expect("All NaN has been tested above"),
+        }
+    }
 }
-
 
 impl<T: Clone + Integer> Neg for GenericFraction<T> {
     type Output = GenericFraction<T>;
@@ -1259,6 +1253,7 @@ mod tests {
 
     use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 
+    use std::cmp::Ordering;
     use std::collections::HashMap;
     use std::hash::{Hash, Hasher};
     use std::num::FpCategory;
@@ -1699,6 +1694,59 @@ mod tests {
         assert!(Frac::new(1u8, 2u8) > Frac::neg_zero());
         assert!(!(Frac::new(1u8, 2u8) < Frac::neg_zero()));
         assert!(Frac::zero() < Frac::new(1u8, 2u8));
+    }
+
+    #[test]
+    fn cmp() {
+        /* CMP */
+        let nan = Frac::nan();
+        let neg_inf = Frac::neg_infinity();
+        let neg_one = Frac::one() * -1;
+        let zero = Frac::zero();
+        let one = Frac::one();
+        let inf = Frac::infinity();
+
+        assert_eq!(nan.cmp(&nan), Ordering::Equal);
+        assert_eq!(nan.cmp(&neg_inf), Ordering::Less);
+        assert_eq!(nan.cmp(&neg_one), Ordering::Less);
+        assert_eq!(nan.cmp(&zero), Ordering::Less);
+        assert_eq!(nan.cmp(&one), Ordering::Less);
+        assert_eq!(nan.cmp(&inf), Ordering::Less);
+
+        assert_eq!(neg_inf.cmp(&nan), Ordering::Greater);
+        assert_eq!(neg_inf.cmp(&neg_inf), Ordering::Equal);
+        assert_eq!(neg_inf.cmp(&neg_one), Ordering::Less);
+        assert_eq!(neg_inf.cmp(&zero), Ordering::Less);
+        assert_eq!(neg_inf.cmp(&one), Ordering::Less);
+        assert_eq!(neg_inf.cmp(&inf), Ordering::Less);
+
+        assert_eq!(neg_one.cmp(&nan), Ordering::Greater);
+        assert_eq!(neg_one.cmp(&neg_inf), Ordering::Greater);
+        assert_eq!(neg_one.cmp(&neg_one), Ordering::Equal);
+        assert_eq!(neg_one.cmp(&zero), Ordering::Less);
+        assert_eq!(neg_one.cmp(&one), Ordering::Less);
+        assert_eq!(neg_one.cmp(&inf), Ordering::Less);
+
+        assert_eq!(zero.cmp(&nan), Ordering::Greater);
+        assert_eq!(zero.cmp(&neg_inf), Ordering::Greater);
+        assert_eq!(zero.cmp(&neg_one), Ordering::Greater);
+        assert_eq!(zero.cmp(&zero), Ordering::Equal);
+        assert_eq!(zero.cmp(&one), Ordering::Less);
+        assert_eq!(zero.cmp(&inf), Ordering::Less);
+
+        assert_eq!(one.cmp(&nan), Ordering::Greater);
+        assert_eq!(one.cmp(&neg_inf), Ordering::Greater);
+        assert_eq!(one.cmp(&neg_one), Ordering::Greater);
+        assert_eq!(one.cmp(&zero), Ordering::Greater);
+        assert_eq!(one.cmp(&one), Ordering::Equal);
+        assert_eq!(one.cmp(&inf), Ordering::Less);
+
+        assert_eq!(inf.cmp(&nan), Ordering::Greater);
+        assert_eq!(inf.cmp(&neg_inf), Ordering::Greater);
+        assert_eq!(inf.cmp(&neg_one), Ordering::Greater);
+        assert_eq!(inf.cmp(&zero), Ordering::Greater);
+        assert_eq!(inf.cmp(&one), Ordering::Greater);
+        assert_eq!(inf.cmp(&inf), Ordering::Equal);
     }
 
     #[test]
