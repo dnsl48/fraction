@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.12.2] - 2022-12-04
+
+### Added
+ - `Ord` trait implementation for GenericFraction and GenericDecimal (special thanks to Hsingai Tigris Altaica aka DrAlta)
+
 ## [0.12.1] - 2022-10-18
 
 ### Added
