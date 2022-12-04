@@ -447,6 +447,7 @@ where
 }
 
 dec_impl!(impl_trait_cmp; PartialOrd; partial_cmp; Option<Ordering>);
+dec_impl!(impl_trait_cmp; Ord; cmp; Ordering);
 
 impl<T, P> PartialEq for GenericDecimal<T, P>
 where
