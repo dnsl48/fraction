@@ -475,44 +475,7 @@ impl<T: Clone + Integer> Eq for GenericFraction<T> {}
 
 impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match *self {
-            GenericFraction::NaN => None,
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(osign) => sign.partial_cmp(&osign),
-                GenericFraction::Rational(_, _) => {
-                    if sign == Sign::Plus {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Less)
-                    }
-                }
-            },
-            GenericFraction::Rational(ref ls, ref l) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(rs) => {
-                    if rs == Sign::Plus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-                GenericFraction::Rational(ref rs, ref r) => {
-                    if ls == rs {
-                        match *ls {
-                            Sign::Plus => l.partial_cmp(r),
-                            Sign::Minus => r.partial_cmp(l),
-                        }
-                    } else if l.is_zero() && r.is_zero() {
-                        Some(Ordering::Equal)
-                    } else if *ls == Sign::Minus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-            },
-        }
+        Some(self.cmp(other))
     }
 }
 
@@ -522,12 +485,39 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
             (GenericFraction::NaN, GenericFraction::NaN) => Ordering::Equal,
             (GenericFraction::NaN, _) => Ordering::Less,
             (_, GenericFraction::NaN) => Ordering::Greater,
-            (_, _) => self
-                .partial_cmp(other)
-                .expect("All NaN has been tested above"),
+            (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign.cmp(&osign),
+            (GenericFraction::Infinity(sign), GenericFraction::Rational(_, _)) => {
+                if *sign == Sign::Plus {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            },
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(sign)) => {
+                if *sign == Sign::Plus {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            },
+            (GenericFraction::Rational(ref ls, ref l), GenericFraction::Rational(ref rs, ref r)) => {
+                if ls == rs {
+                    match *ls {
+                        Sign::Plus => l.cmp(r),
+                        Sign::Minus => r.cmp(l),
+                    }
+                } else if l.is_zero() && r.is_zero() {
+                    Ordering::Equal
+                } else if *ls == Sign::Minus {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
         }
     }
 }
+
 
 impl<T: Clone + Integer> Neg for GenericFraction<T> {
     type Output = GenericFraction<T>;
