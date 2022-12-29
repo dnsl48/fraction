@@ -2560,13 +2560,13 @@ mod tests {
         for _ in 0..10 {
             let base_value: i8 = rng.gen();
             let min = GenericFraction::<i64>::from(base_value);
-    
+
             let bump: u8 = rng.gen();
             let bump: i32 = base_value as i32 + bump as i32;
             let max = GenericFraction::<i64>::from(bump);
-    
+
             let test_value = GenericFraction::<i64>::new(rng.gen::<u8>(), rng.gen::<u8>());
-    
+
             clamp_agree_with_cmp(&min, &max, &test_value);
         }
     }
@@ -2581,22 +2581,24 @@ mod tests {
         }
 
         let clamped = test_value.clamp(min, max);
-    
+
         match (test_value.cmp(min), test_value.cmp(max)) {
             (Ordering::Less, Ordering::Less) => assert_eq!(clamped, min),
             (Ordering::Less, Ordering::Equal) => assert_eq!(clamped, min),
-            (Ordering::Less, Ordering::Greater) => panic!("Shouldn't be possible to be less than min and greater than max"),
-    
+            (Ordering::Less, Ordering::Greater) => {
+                panic!("Shouldn't be possible to be less than min and greater than max")
+            }
+
             (Ordering::Equal, Ordering::Less) => assert_eq!(clamped, min),
             (Ordering::Equal, Ordering::Equal) => {
                 assert_eq!(clamped, min);
                 assert_eq!(clamped, max);
             }
             (Ordering::Equal, Ordering::Greater) => assert_eq!(clamped, max),
-    
+
             (Ordering::Greater, Ordering::Less) => assert_eq!(clamped, test_value),
             (Ordering::Greater, Ordering::Equal) => assert_eq!(clamped, max),
             (Ordering::Greater, Ordering::Greater) => assert_eq!(clamped, max),
         }
-    }    
+    }
 }
