@@ -485,22 +485,25 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
             (GenericFraction::NaN, GenericFraction::NaN) => Ordering::Equal,
             (GenericFraction::NaN, _) => Ordering::Less,
             (_, GenericFraction::NaN) => Ordering::Greater,
-            (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign.cmp(&osign),
+            (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign.cmp(osign),
             (GenericFraction::Infinity(sign), GenericFraction::Rational(_, _)) => {
                 if *sign == Sign::Plus {
                     Ordering::Greater
                 } else {
                     Ordering::Less
                 }
-            },
+            }
             (GenericFraction::Rational(_, _), GenericFraction::Infinity(sign)) => {
                 if *sign == Sign::Plus {
                     Ordering::Less
                 } else {
                     Ordering::Greater
                 }
-            },
-            (GenericFraction::Rational(ref ls, ref l), GenericFraction::Rational(ref rs, ref r)) => {
+            }
+            (
+                GenericFraction::Rational(ref ls, ref l),
+                GenericFraction::Rational(ref rs, ref r),
+            ) => {
                 if ls == rs {
                     match *ls {
                         Sign::Plus => l.cmp(r),
@@ -517,7 +520,6 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
         }
     }
 }
-
 
 impl<T: Clone + Integer> Neg for GenericFraction<T> {
     type Output = GenericFraction<T>;
@@ -1232,6 +1234,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use num::Integer;
     #[cfg(feature = "with-bigint")]
     use prelude::BigFraction;
 
@@ -1248,6 +1251,10 @@ mod tests {
     use std::hash::{Hash, Hasher};
     use std::num::FpCategory;
     use std::str::FromStr;
+
+    extern crate rand;
+    use self::rand::Rng;
+    use generic::GenericInteger;
 
     type Frac = GenericFraction<u8>;
 
@@ -2547,4 +2554,49 @@ mod tests {
             assert_eq!(fra.denom(), Some(&BigUint::from(1u8)));
         }
     }
+    #[test]
+    fn foobar() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let min = GenericFraction::<i64>::from(base_value);
+    
+            let bump: u8 = rng.gen();
+            let bump: i32 = base_value as i32 + bump as i32;
+            let max = GenericFraction::<i64>::from(bump);
+    
+            let test_value = GenericFraction::<i64>::new(rng.gen::<u8>(), rng.gen::<u8>());
+    
+            clamp_agree_with_cmp(&min, &max, &test_value);
+        }
+    }
+
+    fn clamp_agree_with_cmp<T: Clone + Integer + std::fmt::Debug + GenericInteger>(
+        min: &GenericFraction<T>,
+        max: &GenericFraction<T>,
+        test_value: &GenericFraction<T>,
+    ) {
+        if min.cmp(max) == Ordering::Greater {
+            panic!("min is greater than max");
+        }
+
+        let clamped = test_value.clamp(min, max);
+    
+        match (test_value.cmp(min), test_value.cmp(max)) {
+            (Ordering::Less, Ordering::Less) => assert_eq!(clamped, min),
+            (Ordering::Less, Ordering::Equal) => assert_eq!(clamped, min),
+            (Ordering::Less, Ordering::Greater) => panic!("Shouldn't be possible to be less than min and greater than max"),
+    
+            (Ordering::Equal, Ordering::Less) => assert_eq!(clamped, min),
+            (Ordering::Equal, Ordering::Equal) => {
+                assert_eq!(clamped, min);
+                assert_eq!(clamped, max);
+            }
+            (Ordering::Equal, Ordering::Greater) => assert_eq!(clamped, max),
+    
+            (Ordering::Greater, Ordering::Less) => assert_eq!(clamped, test_value),
+            (Ordering::Greater, Ordering::Equal) => assert_eq!(clamped, max),
+            (Ordering::Greater, Ordering::Greater) => assert_eq!(clamped, max),
+        }
+    }    
 }
