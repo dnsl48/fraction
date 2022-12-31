@@ -2554,22 +2554,6 @@ mod tests {
             assert_eq!(fra.denom(), Some(&BigUint::from(1u8)));
         }
     }
-    #[test]
-    fn foobar() {
-        let mut rng = rand::thread_rng();
-        for _ in 0..10 {
-            let base_value: i8 = rng.gen();
-            let min = GenericFraction::<i64>::from(base_value);
-
-            let bump: u8 = rng.gen();
-            let bump: i32 = base_value as i32 + bump as i32;
-            let max = GenericFraction::<i64>::from(bump);
-
-            let test_value = GenericFraction::<i64>::new(rng.gen::<u8>(), rng.gen::<u8>());
-
-            clamp_agree_with_cmp(&min, &max, &test_value);
-        }
-    }
 
     fn clamp_agree_with_cmp<T: Clone + Integer + std::fmt::Debug + GenericInteger>(
         min: &GenericFraction<T>,
@@ -2599,6 +2583,95 @@ mod tests {
             (Ordering::Greater, Ordering::Less) => assert_eq!(clamped, test_value),
             (Ordering::Greater, Ordering::Equal) => assert_eq!(clamped, max),
             (Ordering::Greater, Ordering::Greater) => assert_eq!(clamped, max),
+        }
+    }
+    #[test]
+    fn rational_rational_rational_clamp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let min = GenericFraction::<i64>::from(base_value);
+
+            let bump: u8 = rng.gen();
+            let bump: i32 = base_value as i32 + bump as i32;
+            let max = GenericFraction::<i64>::from(bump);
+
+            let test_value = GenericFraction::<i64>::new(rng.gen::<u8>(), rng.gen::<u8>());
+
+            clamp_agree_with_cmp(&min, &max, &test_value);
+        }
+    }
+    #[test]
+    fn rational_nan_rational_clamp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let min = GenericFraction::<i64>::from(base_value);
+
+            let bump: u8 = rng.gen();
+            let bump: i32 = base_value as i32 + bump as i32;
+            let max = GenericFraction::<i64>::from(bump);
+
+            let nan = GenericFraction::<i64>::NaN;
+
+            clamp_agree_with_cmp(&min, &max, &nan);
+        }
+    }
+    #[test]
+    fn nan_pos_infinity_partail_cmp_cmp_agreement_test() {
+        let nan = GenericFraction::<i64>::NaN;
+        let pos_inf = GenericFraction::<i64>::infinity();
+
+        assert_eq!(nan.partial_cmp(&pos_inf), Some(nan.cmp(&pos_inf)));
+    }
+    #[test]
+    fn nan_neg_infinity_partail_cmp_cmp_agreement_test() {
+        let nan = GenericFraction::<i64>::NaN;
+        let neg_inf = GenericFraction::<i64>::neg_infinity();
+
+        assert_eq!(nan.partial_cmp(&neg_inf), Some(nan.cmp(&neg_inf)));
+    }
+    #[test]
+    fn nan_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let nan = GenericFraction::<i64>::NaN;
+
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(nan.partial_cmp(&test_value), Some(nan.cmp(&test_value)));
+        }
+    }
+    #[test]
+    fn pos_inf_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let pos_inf = GenericFraction::<i64>::infinity();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(
+                pos_inf.partial_cmp(&test_value),
+                Some(pos_inf.cmp(&test_value))
+            );
+        }
+    }
+    #[test]
+    fn neg_inf_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let neg_inf = GenericFraction::<i64>::neg_infinity();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(
+                neg_inf.partial_cmp(&test_value),
+                Some(neg_inf.cmp(&test_value))
+            );
         }
     }
 }
