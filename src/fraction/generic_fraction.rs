@@ -475,44 +475,7 @@ impl<T: Clone + Integer> Eq for GenericFraction<T> {}
 
 impl<T: Clone + Integer> PartialOrd for GenericFraction<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match *self {
-            GenericFraction::NaN => None,
-            GenericFraction::Infinity(sign) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(osign) => sign.partial_cmp(&osign),
-                GenericFraction::Rational(_, _) => {
-                    if sign == Sign::Plus {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Less)
-                    }
-                }
-            },
-            GenericFraction::Rational(ref ls, ref l) => match *other {
-                GenericFraction::NaN => None,
-                GenericFraction::Infinity(rs) => {
-                    if rs == Sign::Plus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-                GenericFraction::Rational(ref rs, ref r) => {
-                    if ls == rs {
-                        match *ls {
-                            Sign::Plus => l.partial_cmp(r),
-                            Sign::Minus => r.partial_cmp(l),
-                        }
-                    } else if l.is_zero() && r.is_zero() {
-                        Some(Ordering::Equal)
-                    } else if *ls == Sign::Minus {
-                        Some(Ordering::Less)
-                    } else {
-                        Some(Ordering::Greater)
-                    }
-                }
-            },
-        }
+        Some(self.cmp(other))
     }
 }
 
@@ -522,9 +485,38 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
             (GenericFraction::NaN, GenericFraction::NaN) => Ordering::Equal,
             (GenericFraction::NaN, _) => Ordering::Less,
             (_, GenericFraction::NaN) => Ordering::Greater,
-            (_, _) => self
-                .partial_cmp(other)
-                .expect("All NaN has been tested above"),
+            (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign.cmp(osign),
+            (GenericFraction::Infinity(sign), GenericFraction::Rational(_, _)) => {
+                if *sign == Sign::Plus {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(sign)) => {
+                if *sign == Sign::Plus {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
+            (
+                GenericFraction::Rational(ref ls, ref l),
+                GenericFraction::Rational(ref rs, ref r),
+            ) => {
+                if ls == rs {
+                    match *ls {
+                        Sign::Plus => l.cmp(r),
+                        Sign::Minus => r.cmp(l),
+                    }
+                } else if l.is_zero() && r.is_zero() {
+                    Ordering::Equal
+                } else if *ls == Sign::Minus {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
         }
     }
 }
@@ -1242,6 +1234,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use num::Integer;
     #[cfg(feature = "with-bigint")]
     use prelude::BigFraction;
 
@@ -1258,6 +1251,10 @@ mod tests {
     use std::hash::{Hash, Hasher};
     use std::num::FpCategory;
     use std::str::FromStr;
+
+    extern crate rand;
+    use self::rand::Rng;
+    use generic::GenericInteger;
 
     type Frac = GenericFraction<u8>;
 
@@ -2555,6 +2552,126 @@ mod tests {
             let fra = BigFraction::default();
             assert_eq!(fra.numer(), Some(&BigUint::from(0u8)));
             assert_eq!(fra.denom(), Some(&BigUint::from(1u8)));
+        }
+    }
+
+    fn clamp_agree_with_cmp<T: Clone + Integer + std::fmt::Debug + GenericInteger>(
+        min: &GenericFraction<T>,
+        max: &GenericFraction<T>,
+        test_value: &GenericFraction<T>,
+    ) {
+        if min.cmp(max) == Ordering::Greater {
+            panic!("min is greater than max");
+        }
+
+        let clamped = test_value.clamp(min, max);
+
+        match (test_value.cmp(min), test_value.cmp(max)) {
+            (Ordering::Less, Ordering::Less) => assert_eq!(clamped, min),
+            (Ordering::Less, Ordering::Equal) => assert_eq!(clamped, min),
+            (Ordering::Less, Ordering::Greater) => {
+                panic!("Shouldn't be possible to be less than min and greater than max")
+            }
+
+            (Ordering::Equal, Ordering::Less) => assert_eq!(clamped, min),
+            (Ordering::Equal, Ordering::Equal) => {
+                assert_eq!(clamped, min);
+                assert_eq!(clamped, max);
+            }
+            (Ordering::Equal, Ordering::Greater) => assert_eq!(clamped, max),
+
+            (Ordering::Greater, Ordering::Less) => assert_eq!(clamped, test_value),
+            (Ordering::Greater, Ordering::Equal) => assert_eq!(clamped, max),
+            (Ordering::Greater, Ordering::Greater) => assert_eq!(clamped, max),
+        }
+    }
+    #[test]
+    fn rational_rational_rational_clamp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let min = GenericFraction::<i64>::from(base_value);
+
+            let bump: u8 = rng.gen();
+            let bump: i32 = base_value as i32 + bump as i32;
+            let max = GenericFraction::<i64>::from(bump);
+
+            let test_value = GenericFraction::<i64>::new(rng.gen::<u8>(), rng.gen::<u8>());
+
+            clamp_agree_with_cmp(&min, &max, &test_value);
+        }
+    }
+    #[test]
+    fn rational_nan_rational_clamp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let min = GenericFraction::<i64>::from(base_value);
+
+            let bump: u8 = rng.gen();
+            let bump: i32 = base_value as i32 + bump as i32;
+            let max = GenericFraction::<i64>::from(bump);
+
+            let nan = GenericFraction::<i64>::NaN;
+
+            clamp_agree_with_cmp(&min, &max, &nan);
+        }
+    }
+    #[test]
+    fn nan_pos_infinity_partail_cmp_cmp_agreement_test() {
+        let nan = GenericFraction::<i64>::NaN;
+        let pos_inf = GenericFraction::<i64>::infinity();
+
+        assert_eq!(nan.partial_cmp(&pos_inf), Some(nan.cmp(&pos_inf)));
+    }
+    #[test]
+    fn nan_neg_infinity_partail_cmp_cmp_agreement_test() {
+        let nan = GenericFraction::<i64>::NaN;
+        let neg_inf = GenericFraction::<i64>::neg_infinity();
+
+        assert_eq!(nan.partial_cmp(&neg_inf), Some(nan.cmp(&neg_inf)));
+    }
+    #[test]
+    fn nan_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let nan = GenericFraction::<i64>::NaN;
+
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(nan.partial_cmp(&test_value), Some(nan.cmp(&test_value)));
+        }
+    }
+    #[test]
+    fn pos_inf_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let pos_inf = GenericFraction::<i64>::infinity();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(
+                pos_inf.partial_cmp(&test_value),
+                Some(pos_inf.cmp(&test_value))
+            );
+        }
+    }
+    #[test]
+    fn neg_inf_rational_partail_cmp_cmp_agreement_test() {
+        let mut rng = rand::thread_rng();
+
+        let neg_inf = GenericFraction::<i64>::neg_infinity();
+        for _ in 0..10 {
+            let base_value: i8 = rng.gen();
+            let test_value = GenericFraction::<i64>::from(base_value);
+
+            assert_eq!(
+                neg_inf.partial_cmp(&test_value),
+                Some(neg_inf.cmp(&test_value))
+            );
         }
     }
 }
