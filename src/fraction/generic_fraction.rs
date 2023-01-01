@@ -486,19 +486,17 @@ impl<T: Clone + Integer> Ord for GenericFraction<T> {
             (GenericFraction::NaN, _) => Ordering::Less,
             (_, GenericFraction::NaN) => Ordering::Greater,
             (GenericFraction::Infinity(sign), GenericFraction::Infinity(osign)) => sign.cmp(osign),
-            (GenericFraction::Infinity(sign), GenericFraction::Rational(_, _)) => {
-                if *sign == Sign::Plus {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                }
+            (GenericFraction::Infinity(Sign::Plus), GenericFraction::Rational(_, _)) => {
+                Ordering::Greater
             }
-            (GenericFraction::Rational(_, _), GenericFraction::Infinity(sign)) => {
-                if *sign == Sign::Plus {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
+            (GenericFraction::Infinity(Sign::Minus), GenericFraction::Rational(_, _)) => {
+                Ordering::Less
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(Sign::Plus)) => {
+                Ordering::Less
+            }
+            (GenericFraction::Rational(_, _), GenericFraction::Infinity(Sign::Minus)) => {
+                Ordering::Greater
             }
             (
                 GenericFraction::Rational(ref ls, ref l),
@@ -2673,5 +2671,303 @@ mod tests {
                 Some(neg_inf.cmp(&test_value))
             );
         }
+    }
+
+    #[test]
+    fn consistency_partial_cmp() {
+        let nan = Frac::nan();
+        let neg_inf = Frac::neg_infinity();
+        let neg_one = Frac::one() * -1;
+        let zero = Frac::zero();
+        let one = Frac::one();
+        let inf = Frac::infinity();
+
+        // 1. a == b if and only if partial_cmp(a, b) == Some(Equal).
+
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&nan, &nan)
+        );
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&neg_inf, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&neg_one, &neg_one)
+        );
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&zero, &zero)
+        );
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&one, &one)
+        );
+        assert_eq!(
+            Some(Ordering::Equal),
+            GenericFraction::partial_cmp(&inf, &inf)
+        );
+
+        // 2. a < b if and only if partial_cmp(a, b) == Some(Less)
+
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&nan, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&nan, &neg_one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&nan, &zero)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&nan, &one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&nan, &inf)
+        );
+
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_inf, &neg_one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_inf, &zero)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_inf, &one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_inf, &inf)
+        );
+
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_one, &zero)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_one, &one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&neg_one, &inf)
+        );
+
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&zero, &one)
+        );
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&zero, &inf)
+        );
+
+        assert_eq!(
+            Some(Ordering::Less),
+            GenericFraction::partial_cmp(&one, &inf)
+        );
+
+        // 3. a > b if and only if partial_cmp(a, b) == Some(Greater)
+
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&neg_inf, &nan)
+        );
+
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&neg_one, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&neg_one, &nan)
+        );
+
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&zero, &nan)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&zero, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&zero, &neg_one)
+        );
+
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&one, &nan)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&one, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&one, &neg_one)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&one, &zero)
+        );
+
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&inf, &nan)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&inf, &neg_inf)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&inf, &neg_one)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&inf, &zero)
+        );
+        assert_eq!(
+            Some(Ordering::Greater),
+            GenericFraction::partial_cmp(&inf, &one)
+        );
+    }
+
+    #[test]
+    fn consistency_cmp() {
+        let nan = Frac::nan();
+        let neg_inf = Frac::neg_infinity();
+        let neg_one = Frac::one() * -1;
+        let zero = Frac::zero();
+        let one = Frac::one();
+        let inf = Frac::infinity();
+
+        // 1. a == b if and only if partial_cmp(a, b) == Some(Equal).
+
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&nan, &nan));
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&neg_inf, &neg_inf));
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&neg_one, &neg_one));
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&zero, &zero));
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&one, &one));
+        assert_eq!(Ordering::Equal, GenericFraction::cmp(&inf, &inf));
+
+        // 2. a < b if and only if partial_cmp(a, b) == Some(Less)
+
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&nan, &neg_inf));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&nan, &neg_one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&nan, &zero));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&nan, &one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&nan, &inf));
+
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_inf, &neg_one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_inf, &zero));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_inf, &one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_inf, &inf));
+
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_one, &zero));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_one, &one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&neg_one, &inf));
+
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&zero, &one));
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&zero, &inf));
+
+        assert_eq!(Ordering::Less, GenericFraction::cmp(&one, &inf));
+
+        // 3. a > b if and only if partial_cmp(a, b) == Some(Greater)
+
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&neg_inf, &nan));
+
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&neg_one, &neg_inf));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&neg_one, &nan));
+
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&zero, &nan));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&zero, &neg_inf));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&zero, &neg_one));
+
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&one, &nan));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&one, &neg_inf));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&one, &neg_one));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&one, &zero));
+
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&inf, &nan));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&inf, &neg_inf));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&inf, &neg_one));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&inf, &zero));
+        assert_eq!(Ordering::Greater, GenericFraction::cmp(&inf, &one));
+    }
+
+    #[test]
+    fn consistency_eq() {
+        let nan = Frac::nan();
+        let neg_inf = Frac::neg_infinity();
+        let neg_one = Frac::one() * -1;
+        let zero = Frac::zero();
+        let one = Frac::one();
+        let inf = Frac::infinity();
+
+        assert!(GenericFraction::eq(&nan, &nan));
+        assert!(!GenericFraction::eq(&nan, &neg_inf));
+        assert!(!GenericFraction::eq(&nan, &neg_one));
+        assert!(!GenericFraction::eq(&nan, &zero));
+        assert!(!GenericFraction::eq(&nan, &one));
+        assert!(!GenericFraction::eq(&nan, &inf));
+
+        assert!(GenericFraction::eq(&neg_inf, &neg_inf));
+        assert!(!GenericFraction::eq(&neg_inf, &neg_one));
+        assert!(!GenericFraction::eq(&neg_inf, &zero));
+        assert!(!GenericFraction::eq(&neg_inf, &one));
+        assert!(!GenericFraction::eq(&neg_inf, &inf));
+
+        assert!(GenericFraction::eq(&neg_one, &neg_one));
+        assert!(!GenericFraction::eq(&neg_one, &zero));
+        assert!(!GenericFraction::eq(&neg_one, &one));
+        assert!(!GenericFraction::eq(&neg_one, &inf));
+
+        assert!(GenericFraction::eq(&zero, &zero));
+        assert!(!GenericFraction::eq(&zero, &one));
+        assert!(!GenericFraction::eq(&zero, &inf));
+
+        assert!(GenericFraction::eq(&one, &one));
+        assert!(!GenericFraction::eq(&one, &inf));
+
+        assert!(GenericFraction::eq(&inf, &inf));
+
+        assert!(!GenericFraction::ne(&nan, &nan));
+        assert!(GenericFraction::ne(&nan, &neg_inf));
+        assert!(GenericFraction::ne(&nan, &neg_one));
+        assert!(GenericFraction::ne(&nan, &zero));
+        assert!(GenericFraction::ne(&nan, &one));
+        assert!(GenericFraction::ne(&nan, &inf));
+
+        assert!(!GenericFraction::ne(&neg_inf, &neg_inf));
+        assert!(GenericFraction::ne(&neg_inf, &neg_one));
+        assert!(GenericFraction::ne(&neg_inf, &zero));
+        assert!(GenericFraction::ne(&neg_inf, &one));
+        assert!(GenericFraction::ne(&neg_inf, &inf));
+
+        assert!(!GenericFraction::ne(&neg_one, &neg_one));
+        assert!(GenericFraction::ne(&neg_one, &zero));
+        assert!(GenericFraction::ne(&neg_one, &one));
+        assert!(GenericFraction::ne(&neg_one, &inf));
+
+        assert!(!GenericFraction::ne(&zero, &zero));
+        assert!(GenericFraction::ne(&zero, &one));
+        assert!(GenericFraction::ne(&zero, &inf));
+
+        assert!(!GenericFraction::ne(&one, &one));
+        assert!(GenericFraction::ne(&one, &inf));
+
+        assert!(!GenericFraction::ne(&inf, &inf));
     }
 }
