@@ -1,5 +1,16 @@
 # Change Log
 
+## [0.13.0] - 2023-01-01
+
+### Changed
+ - `PartialCmp` now compares `NaN` with the other values and returns it as the smallest possible value. Thus, `NaN < -Inf`.
+
+### Fixed
+ - `partial_cmp` now behaves exactly the same as `cmp` (PartialOrd is now consistent with Ord).
+    This fixes an issue introduced in `0.12.2` with the implementation of `Ord`,
+    where `Ord` would behave differently from `PartialOrd` with `NaN` values.
+    Special thanks to Hsingai Tigris Altaica aka DrAlta for fixing this.
+
 ## [0.12.2] - 2022-12-04
 
 ### Added
