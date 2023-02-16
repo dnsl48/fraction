@@ -122,10 +122,10 @@ assert_eq!(fra, F::new(1u32, 42u32));
 ```
 
 ### Postgres usage notes
-It is recommended to use Decimal over Fraction for PostgreSQL interactions, because of
-potential fraction values such as 1/3 or 1/7. When interacting with PostgreSQL, fraction type
-keeps the highest achievable precision (up to 16383 digits after floating point).
-Decimal uses its own given precision instead.
+It is recommended to use Decimal over Fraction for PostgreSQL interactions.
+When interacting with PostgreSQL, fraction type keeps the highest achievable precision up to 16383 digits after floating point.
+That may lead to suboptimal performance for such values as 1/3 or 1/7.
+Decimal has its own explicit precision, so there won't be accidental calculation of tens of thousands digits.
 
 PostgreSQL uses i16 for its binary protocol, so you'll have to use at least u16
 as the base type for your GenericFraction/GenericDecimal. However, it is also possible to workaround
