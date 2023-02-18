@@ -682,6 +682,7 @@ impl<T: Clone + Integer + PartialEq + ToPrimitive> ToPrimitive for GenericFracti
         match *self {
             GenericFraction::NaN => None,
             GenericFraction::Infinity(_) => None,
+            #[allow(clippy::manual_filter)]
             GenericFraction::Rational(sign, ref r) if *r.denom() == T::one() => {
                 if let Some(n) = r.numer().to_i64() {
                     if sign == Sign::Minus {
