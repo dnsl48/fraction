@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.13.1] - ????-??-??
+### Added
+ - Clippy hint to allow manual filtering in GenericFraction::to_i64 implementation
+
 ## [0.13.0] - 2023-01-01
 
 ### Changed
