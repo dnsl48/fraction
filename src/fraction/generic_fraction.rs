@@ -945,7 +945,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
         }
     }
 
-    /// Returns the nearest integer to the value (.5 goes up)
+    /// Returns the nearest integer to the value (.5 goes away from zero)
     ///
     /// # Examples
     ///
@@ -957,6 +957,7 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// assert_eq! (F::new (8u8, 5u8).round (), F::new (10u8, 5u8));
     /// assert_eq! (F::new (3u8, 2u8).round (), F::new (4u8, 2u8));
     /// assert_eq! (F::new (1u8, 2u8).round (), F::new (2u8, 2u8));
+    /// assert_eq! (F::new_neg (3u8, 2u8).round (), F::new_neg (2u8, 1u8));
     /// ```
     pub fn round(&self) -> Self {
         match *self {
