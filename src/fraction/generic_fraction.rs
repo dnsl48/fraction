@@ -930,10 +930,17 @@ impl<T: Clone + Integer> GenericFraction<T> {
     /// type F = GenericFraction<u8>;
     ///
     /// assert_eq! (F::new (7u8, 5u8).ceil (), F::new (10u8, 5u8));
+    /// assert_eq! (F::new_neg (4u8, 3u8).ceil (), F::new_neg (1u8, 1u8));
     /// ```
     pub fn ceil(&self) -> Self {
         match *self {
-            GenericFraction::Rational(s, ref r) => GenericFraction::Rational(s, r.ceil()),
+            GenericFraction::Rational(Sign::Plus, ref r) => {
+                GenericFraction::Rational(Sign::Plus, r.ceil())
+            }
+            GenericFraction::Rational(Sign::Minus, ref r) => {
+                // Floor of the unsigned ratio results in a ceil for the signed fraction
+                GenericFraction::Rational(Sign::Minus, r.floor())
+            }
             _ => self.clone(),
         }
     }
