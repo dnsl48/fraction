@@ -1761,6 +1761,18 @@ mod tests {
     }
 
     #[test]
+    fn floor() {
+        assert_eq!(Frac::zero(), Frac::new(1, 3).floor());
+        assert_eq!(Frac::one() * -1, Frac::new_neg(1, 3).floor());
+    }
+
+    #[test]
+    fn ceil() {
+        assert_eq!(Frac::zero(), Frac::new_neg(1, 3).ceil());
+        assert_eq!(Frac::one(), Frac::new(1, 3).ceil());
+    }
+
+    #[test]
     fn from_str() {
         assert_eq!(Ok(Frac::zero()), Frac::from_str("0"));
         assert_eq!(Ok(Frac::zero()), Frac::from_str("-0"));
