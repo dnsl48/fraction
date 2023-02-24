@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.13.0"
+version = "0.13.1"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless fractions and decimals; drop-in float replacement"

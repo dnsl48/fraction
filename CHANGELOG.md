@@ -1,8 +1,12 @@
 # Change Log
 
-## [0.13.1] - ????-??-??
+## [0.13.1] - 2023-02-25
 ### Added
  - Clippy hint to allow manual filtering in GenericFraction::to_i64 implementation
+ - A couple of tests for floor/ceil functions
+
+### Fixed
+ - ceil & floor incorrect behaviour for negative numbers (special thanks to Morris Hansing aka morri2)
 
 ## [0.13.0] - 2023-01-01
 
