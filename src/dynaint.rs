@@ -27,7 +27,8 @@
 use std::mem;
 
 use num::{
-    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One, ToPrimitive, Zero,
+    bigint::ToBigInt, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Integer, Num, One,
+    ToPrimitive, Zero,
 };
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
@@ -884,6 +885,19 @@ where
     dyna_impl!(impl_fn_isref; is_odd);
 
     dyna_impl!(impl_fn_refmath_tuple2self; div_rem);
+}
+
+impl<T, G> ToBigInt for DynaInt<T, G>
+where
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + ToBigInt,
+    G: Clone + GenericInteger + ToBigInt,
+{
+    fn to_bigint(&self) -> Option<num::BigInt> {
+        match self {
+            DynaInt::S(s) => s.to_bigint(),
+            DynaInt::__H(h) => h.to_bigint(),
+        }
+    }
 }
 
 #[cfg(test)]
