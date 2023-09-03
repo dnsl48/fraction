@@ -84,6 +84,9 @@ struct SqrtSetup {
 ///
 /// The `value_as_ratio` field of the returned `SqrtSetup` will not be `None` if the `estimate`
 /// field is `SqrtApprox::Rational`.
+///
+/// # Panics
+/// This function will panic if `value` is negative.
 fn sqrt_setup<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
 where
     Nd: Clone + GenericInteger + ToBigInt,
@@ -215,6 +218,9 @@ impl<T: Clone + Integer + ToBigInt + GenericInteger> GenericFraction<T> {
     ///
     /// The square of the resulting value is guaranteed to be equal to `self` to the number of
     /// decimal places specified by `accuracy`.
+    ///
+    /// # Panics
+    /// This method will panic if `self` is negative.
     pub fn sqrt_with_accuracy_raw(&self, accuracy: &SqrtAccuracy) -> SqrtApprox {
         let SqrtSetup {
             estimate,
