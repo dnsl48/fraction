@@ -887,6 +887,7 @@ where
     dyna_impl!(impl_fn_refmath_tuple2self; div_rem);
 }
 
+#[cfg(feature = "with-bigint")]
 impl<T, G> ToBigInt for DynaInt<T, G>
 where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + ToBigInt,
