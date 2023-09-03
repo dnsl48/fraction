@@ -154,6 +154,9 @@ mod tests {
     use super::*;
     use juniper::{FromInputValue, InputValue, ToInputValue};
 
+    #[cfg(feature = "with-bigint")]
+    use crate::BigFraction;
+
     type F = GenericFraction<u8>;
     fn get_tests() -> Vec<(&'static str, F)> {
         vec![
@@ -171,8 +174,9 @@ mod tests {
         ]
     }
 
-    #[cfg(features = "with-bigint")]
+    #[cfg(feature = "with-bigint")]
     fn get_big_tests() -> Vec<(&'static str, BigFraction)> {
+        use crate::Num;
         vec![
             ("NaN", BigFraction::nan()),
             ("-inf", BigFraction::neg_infinity()),
@@ -206,7 +210,7 @@ mod tests {
             assert_eq!(s, str_value.unwrap());
         }
 
-        #[cfg(features = "with-bigint")]
+        #[cfg(feature = "with-bigint")]
         {
             for (s, v) in get_big_tests() {
                 let value = <BigFraction as ToInputValue>::to_input_value(&v);
@@ -225,11 +229,11 @@ mod tests {
             assert_eq!(value, Some(v));
         }
 
-        #[cfg(features = "with-bigint")]
+        #[cfg(feature = "with-bigint")]
         {
             for (s, v) in get_big_tests() {
                 let value =
-                    <BigFraction as FromInputValue>::from_input_value(&InputValue::string(s));
+                    <BigFraction as FromInputValue>::from_input_value(&InputValue::scalar(s));
                 assert_eq!(value, Some(v));
             }
         }
