@@ -212,6 +212,7 @@ fn convert_sqrt_output(approx: SqrtApprox, reduce: bool) -> GenericFraction<BigU
     }
 }
 
+/// Various square root operations for `GenericFraction`.
 impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction<T> {
     /// Returns an unsimplified rational approximation of the square root of `self`.
     ///
@@ -224,22 +225,25 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// This method will panic if `self` is negative.
     pub fn sqrt_with_accuracy_raw(&self, accuracy: &SqrtAccuracy) -> SqrtApprox {
         let SqrtSetup {
-            estimate,
+            estimate: initial_estimate,
             value_as_ratio,
         } = sqrt_setup(self);
 
-        let (estimate, target_square) = match estimate {
-            // Safety: `sqrt_setup` guarantees that `value_as_ratio` won't be `None` if `estimate`
-            // is `Rational`.
-            SqrtApprox::Rational(estimate) => (estimate, value_as_ratio.unwrap()),
-            other => return other,
+        // If the initial estimate isn't rational, it must be something weird (inf, NaN, zero), so
+        // we can return immediately.
+        let SqrtApprox::Rational(estimate) = initial_estimate else {
+            return initial_estimate;
         };
 
         // Take ownership of the two parts of the target ratio. This allows us to treat them
         // separately. For example, we must clone the numerator for the next step, but only a
         // reference to the denominator is needed. Therefore, we can avoid needlessly cloning both
         // halves.
-        let (target_numer, target_denom) = target_square.into();
+        let (target_numer, target_denom) = {
+            // Safety: `sqrt_setup` guarantees that `value_as_ratio` won't be `None` if
+            // `initial_estimate` is `Rational`, which is what we matched above.
+            value_as_ratio.unwrap().into()
+        };
 
         // Truncate the target square so we can check against it to determine when to finish.
         let truncated_target = accuracy.truncate_ratio_raw(target_numer.clone(), &target_denom);
