@@ -9,7 +9,9 @@ use crate::{
     Sign,
 };
 use num::{
-    bigint::ToBigInt, rational::Ratio, BigInt, BigRational, BigUint, Integer, ToPrimitive, Zero,
+    bigint::{ToBigInt, ToBigUint},
+    rational::Ratio,
+    BigUint, Integer, ToPrimitive, Zero,
 };
 
 /// The level of accuracy to which a square root will be computed.
@@ -20,14 +22,14 @@ pub struct SqrtAccuracy {
     /// Truncation is implemented here by shifting the decimal place by multiplying by some power
     /// of 10, removing the fractional part of the result, then shifting the decimal place back by
     /// dividing by the same power of 10. This value is that power of 10.
-    multiplier: BigInt,
+    multiplier: BigUint,
 }
 
 impl SqrtAccuracy {
     /// Creates a new `SqrtAccuracy` with `tail` digits after the decimal point.
     pub fn new(tail: u32) -> SqrtAccuracy {
         SqrtAccuracy {
-            multiplier: BigInt::from(10u8).pow(tail),
+            multiplier: BigUint::from(10u8).pow(tail),
         }
     }
 
@@ -37,7 +39,7 @@ impl SqrtAccuracy {
     /// it is required.
     ///
     /// This does **not** simplify the return value (hence `_raw`).
-    fn truncate_ratio_raw(&self, mut numer: BigInt, denom: &BigInt) -> BigRational {
+    fn truncate_ratio_raw(&self, mut numer: BigUint, denom: &BigUint) -> Ratio<BigUint> {
         numer *= &self.multiplier;
 
         // Integer division gets rid of any digits we don't want.
@@ -56,7 +58,7 @@ pub enum SqrtApprox {
     /// Depending on the accuracy used, these numbers can be *very* large to store (>100 KB with
     /// excessive accuracy), so cloning is likely to be expensive. This size also means that
     /// computations can take a long time.
-    Rational(BigRational),
+    Rational(Ratio<BigUint>),
 
     /// Positive infinity. This is returned when the square root of positive infinity is requested.
     PlusInf,
@@ -77,7 +79,7 @@ struct SqrtSetup {
     /// since we need it later on it's efficient to keep it around.
     ///
     /// This isn't necessary if `estimate` isn't `Rational`.
-    value_as_ratio: Option<BigRational>,
+    value_as_ratio: Option<Ratio<BigUint>>,
 }
 
 /// Generates the setup values for finding the square root of `value`.
@@ -89,7 +91,7 @@ struct SqrtSetup {
 /// This function will panic if `value` is negative.
 fn sqrt_setup<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
 where
-    Nd: Clone + GenericInteger + ToBigInt,
+    Nd: Clone + GenericInteger + ToBigInt + ToBigUint,
 {
     match value {
         GenericFraction::Rational(Sign::Plus, ratio) => {
@@ -100,13 +102,22 @@ where
                 .map(f64::sqrt)
                 // `from_float` will give `None` if the result of `sqrt` is not finite (incl. NaN),
                 // so we'll automatically fall back to the alternative method if `sqrt` fails here.
-                .and_then(BigRational::from_float);
+                .and_then(|float| {
+                    let (n, d) = Ratio::<num::BigInt>::from_float(float)?.into();
+
+                    // Why is `to_biguint` not `into_biguint`? `to_biguint` takes a reference only
+                    // and clones the underlying data, and there's nothing we can do about it :/
+                    Some(Ratio::new_raw(
+                        n.to_biguint().unwrap(),
+                        d.to_biguint().unwrap(),
+                    ))
+                });
 
             // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know that
             // `Nd` is an integer type.
-            let ratio = BigRational::new_raw(
-                ratio.numer().to_bigint().unwrap(),
-                ratio.denom().to_bigint().unwrap(),
+            let ratio = Ratio::new_raw(
+                ratio.numer().to_biguint().unwrap(),
+                ratio.denom().to_biguint().unwrap(),
             );
 
             if let Some(estimate) = float_estimate {
@@ -118,7 +129,7 @@ where
 
             // If we couldn't use floats, we fall back to a crude estimate using truncated integer
             // square roots. This still isn't too bad.
-            let estimate = BigRational::new(ratio.numer().sqrt(), ratio.denom().sqrt());
+            let estimate = Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt());
 
             SqrtSetup {
                 estimate: SqrtApprox::Rational(estimate),
@@ -145,25 +156,25 @@ where
 
 /// Halves `value` in-place while keeping it in simplest form. This is faster than standard
 /// division.
-fn halve_in_place_pos_rational(ratio: &mut BigRational) {
+fn halve_in_place_pos_rational(ratio: &mut Ratio<BigUint>) {
     // To mutate the numerator and denominator of the ratio we'll take ownership of both and then
     // put them back when we're done.
     let (mut numer, mut denom) = std::mem::take(ratio).into();
 
     if numer.is_even() {
-        numer /= 2;
+        numer /= 2_u32;
     } else {
-        denom *= 2;
+        denom *= 2_u32;
     }
 
-    *ratio = BigRational::new_raw(numer, denom);
+    *ratio = Ratio::new_raw(numer, denom);
 }
 
 /// Adds two `Ratio`s together without reducing the result to simplest form. This is significantly
 /// faster than using the standard addition operator provided by `num`, and may be used as long as
 /// the result does not need to be in simplest form (e.g. within an algorithm which reduces the
 /// output ratio before returning).
-fn add_ratios_raw(lhs: BigRational, rhs: BigRational) -> BigRational {
+fn add_ratios_raw(lhs: Ratio<BigUint>, rhs: Ratio<BigUint>) -> Ratio<BigUint> {
     // Don't bother comparing the denominators because it's highly unlikely that they're equal.
     // Instead, we just go straight to giving the fractions equal denominators.
     let (mut lhs_numer, lhs_denom) = lhs.into();
@@ -177,7 +188,7 @@ fn add_ratios_raw(lhs: BigRational, rhs: BigRational) -> BigRational {
     lhs_numer *= lhs_multiplier;
     rhs_numer *= rhs_multiplier;
 
-    BigRational::new_raw(lhs_numer + rhs_numer, common_denom)
+    Ratio::new_raw(lhs_numer + rhs_numer, common_denom)
 }
 
 /// Converts a `SqrtApprox` into a `DynaFraction`.
@@ -211,7 +222,7 @@ where
     }
 }
 
-impl<T: Clone + Integer + ToBigInt + GenericInteger> GenericFraction<T> {
+impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction<T> {
     /// Returns an unsimplified rational approximation of the square root of `self`.
     ///
     /// If you need the result to be simplified, use `sqrt_with_accuracy` instead.
