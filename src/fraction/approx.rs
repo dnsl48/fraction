@@ -4,10 +4,7 @@
 //! nonetheless useful. Using any functionality from within this module requires a compromise to be
 //! made between performance and accuracy.
 
-use crate::{
-    convert::TryToConvertFrom, generic::GenericInteger, DynaFraction, DynaInt, GenericFraction,
-    Sign,
-};
+use crate::{generic::GenericInteger, GenericFraction, Sign};
 use num::{
     bigint::{ToBigInt, ToBigUint},
     rational::Ratio,
@@ -192,33 +189,26 @@ fn add_ratios_raw(lhs: Ratio<BigUint>, rhs: Ratio<BigUint>) -> Ratio<BigUint> {
 }
 
 /// Converts a `SqrtApprox` into a `DynaFraction`.
-fn convert_sqrt_output<StackInt>(approx: SqrtApprox, reduce: bool) -> DynaFraction<StackInt>
-where
-    StackInt: Copy + GenericInteger + Into<BigUint> + TryToConvertFrom<BigUint> + From<u8>,
-{
+fn convert_sqrt_output(approx: SqrtApprox, reduce: bool) -> GenericFraction<BigUint> {
     match approx {
-        SqrtApprox::Rational(ratio) => DynaFraction::Rational(Sign::Plus, {
-            let (numer, denom) = ratio.into();
-
-            // Safety: Both parts of the ratio are always positive, so `to_biguint` will never
-            // fail.
-            let (numer, denom) = (
-                DynaInt::from(numer.to_biguint().unwrap()),
-                DynaInt::from(denom.to_biguint().unwrap()),
-            );
-
+        SqrtApprox::Rational(ratio) => GenericFraction::Rational(Sign::Plus, {
             if reduce {
+                let (numer, denom) = ratio.into();
+
                 // `Ratio::new` always returns the simplest form, so we don't need to explicitly
-                // reduce the ratio.
+                // reduce the ratio. We could achieve the same thing just by returning
+                // `ratio.reduced()`, but that would clone the numerator and denominator for...
+                // idk, `num` reasons. `new` uses a private `reduce` method which does it all
+                // in-place.
                 Ratio::new(numer, denom)
             } else {
-                Ratio::new_raw(numer, denom)
+                ratio
             }
         }),
 
-        SqrtApprox::PlusInf => DynaFraction::infinity(),
-        SqrtApprox::Zero => DynaFraction::zero(),
-        SqrtApprox::NaN => DynaFraction::nan(),
+        SqrtApprox::PlusInf => GenericFraction::infinity(),
+        SqrtApprox::Zero => GenericFraction::zero(),
+        SqrtApprox::NaN => GenericFraction::nan(),
     }
 }
 
@@ -300,11 +290,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         }
     }
 
-    pub fn sqrt_with_accuracy<StackInt>(&self, accuracy: &SqrtAccuracy) -> DynaFraction<StackInt>
-    where
-        StackInt: Copy + GenericInteger + TryToConvertFrom<BigUint> + From<u8>,
-        BigUint: From<StackInt>,
-    {
+    pub fn sqrt_with_accuracy(&self, accuracy: &SqrtAccuracy) -> GenericFraction<BigUint> {
         convert_sqrt_output(self.sqrt_with_accuracy_raw(accuracy), true)
     }
 
@@ -312,11 +298,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         self.sqrt_with_accuracy_raw(&SqrtAccuracy::new(decimal_places))
     }
 
-    pub fn sqrt<StackInt>(&self, decimal_places: u32) -> DynaFraction<StackInt>
-    where
-        StackInt: Copy + GenericInteger + TryToConvertFrom<BigUint> + From<u8>,
-        BigUint: From<StackInt>,
-    {
+    pub fn sqrt(&self, decimal_places: u32) -> GenericFraction<BigUint> {
         convert_sqrt_output(self.sqrt_raw(decimal_places), true)
     }
 }
@@ -327,10 +309,15 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let u8_25: crate::GenericFraction<u8> = crate::GenericFraction::from(25_f64);
-        let x: crate::DynaFraction<u8> = u8_25.sqrt(10);
+        // This test actually works because of our delegation to `f64::sqrt` for an initial
+        // estimate. For square numbers `f64::sqrt` is able to give precise results, which we can
+        // just verify and return. Newton's method would get close to these precise answers but
+        // we'd never quite get there.
 
-        assert_eq!(x, crate::DynaFraction::<u8>::from(5));
+        let u8_25: crate::GenericFraction<u8> = crate::GenericFraction::from(25_f64);
+        let x = u8_25.sqrt(10);
+
+        assert_eq!(x, 5.into());
     }
 
     #[test]
@@ -346,7 +333,7 @@ mod tests {
     #[test]
     fn test_big_numbers() {
         let big_fraction = crate::DynaFraction::<u8>::from_str("5735874745115151552958367280658028638020529468164964850251033802750727314244020586751748892724760644/4789532131435371284839616979453671799246590610930954499621009334289181266216833845985099376094324166").unwrap();
-        let sqrt: crate::DynaFraction<u8> = big_fraction.sqrt(1_000);
+        let sqrt = big_fraction.sqrt(1_000);
 
         let s = format!("{sqrt:.100}");
         assert_eq!(s, "1.0943425455728974838600903859180783076888376493725431295813967125637781050743787384965051763360943812");
