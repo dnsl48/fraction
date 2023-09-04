@@ -67,6 +67,35 @@ pub enum SqrtApprox {
     NaN,
 }
 
+impl SqrtApprox {
+    /// Returns `self` in the simplest form. This only modifies `Rational` values.
+    #[must_use]
+    pub fn simplified(self) -> Self {
+        match self {
+            SqrtApprox::Rational(ratio) => {
+                // We could call `ratio.reduced()`, but that would clone the numerator and
+                // denominator. If we take ownership of them and recreate the ratio using `new`,
+                // we can reduce it without the clone.
+
+                let (n, d) = ratio.into();
+                SqrtApprox::Rational(Ratio::new(n, d))
+            }
+            other => other,
+        }
+    }
+}
+
+impl From<SqrtApprox> for GenericFraction<BigUint> {
+    fn from(v: SqrtApprox) -> Self {
+        match v {
+            SqrtApprox::Rational(ratio) => GenericFraction::Rational(Sign::Plus, ratio),
+            SqrtApprox::PlusInf => GenericFraction::infinity(),
+            SqrtApprox::Zero => GenericFraction::zero(),
+            SqrtApprox::NaN => GenericFraction::nan(),
+        }
+    }
+}
+
 struct SqrtSetup {
     /// The initial estimate for the square root, used as a 'seed' for generating a more accurate
     /// approximation.
@@ -188,30 +217,6 @@ fn add_ratios_raw(lhs: Ratio<BigUint>, rhs: Ratio<BigUint>) -> Ratio<BigUint> {
     Ratio::new_raw(lhs_numer + rhs_numer, common_denom)
 }
 
-/// Converts a `SqrtApprox` into a `DynaFraction`.
-fn convert_sqrt_output(approx: SqrtApprox, reduce: bool) -> GenericFraction<BigUint> {
-    match approx {
-        SqrtApprox::Rational(ratio) => GenericFraction::Rational(Sign::Plus, {
-            if reduce {
-                let (numer, denom) = ratio.into();
-
-                // `Ratio::new` always returns the simplest form, so we don't need to explicitly
-                // reduce the ratio. We could achieve the same thing just by returning
-                // `ratio.reduced()`, but that would clone the numerator and denominator for...
-                // idk, `num` reasons. `new` uses a private `reduce` method which does it all
-                // in-place.
-                Ratio::new(numer, denom)
-            } else {
-                ratio
-            }
-        }),
-
-        SqrtApprox::PlusInf => GenericFraction::infinity(),
-        SqrtApprox::Zero => GenericFraction::zero(),
-        SqrtApprox::NaN => GenericFraction::nan(),
-    }
-}
-
 /// Various square root operations for `GenericFraction`.
 impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction<T> {
     /// Returns an unsimplified rational approximation of the square root of `self`.
@@ -295,7 +300,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     }
 
     pub fn sqrt_with_accuracy(&self, accuracy: &SqrtAccuracy) -> GenericFraction<BigUint> {
-        convert_sqrt_output(self.sqrt_with_accuracy_raw(accuracy), true)
+        self.sqrt_with_accuracy_raw(accuracy).simplified().into()
     }
 
     pub fn sqrt_raw(&self, decimal_places: u32) -> SqrtApprox {
@@ -303,7 +308,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     }
 
     pub fn sqrt(&self, decimal_places: u32) -> GenericFraction<BigUint> {
-        convert_sqrt_output(self.sqrt_raw(decimal_places), true)
+        self.sqrt_raw(decimal_places).simplified().into()
     }
 }
 
