@@ -1,7 +1,7 @@
 pub use self::generic_fraction::GenericFraction;
 pub use self::sign::Sign;
 
-#[cfg(feature = "with-bigint")]
+#[cfg(all(feature = "with-bigint", feature = "with-dynaint"))]
 pub mod approx;
 
 pub mod display;
