@@ -121,21 +121,19 @@ impl Accuracy {
     /// Replaces `ratio` with a simplified and chopped version of itself.
     fn chop_ratio_in_place(&self, ratio: &mut Ratio<BigUint>) {
         let (n, d) = std::mem::take(ratio).into();
-        let (n, d) = self.chopped_ratio_from_parts_raw(n, &d).into();
 
-        *ratio = Ratio::new(n, d);
+        *ratio = Ratio::new(self.chopped_numerator_raw(n, &d), self.multiplier().clone());
     }
 
-    /// Returns a chopped but unsimplified version of `numer / denom`.
-    fn chopped_ratio_from_parts_raw(&self, mut numer: BigUint, denom: &BigUint) -> Ratio<BigUint> {
+    /// Returns the numerator of the chopped but unsimplified version of `numer / denom`, where the
+    /// implied denominator is `self.multiplier()`.
+    fn chopped_numerator_raw(&self, mut numer: BigUint, denom: &BigUint) -> BigUint {
         numer *= self.multiplier();
 
         // Integer division gets rid of any digits we don't want.
         numer /= denom;
 
-        // We now have an integer, so we can 'divide' by just giving a denominator other than 1 -
-        // in this case, we need to divide by the multiplier again.
-        Ratio::new_raw(numer, self.multiplier().clone())
+        numer
     }
 
     /// Returns a reference to the multiplier used by `self` to chop off irrelevant digits.
@@ -261,12 +259,9 @@ where
                 .and_then(|float| {
                     let (n, d) = Ratio::<num::BigInt>::from_float(float)?.into();
 
-                    // Why is `to_biguint` not `into_biguint`? `to_biguint` takes a reference only
-                    // and clones the underlying data, and there's nothing we can do about it :/
-                    Some(Ratio::new_raw(
-                        n.to_biguint().unwrap(),
-                        d.to_biguint().unwrap(),
-                    ))
+                    // Using `into_parts` allows us to avoid having to clone the underlying
+                    // `BigUint` data within the two values.
+                    Some(Ratio::new_raw(n.into_parts().1, d.into_parts().1))
                 });
 
             // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know that
@@ -353,8 +348,8 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     ///
     /// If you need the result to be simplified, use `sqrt_with_accuracy` instead.
     ///
-    /// The square of the resulting value is guaranteed to be equal to `self` to the number of
-    /// decimal places specified by `accuracy`.
+    /// The square of the resulting value is guaranteed to be equal to `self` within the bounds of
+    /// `accuracy`. See [`Accuracy`] for more details.
     ///
     /// # Panics
     /// This method will panic if `self` is negative.
@@ -382,9 +377,11 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
             value_as_ratio.unwrap().into()
         };
 
-        // Truncate the target square so we can check against it to determine when to finish.
-        let truncated_target =
-            accuracy.chopped_ratio_from_parts_raw(target_numer.clone(), &target_denom);
+        // Truncate the target square so we can check against it to determine when to finish. The
+        // implied denominator for the numerator returned by the chop operation ("choperation"?) is
+        // `accuracy.multiplier()`, so we don't need to store it.
+        let truncated_target_numerator =
+            accuracy.chopped_numerator_raw(target_numer.clone(), &target_denom);
 
         let mut current_approx = estimate;
 
@@ -418,14 +415,16 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
             halve_in_place_pos_rational(&mut current_approx);
 
             // For checking the approximation, we square it to see how close the result is to the
-            // original input value.
-            let squared_and_truncated = accuracy.chopped_ratio_from_parts_raw(
+            // original input value. Again, the implied denominator is `accuracy.multiplier()`.
+            // This is the same as for `truncated_target_numerator`, so we just need to compare the
+            // numerators.
+            let squared_and_truncated_numerator = accuracy.chopped_numerator_raw(
                 current_approx.numer() * current_approx.numer(),
                 &(current_approx.denom() * current_approx.denom()),
             );
 
             // Stop and yield the current guess if it's close enough to the true value.
-            if squared_and_truncated == truncated_target {
+            if squared_and_truncated_numerator == truncated_target_numerator {
                 // This is `_raw`, so we don't reduce.
                 break SqrtApprox::Rational(current_approx);
             }
