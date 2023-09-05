@@ -229,72 +229,74 @@ struct SqrtSetup {
     value_as_ratio: Option<Ratio<BigUint>>,
 }
 
-/// Generates the setup values for finding the square root of `value`.
-///
-/// The `value_as_ratio` field of the returned `SqrtSetup` will not be `None` if the `estimate`
-/// field is `SqrtApprox::Rational`.
-///
-/// # Panics
-/// This function will panic if `value` is negative.
-fn sqrt_setup<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
-where
-    Nd: Clone + GenericInteger + ToBigInt + ToBigUint,
-{
-    match value {
-        GenericFraction::Rational(Sign::Plus, ratio) => {
-            // If we can convert the components of `ratio` into `f64`s, we can approximate the
-            // square root using `f64::sqrt`. This gives an excellent starting point.
-            let float_estimate = ratio
-                .to_f64()
-                .map(f64::sqrt)
-                // `from_float` will give `None` if the result of `sqrt` is not finite (incl. NaN),
-                // so we'll automatically fall back to the alternative method if `sqrt` fails here.
-                .and_then(|float| {
-                    let (n, d) = Ratio::<num::BigInt>::from_float(float)?.into();
+impl SqrtSetup {
+    /// Generates the setup values for finding the square root of `value`.
+    ///
+    /// The `value_as_ratio` field of the returned [`SqrtSetup`] will not be `None` if the
+    /// `estimate` field is [`SqrtApprox::Rational`].
+    ///
+    /// # Panics
+    /// This function will panic if `value` is negative.
+    fn for_value<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
+    where
+        Nd: Clone + GenericInteger + ToBigInt + ToBigUint,
+    {
+        match value {
+            GenericFraction::Rational(Sign::Plus, ratio) => {
+                // If we can convert the components of `ratio` into `f64`s, we can approximate the
+                // square root using `f64::sqrt`. This gives an excellent starting point.
+                let float_estimate = ratio
+                    .to_f64()
+                    .map(f64::sqrt)
+                    // `from_float` will give `None` if the result of `sqrt` is not finite (incl. NaN),
+                    // so we'll automatically fall back to the alternative method if `sqrt` fails here.
+                    .and_then(|float| {
+                        let (n, d) = Ratio::<num::BigInt>::from_float(float)?.into();
 
-                    // Using `into_parts` allows us to avoid having to clone the underlying
-                    // `BigUint` data within the two values.
-                    Some(Ratio::new_raw(n.into_parts().1, d.into_parts().1))
-                });
+                        // Using `into_parts` allows us to avoid having to clone the underlying
+                        // `BigUint` data within the two values.
+                        Some(Ratio::new_raw(n.into_parts().1, d.into_parts().1))
+                    });
 
-            // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know that
-            // `Nd` is an integer type.
-            let ratio = Ratio::new_raw(
-                ratio.numer().to_biguint().unwrap(),
-                ratio.denom().to_biguint().unwrap(),
-            );
+                // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know that
+                // `Nd` is an integer type.
+                let ratio = Ratio::new_raw(
+                    ratio.numer().to_biguint().unwrap(),
+                    ratio.denom().to_biguint().unwrap(),
+                );
 
-            if let Some(estimate) = float_estimate {
-                return SqrtSetup {
+                if let Some(estimate) = float_estimate {
+                    return SqrtSetup {
+                        estimate: SqrtApprox::Rational(estimate),
+                        value_as_ratio: Some(ratio),
+                    };
+                }
+
+                // If we couldn't use floats, we fall back to a crude estimate using truncated integer
+                // square roots. This still isn't too bad.
+                let estimate = Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt());
+
+                SqrtSetup {
                     estimate: SqrtApprox::Rational(estimate),
                     value_as_ratio: Some(ratio),
-                };
+                }
             }
 
-            // If we couldn't use floats, we fall back to a crude estimate using truncated integer
-            // square roots. This still isn't too bad.
-            let estimate = Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt());
+            GenericFraction::Infinity(Sign::Plus) => SqrtSetup {
+                estimate: SqrtApprox::PlusInf,
+                value_as_ratio: None,
+            },
 
-            SqrtSetup {
-                estimate: SqrtApprox::Rational(estimate),
-                value_as_ratio: Some(ratio),
-            }
+            GenericFraction::NaN => SqrtSetup {
+                estimate: SqrtApprox::NaN,
+                value_as_ratio: None,
+            },
+
+            something_negative => panic!(
+                "cannot take the square root of a negative number ({})",
+                something_negative
+            ),
         }
-
-        GenericFraction::Infinity(Sign::Plus) => SqrtSetup {
-            estimate: SqrtApprox::PlusInf,
-            value_as_ratio: None,
-        },
-
-        GenericFraction::NaN => SqrtSetup {
-            estimate: SqrtApprox::NaN,
-            value_as_ratio: None,
-        },
-
-        something_negative => panic!(
-            "cannot take the square root of a negative number ({})",
-            something_negative
-        ),
     }
 }
 
@@ -352,7 +354,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         let SqrtSetup {
             estimate: initial_estimate,
             value_as_ratio,
-        } = sqrt_setup(self);
+        } = SqrtSetup::for_value(self);
 
         // If the initial estimate isn't rational, it must be something weird (inf, NaN, zero), so
         // we can return immediately.
