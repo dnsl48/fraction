@@ -11,7 +11,7 @@ use num::{
     traits::Pow,
     BigUint, Integer, ToPrimitive, Zero,
 };
-use std::borrow::Borrow;
+use std::{borrow::Borrow, convert::TryFrom};
 
 /// Levels of accuracy for an approximation, in terms of correct digits.
 #[derive(Clone, Debug)]
@@ -101,13 +101,15 @@ impl Accuracy {
     pub fn chop<T>(&self, fraction: &GenericFraction<T>) -> BigFraction
     where
         T: Clone + Integer,
-        BigUint: for<'a> From<&'a T>,
+        BigUint: From<T>,
     {
         match fraction {
-            GenericFraction::Rational(sign, ratio) => BigFraction::Rational(
-                *sign,
-                self.chop_ratio(&Ratio::new_raw(ratio.numer().into(), ratio.denom().into())),
-            ),
+            GenericFraction::Rational(sign, ratio) => BigFraction::Rational(*sign, {
+                self.chop_ratio(&Ratio::new_raw(
+                    ratio.numer().clone().into(),
+                    ratio.denom().clone().into(),
+                ))
+            }),
 
             GenericFraction::Infinity(sign) => BigFraction::Infinity(*sign),
             GenericFraction::NaN => BigFraction::NaN,
@@ -441,38 +443,92 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
 
 #[cfg(test)]
 mod tests {
-    use crate::{BigFraction, GenericFraction};
+    use crate::{approx::Accuracy, BigFraction, GenericFraction};
+    use num::{traits::Pow, BigUint};
     use std::str::FromStr;
 
-    #[test]
-    fn test_simple() {
-        // This test actually works because of our delegation to `f64::sqrt` for an initial
-        // estimate. For square numbers `f64::sqrt` is able to give precise results, which we can
-        // just verify and return. Newton's method would get close to these precise answers but
-        // we'd never quite get there.
+    /// Converts `f` to a string. This is useful because `f.to_string()` will round sometimes.
+    #[allow(dead_code)]
+    fn fraction_to_decimal_string(f: &BigFraction, decimal_places: usize) -> String {
+        let GenericFraction::Rational(sign, ratio) = f else {
+            return f.to_string();
+        };
 
-        let u8_25: GenericFraction<u8> = GenericFraction::from(25_f64);
-        let x = u8_25.sqrt(20);
+        let sign_str = match sign {
+            crate::Sign::Plus => "",
+            crate::Sign::Minus => "-",
+        };
 
-        assert_eq!(x, 5.into());
+        let integer = ratio.to_integer();
+
+        let multiplier: BigUint = Pow::pow(&BigUint::from(10_u8), decimal_places);
+        let fractional = (ratio.fract() * multiplier).to_integer();
+
+        // Since `fractional` is an integer, converting it to a string removes any leading zeros.
+        // We're using it to represent the fractional part of the number, though, so we need to add
+        // back those leading zeros.
+        format!("{sign_str}{integer}.{fractional:0>decimal_places$}")
+    }
+
+    fn test_sqrt_of(value: impl std::borrow::Borrow<BigFraction>, simplify: bool, n: usize) {
+        let value = value.borrow();
+
+        let accuracy = Accuracy::decimal_places(n);
+
+        println!("calculating...");
+        let sqrt = value.sqrt_with_accuracy_raw(&accuracy);
+
+        let sqrt: BigFraction = if simplify {
+            {
+                println!("simplifying...");
+                sqrt.simplified()
+            }
+        } else {
+            sqrt
+        }
+        .into();
+
+        println!("checking...");
+        assert_eq!(
+            accuracy.chopped_numerator_raw(
+                &(sqrt.numer().unwrap() * sqrt.numer().unwrap()),
+                &(sqrt.denom().unwrap() * sqrt.denom().unwrap()),
+            ),
+            accuracy.chopped_numerator_raw(value.numer().unwrap(), value.denom().unwrap())
+        );
+    }
+
+    fn get_test_values() -> [BigFraction; 5] {
+        [
+            BigFraction::from(2),
+            BigFraction::from(123_654),
+            BigFraction::from(123_655),
+            BigFraction::from_str("5735874745115151552958367280658028638020529468164964850251033802750727314244020586751748892724760644/4789532131435371284839616979453671799246590610930954499621009334289181266216833845985099376094324166").unwrap(),
+            BigFraction::from(0.2),
+        ]
+    }
+
+    fn get_test_accuracies() -> [usize; 5] {
+        [10, 100, 1000, 10000, 100_000]
     }
 
     #[test]
-    fn test_perf_10k() {
-        let _ = GenericFraction::<u8>::from(2_u8).sqrt_raw(10_000);
+    fn test_simplified() {
+        for value in get_test_values() {
+            for accuracy in get_test_accuracies() {
+                println!("sqrt({value}) to {accuracy} d.p., simplified");
+                test_sqrt_of(&value, true, accuracy);
+            }
+        }
     }
 
     #[test]
-    fn test_perf_100k() {
-        let _ = GenericFraction::<u8>::from(2_u8).sqrt_raw(100_000);
-    }
-
-    #[test]
-    fn test_big_numbers() {
-        let big_fraction = BigFraction::from_str("5735874745115151552958367280658028638020529468164964850251033802750727314244020586751748892724760644/4789532131435371284839616979453671799246590610930954499621009334289181266216833845985099376094324166").unwrap();
-        let sqrt = big_fraction.sqrt(1_000);
-
-        let s = format!("{sqrt:.100}");
-        assert_eq!(s, "1.0943425455728974838600903859180783076888376493725431295813967125637781050743787384965051763360943812");
+    fn test_raw() {
+        for value in get_test_values() {
+            for accuracy in get_test_accuracies() {
+                println!("sqrt({value}) to {accuracy} d.p., unsimplified");
+                test_sqrt_of(&value, false, accuracy);
+            }
+        }
     }
 }
