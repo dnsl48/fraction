@@ -104,36 +104,29 @@ impl Accuracy {
         BigUint: for<'a> From<&'a T>,
     {
         match fraction {
-            GenericFraction::Rational(sign, ratio) => {
-                let mut ratio: Ratio<BigUint> =
-                    Ratio::new_raw(ratio.numer().into(), ratio.denom().into());
-
-                self.chop_ratio_in_place(&mut ratio);
-
-                BigFraction::Rational(*sign, ratio)
-            }
+            GenericFraction::Rational(sign, ratio) => BigFraction::Rational(
+                *sign,
+                self.chop_ratio(&Ratio::new_raw(ratio.numer().into(), ratio.denom().into())),
+            ),
 
             GenericFraction::Infinity(sign) => BigFraction::Infinity(*sign),
             GenericFraction::NaN => BigFraction::NaN,
         }
     }
 
-    /// Replaces `ratio` with a simplified and chopped version of itself.
-    fn chop_ratio_in_place(&self, ratio: &mut Ratio<BigUint>) {
-        let (n, d) = std::mem::take(ratio).into();
-
-        *ratio = Ratio::new(self.chopped_numerator_raw(n, &d), self.multiplier().clone());
+    /// Returns a chopped and simplified version of `ratio`.
+    #[must_use]
+    fn chop_ratio(&self, ratio: &Ratio<BigUint>) -> Ratio<BigUint> {
+        Ratio::new(
+            self.chopped_numerator_raw(ratio.numer(), ratio.denom()),
+            self.multiplier().clone(),
+        )
     }
 
     /// Returns the numerator of the chopped but unsimplified version of `numer / denom`, where the
     /// implied denominator is `self.multiplier()`.
-    fn chopped_numerator_raw(&self, mut numer: BigUint, denom: &BigUint) -> BigUint {
-        numer *= self.multiplier();
-
-        // Integer division gets rid of any digits we don't want.
-        numer /= denom;
-
-        numer
+    fn chopped_numerator_raw(&self, numer: &BigUint, denom: &BigUint) -> BigUint {
+        (numer * self.multiplier()) / denom
     }
 
     /// Returns a reference to the multiplier used by `self` to chop off irrelevant digits.
@@ -381,7 +374,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         // implied denominator for the numerator returned by the chop operation ("choperation"?) is
         // `accuracy.multiplier()`, so we don't need to store it.
         let truncated_target_numerator =
-            accuracy.chopped_numerator_raw(target_numer.clone(), &target_denom);
+            accuracy.chopped_numerator_raw(&target_numer, &target_denom);
 
         let mut current_approx = estimate;
 
@@ -419,7 +412,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
             // This is the same as for `truncated_target_numerator`, so we just need to compare the
             // numerators.
             let squared_and_truncated_numerator = accuracy.chopped_numerator_raw(
-                current_approx.numer() * current_approx.numer(),
+                &(current_approx.numer() * current_approx.numer()),
                 &(current_approx.denom() * current_approx.denom()),
             );
 
