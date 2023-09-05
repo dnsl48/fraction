@@ -11,7 +11,7 @@ use num::{
     traits::Pow,
     BigUint, Integer, ToPrimitive, Zero,
 };
-use std::{borrow::Borrow, convert::TryFrom};
+use std::borrow::Borrow;
 
 /// Levels of accuracy for an approximation, in terms of correct digits.
 #[derive(Clone, Debug)]
