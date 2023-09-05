@@ -4,51 +4,181 @@
 //! nonetheless useful. Using any functionality from within this module requires a compromise to be
 //! made between performance and accuracy.
 
-use crate::{generic::GenericInteger, GenericFraction, Sign};
+use crate::{generic::GenericInteger, BigFraction, GenericFraction, Sign};
 use num::{
     bigint::{ToBigInt, ToBigUint},
     rational::Ratio,
+    traits::Pow,
     BigUint, Integer, ToPrimitive, Zero,
 };
+use std::borrow::Borrow;
 
-/// The level of accuracy to which a square root will be computed.
+/// Levels of accuracy for an approximation, in terms of correct digits.
 #[derive(Clone, Debug)]
-pub struct SqrtAccuracy {
-    /// The value by which we multiply and divide in order to truncate values.
-    ///
-    /// Truncation is implemented here by shifting the decimal place by multiplying by some power
-    /// of 10, removing the fractional part of the result, then shifting the decimal place back by
-    /// dividing by the same power of 10. This value is that power of 10.
-    multiplier: BigUint,
+pub enum Accuracy {
+    /// At least 20 digits correct after the decimal point.
+    #[cfg(feature = "lazy_static")]
+    Dp20,
+
+    /// At least 100 digits correct after the decimal point.
+    #[cfg(feature = "lazy_static")]
+    Dp100,
+
+    /// At least 500 digits correct after the decimal point.
+    #[cfg(feature = "lazy_static")]
+    Dp500,
+
+    /// An arbitrary number of correct digits.
+    Custom {
+        /// The multiplier used to check values for equality to the desired accuracy. **You
+        /// probably want this to be `10^{n}`, where `n` is the number of decimal places of
+        /// accuracy you need.**
+        ///
+        /// Normally this will have the form `10^n` where `n` is the number of correct decimal
+        /// places, but this also holds for other bases. For instance, a value of `2^n` here has
+        /// little meaning when the result is printed as decimal, but if the result was represented
+        /// as a binary string in the form `a.b`, `b` would be correct to `n` digits (and `a` would
+        /// be completely correct).
+        multiplier: BigUint,
+    },
 }
 
-impl SqrtAccuracy {
-    /// Creates a new `SqrtAccuracy` with `tail` digits after the decimal point.
-    pub fn new(tail: u32) -> SqrtAccuracy {
-        SqrtAccuracy {
-            multiplier: BigUint::from(10u8).pow(tail),
+impl Accuracy {
+    /// Returns an `Accuracy` of `n` decimal places.
+    #[must_use]
+    pub fn decimal_places<N: GenericInteger>(n: N) -> Self
+    where
+        BigUint: Pow<N>,
+        <BigUint as Pow<N>>::Output: Into<BigUint>,
+    {
+        #[cfg(feature = "lazy_static")]
+        {
+            // If we have access to pre-allocated `Accuracy` values, use them instead of allocating
+            // a new multiplier.
+            match n.to_u16() {
+                Some(20) => return Self::Dp20,
+                Some(100) => return Self::Dp100,
+                Some(500) => return Self::Dp500,
+                _ => (),
+            }
+        }
+
+        Self::Custom {
+            multiplier: Pow::pow(BigUint::from(10_u8), n).into(),
         }
     }
 
-    /// Truncates the ratio formed by `numer` and `denom` so that its decimal equivalent has only
-    /// the level of accuracy specified when `self` was created. This method takes ownership of
-    /// `numer` by necessity, but `denom` does not need to be mutated and thus only a reference to
-    /// it is required.
+    /// Returns an [`Accuracy`] of `n` digits after the point (`.`) in the representation of the
+    /// result in the given `base`.
     ///
-    /// This does **not** simplify the return value (hence `_raw`).
-    fn truncate_ratio_raw(&self, mut numer: BigUint, denom: &BigUint) -> Ratio<BigUint> {
-        numer *= &self.multiplier;
+    /// For example, `base_places(2, 5)` means "correct to at least 5 digits after the `.` when
+    /// printed as binary".
+    ///
+    /// Prefer using [`Accuracy::decimal_places`] when `base == 10`.
+    pub fn base_places<B: GenericInteger, N: GenericInteger>(base: B, n: N) -> Self
+    where
+        // Assuming `n` is anything other than really small, `base^n` will likely be pretty big, so
+        // we calculate the multiplier using `BigUint`.
+        B: Into<BigUint>,
+
+        // We need to be able to raise `BigUint(base)` to the power of `n`...
+        BigUint: Pow<N>,
+
+        // ...and get back something that we can convert straight to `BigUint`.
+        <BigUint as Pow<N>>::Output: Into<BigUint>,
+    {
+        Self::Custom {
+            multiplier: Pow::pow(base.into(), n).into(),
+        }
+    }
+
+    /// Returns a [`BigFraction`] which is equal to `fraction` according to this `Accuracy` by
+    /// "chopping off" any irrelevant digits.
+    ///
+    /// The result will be equal to `(fraction * self.multiplier()).floor() / self.multiplier()`.
+    ///
+    /// This method propagates infinity and NaN values.
+    pub fn chop<T>(&self, fraction: &GenericFraction<T>) -> BigFraction
+    where
+        T: Clone + Integer,
+        BigUint: for<'a> From<&'a T>,
+    {
+        match fraction {
+            GenericFraction::Rational(sign, ratio) => {
+                let mut ratio: Ratio<BigUint> =
+                    Ratio::new_raw(ratio.numer().into(), ratio.denom().into());
+
+                self.chop_ratio_in_place(&mut ratio);
+
+                BigFraction::Rational(*sign, ratio)
+            }
+
+            GenericFraction::Infinity(sign) => BigFraction::Infinity(*sign),
+            GenericFraction::NaN => BigFraction::NaN,
+        }
+    }
+
+    /// Replaces `ratio` with a simplified and chopped version of itself.
+    fn chop_ratio_in_place(&self, ratio: &mut Ratio<BigUint>) {
+        let (n, d) = std::mem::take(ratio).into();
+        let (n, d) = self.chopped_ratio_from_parts_raw(n, &d).into();
+
+        *ratio = Ratio::new(n, d);
+    }
+
+    /// Returns a chopped but unsimplified version of `numer / denom`.
+    fn chopped_ratio_from_parts_raw(&self, mut numer: BigUint, denom: &BigUint) -> Ratio<BigUint> {
+        numer *= self.multiplier();
 
         // Integer division gets rid of any digits we don't want.
         numer /= denom;
 
         // We now have an integer, so we can 'divide' by just giving a denominator other than 1 -
         // in this case, we need to divide by the multiplier again.
-        Ratio::new_raw(numer, self.multiplier.clone())
+        Ratio::new_raw(numer, self.multiplier().clone())
+    }
+
+    /// Returns a reference to the multiplier used by `self` to chop off irrelevant digits.
+    #[must_use]
+    pub fn multiplier(&self) -> &BigUint {
+        #[cfg(feature = "lazy_static")]
+        {
+            lazy_static! {
+                static ref DP20_MUL: BigUint = BigUint::from(10_u8).pow(20_u32);
+                static ref DP100_MUL: BigUint = BigUint::from(10_u8).pow(100_u32);
+                static ref DP500_MUL: BigUint = BigUint::from(10_u8).pow(500_u32);
+            };
+
+            return match self {
+                Accuracy::Dp20 => &DP20_MUL,
+                Accuracy::Dp100 => &DP100_MUL,
+                Accuracy::Dp500 => &DP500_MUL,
+                Accuracy::Custom { multiplier } => multiplier,
+            };
+        }
+
+        // When `lazy_static` is enabled, this gets flagged as unreachable which it technically is,
+        // but *only* when `lazy_static` is on.
+        #[allow(unreachable_code)]
+        {
+            let Accuracy::Custom { multiplier } = self else {
+                // `Custom` is the only available variant when `lazy_static` is off.
+                unreachable!()
+            };
+
+            multiplier
+        }
+    }
+}
+
+impl Default for Accuracy {
+    fn default() -> Self {
+        Self::Dp100
     }
 }
 
 /// An approximation of a square root.
+#[allow(clippy::module_name_repetitions)]
 pub enum SqrtApprox {
     /// A rational (i.e. fractional) approximation.
     ///
@@ -228,7 +358,9 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     ///
     /// # Panics
     /// This method will panic if `self` is negative.
-    pub fn sqrt_with_accuracy_raw(&self, accuracy: &SqrtAccuracy) -> SqrtApprox {
+    pub fn sqrt_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> SqrtApprox {
+        let accuracy = accuracy.borrow();
+
         let SqrtSetup {
             estimate: initial_estimate,
             value_as_ratio,
@@ -251,7 +383,8 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         };
 
         // Truncate the target square so we can check against it to determine when to finish.
-        let truncated_target = accuracy.truncate_ratio_raw(target_numer.clone(), &target_denom);
+        let truncated_target =
+            accuracy.chopped_ratio_from_parts_raw(target_numer.clone(), &target_denom);
 
         let mut current_approx = estimate;
 
@@ -286,7 +419,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
 
             // For checking the approximation, we square it to see how close the result is to the
             // original input value.
-            let squared_and_truncated = accuracy.truncate_ratio_raw(
+            let squared_and_truncated = accuracy.chopped_ratio_from_parts_raw(
                 current_approx.numer() * current_approx.numer(),
                 &(current_approx.denom() * current_approx.denom()),
             );
@@ -299,12 +432,12 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         }
     }
 
-    pub fn sqrt_with_accuracy(&self, accuracy: &SqrtAccuracy) -> GenericFraction<BigUint> {
+    pub fn sqrt_with_accuracy(&self, accuracy: impl Borrow<Accuracy>) -> GenericFraction<BigUint> {
         self.sqrt_with_accuracy_raw(accuracy).simplified().into()
     }
 
     pub fn sqrt_raw(&self, decimal_places: u32) -> SqrtApprox {
-        self.sqrt_with_accuracy_raw(&SqrtAccuracy::new(decimal_places))
+        self.sqrt_with_accuracy_raw(Accuracy::decimal_places(decimal_places))
     }
 
     pub fn sqrt(&self, decimal_places: u32) -> GenericFraction<BigUint> {
@@ -314,6 +447,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
 
 #[cfg(test)]
 mod tests {
+    use crate::{BigFraction, GenericFraction};
     use std::str::FromStr;
 
     #[test]
@@ -323,25 +457,25 @@ mod tests {
         // just verify and return. Newton's method would get close to these precise answers but
         // we'd never quite get there.
 
-        let u8_25: crate::GenericFraction<u8> = crate::GenericFraction::from(25_f64);
-        let x = u8_25.sqrt(10);
+        let u8_25: GenericFraction<u8> = GenericFraction::from(25_f64);
+        let x = u8_25.sqrt(20);
 
         assert_eq!(x, 5.into());
     }
 
     #[test]
     fn test_perf_10k() {
-        let _ = crate::GenericFraction::<u8>::from(2_u8).sqrt_raw(10_000);
+        let _ = GenericFraction::<u8>::from(2_u8).sqrt_raw(10_000);
     }
 
     #[test]
     fn test_perf_100k() {
-        let _ = crate::GenericFraction::<u8>::from(2_u8).sqrt_raw(100_000);
+        let _ = GenericFraction::<u8>::from(2_u8).sqrt_raw(100_000);
     }
 
     #[test]
     fn test_big_numbers() {
-        let big_fraction = crate::DynaFraction::<u8>::from_str("5735874745115151552958367280658028638020529468164964850251033802750727314244020586751748892724760644/4789532131435371284839616979453671799246590610930954499621009334289181266216833845985099376094324166").unwrap();
+        let big_fraction = BigFraction::from_str("5735874745115151552958367280658028638020529468164964850251033802750727314244020586751748892724760644/4789532131435371284839616979453671799246590610930954499621009334289181266216833845985099376094324166").unwrap();
         let sqrt = big_fraction.sqrt(1_000);
 
         let s = format!("{sqrt:.100}");
