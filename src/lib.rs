@@ -31,6 +31,7 @@
 //! - `with-bigint` (default) integration with [num::BigInt] and [num::BigUint] data types
 //! - `with-decimal` (default) [Decimal] type implemented upon [GenericFraction]
 //! - `with-dynaint` (default) dynamically growing integer avoiding stack overflows
+//! - `with-approx` adds methods for approximate computations (currently `sqrt`)
 //! - `with-juniper-support` [Juniper](https://crates.io/crates/juniper) integration
 //! - `with-postgres-support` [PostgreSQL](https://crates.io/crates/postgres) integration; Numeric/Decimal type
 //! - `with-serde-support` [Serde](https://crates.io/crates/serde) traits implementation
