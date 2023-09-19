@@ -232,40 +232,46 @@ struct SqrtSetup {
 }
 
 impl SqrtSetup {
-    /// Generates the setup values for finding the square root of `value`.
+    /// Generates the setup values for finding the square root of `value.abs()`.
     ///
     /// The `value_as_ratio` field of the returned [`SqrtSetup`] will not be `None` if the
     /// `estimate` field is [`SqrtApprox::Rational`].
-    ///
-    /// # Panics
-    /// This function will panic if `value` is negative.
-    fn for_value<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
+    fn for_value_abs<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
     where
         Nd: Clone + GenericInteger + ToBigInt + ToBigUint,
     {
         match value {
-            GenericFraction::Rational(Sign::Plus, ratio) => {
+            GenericFraction::Rational(_, ratio) => {
                 // If we can convert the components of `ratio` into `f64`s, we can approximate the
                 // square root using `f64::sqrt`. This gives an excellent starting point.
                 let float_estimate = ratio
                     .to_f64()
                     .map(f64::sqrt)
-                    // `from_float` will give `None` if the result of `sqrt` is not finite (incl. NaN),
-                    // so we'll automatically fall back to the alternative method if `sqrt` fails here.
+                    // `from_float` will give `None` if the result of `sqrt` is not finite (incl.
+                    // NaN), so we'll automatically fall back to the alternative method if `sqrt`
+                    // fails here.
                     .and_then(|float| {
-                        let (n, d) = Ratio::<num::BigInt>::from_float(float)?.into();
+                        // Note: We use `abs` here even though `float` will never reasonably be
+                        // negative. This is because `Nd` could *technically* be a signed type,
+                        // in which case `float` is not guaranteed to be positive.
+                        let (n, d) = Ratio::<num::BigInt>::from_float(float.abs())?.into();
 
                         // Using `into_parts` allows us to avoid having to clone the underlying
                         // `BigUint` data within the two values.
                         Some(Ratio::new_raw(n.into_parts().1, d.into_parts().1))
                     });
 
-                // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know that
-                // `Nd` is an integer type.
+                // Safety: `to_bigint` is guaranteed not to fail for any integer type, and we know
+                // that `Nd` is an integer type.
                 let ratio = Ratio::new_raw(
-                    ratio.numer().to_biguint().unwrap(),
-                    ratio.denom().to_biguint().unwrap(),
+                    // `.into_parts().1` just takes the `BigUint` component of the `BigInt`, so is
+                    // equivalent to `.abs()` without the clone that happens inside `abs`.
+                    ratio.numer().to_bigint().unwrap().into_parts().1,
+                    ratio.denom().to_bigint().unwrap().into_parts().1,
                 );
+
+                // Now `ratio` is guaranteed to be positive, even if the numerator and denominator
+                // are signed (for whatever weird reason) and have opposite signs.
 
                 if let Some(estimate) = float_estimate {
                     return SqrtSetup {
@@ -274,8 +280,8 @@ impl SqrtSetup {
                     };
                 }
 
-                // If we couldn't use floats, we fall back to a crude estimate using truncated integer
-                // square roots. This still isn't too bad.
+                // If we couldn't use floats, we fall back to a crude estimate using truncated
+                // integer square roots. This still isn't too bad.
                 let estimate = Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt());
 
                 SqrtSetup {
@@ -284,7 +290,9 @@ impl SqrtSetup {
                 }
             }
 
-            GenericFraction::Infinity(Sign::Plus) => SqrtSetup {
+            // The absolute value of `-inf` is just `+inf`, so we can handle both infinities the
+            // same.
+            GenericFraction::Infinity(_) => SqrtSetup {
                 estimate: SqrtApprox::PlusInf,
                 value_as_ratio: None,
             },
@@ -293,11 +301,6 @@ impl SqrtSetup {
                 estimate: SqrtApprox::NaN,
                 value_as_ratio: None,
             },
-
-            something_negative => panic!(
-                "cannot take the square root of a negative number ({})",
-                something_negative
-            ),
         }
     }
 }
@@ -341,22 +344,38 @@ fn add_ratios_raw(lhs: Ratio<BigUint>, rhs: Ratio<BigUint>) -> Ratio<BigUint> {
 
 /// Various square root operations for `GenericFraction`.
 impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction<T> {
-    /// Returns an unsimplified rational approximation of the square root of `self`.
+    /// Returns an unsimplified rational approximation of the principal square root of the absolute
+    /// value of `self`. This method will *not* panic if `self` is negative.
     ///
-    /// If you need the result to be simplified, use `sqrt_with_accuracy` instead.
+    /// If you need the result to be simplified, use [`GenericFraction::sqrt_abs_with_accuracy`]
+    /// instead, although be aware that simplifying will cause a significant increase in processing
+    /// time.
     ///
-    /// The square of the resulting value is guaranteed to be equal to `self` within the bounds of
-    /// `accuracy`. See [`Accuracy`] for more details.
+    //// todo here: Explain tradeoffs involved when picking raw vs. non-raw.
+    //// In summary: `_raw` is only useful if you are careful to avoid any calls which would
+    //// simplify the ratio, because otherwise you're not preventing a call to `simplified`, you're
+    //// just delaying it. For example, if we take the ratio from `foo.sqrt_raw()` and do `ratio +
+    //// 0`, the addition operator will actually simplify the ratio. This can look weird, because
+    //// suddenly seemingly trivial operations become extremely slow. That being said, if you *are*
+    //// avoiding implicit simplification, then `_raw` functions are absolutely what you should be
+    //// using, because the performance benefit is astronomical.
     ///
-    /// # Panics
-    /// This method will panic if `self` is negative.
-    pub fn sqrt_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> SqrtApprox {
+    /// The *square* of the resulting value is guaranteed to be equal to the magnitude of `self`
+    /// within the bounds of `accuracy`. See [`Accuracy`] and its variants for more details.
+    ///
+    /// There are two main reasons you may want to use this method over
+    /// [`GenericFraction::sqrt_with_accuracy_raw`]:
+    ///   - You want to compute `self.abs().sqrt_with_accuracy_raw(...)`, in which case this method
+    ///     is equivalent but may be slightly faster; or
+    ///   - You know that `self` is non-negative and therefore do not need the sign check carried
+    ///     out by `sqrt_with_accuracy_raw`.
+    pub fn sqrt_abs_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> SqrtApprox {
         let accuracy = accuracy.borrow();
 
         let SqrtSetup {
             estimate: initial_estimate,
             value_as_ratio,
-        } = SqrtSetup::for_value(self);
+        } = SqrtSetup::for_value_abs(self);
 
         // If the initial estimate isn't rational, it must be something weird (inf, NaN, zero), so
         // we can return immediately.
@@ -369,8 +388,9 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
         // reference to the denominator is needed. Therefore, we can avoid needlessly cloning both
         // halves.
         let (target_numer, target_denom) = {
-            // Safety: `sqrt_setup` guarantees that `value_as_ratio` won't be `None` if
+            // Safety: `SqrtSetup` guarantees that `value_as_ratio` won't be `None` if
             // `initial_estimate` is `Rational`, which is what we matched above.
+            // todo: Adapt `SqrtSetup` so that we don't need an `unwrap` here.
             value_as_ratio.unwrap().into()
         };
 
@@ -425,6 +445,69 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
                 // This is `_raw`, so we don't reduce.
                 break SqrtApprox::Rational(current_approx);
             }
+        }
+    }
+
+    pub fn sqrt_abs_with_accuracy(
+        &self,
+        accuracy: impl Borrow<Accuracy>,
+    ) -> GenericFraction<BigUint> {
+        self.sqrt_abs_with_accuracy_raw(accuracy)
+            .simplified()
+            .into()
+    }
+
+    pub fn sqrt_abs_raw(&self, decimal_places: u32) -> SqrtApprox {
+        self.sqrt_abs_with_accuracy_raw(Accuracy::decimal_places(decimal_places))
+    }
+
+    pub fn sqrt_abs(&self, decimal_places: u32) -> GenericFraction<BigUint> {
+        self.sqrt_abs_raw(decimal_places).simplified().into()
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `self` is negative. Note that this can occur even when the sign of `self` is
+    /// `Plus`: if `T` is a signed type and the numerator and denominators have opposite signs,
+    /// this fraction will be negative.
+    pub fn sqrt_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> SqrtApprox {
+        match self {
+            GenericFraction::Infinity(Sign::Minus) => {
+                panic!("cannot take the square root of a negative number: {}", self)
+            }
+
+            // Short-circuit for zero so we don't have to worry about it when checking the signs.
+            GenericFraction::Rational(_, r) if r.is_zero() => SqrtApprox::Zero,
+
+            GenericFraction::Rational(sign, ratio)
+                if {
+                    // `num` doesn't seem to give us a way to check the sign of a `T` given the
+                    // current trait bounds we have on it, but we can work around this by checking
+                    // against zero.
+
+                    let numer_sign = if ratio.numer() > &T::zero() {
+                        Sign::Plus
+                    } else {
+                        Sign::Minus
+                    };
+
+                    // Combine the whole fraction's sign with the sign of the numerator. This
+                    // allows us to recognise stuff like -(-1/2) as being positive, for example.
+                    let numer_sign = *sign * numer_sign;
+
+                    let denom_sign = if ratio.denom() > &T::zero() {
+                        Sign::Plus
+                    } else {
+                        Sign::Minus
+                    };
+
+                    numer_sign != denom_sign
+                } =>
+            {
+                panic!("cannot take the square root of a negative number: {}", self)
+            }
+
+            _positive => self.sqrt_abs_with_accuracy_raw(accuracy),
         }
     }
 
