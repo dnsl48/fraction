@@ -31,6 +31,9 @@ mod postgres_support;
 #[cfg(feature = "with-juniper-support")]
 mod juniper_support;
 
+#[cfg(feature = "with-approx")]
+mod approx;
+
 /// Decimal type implementation
 ///
 /// T is the type for data
@@ -60,7 +63,7 @@ mod juniper_support;
 /// ```
 #[derive(Clone)]
 #[cfg_attr(feature = "with-serde-support", derive(Serialize, Deserialize))]
-pub struct GenericDecimal<T, P>(GenericFraction<T>, P)
+pub struct GenericDecimal<T, P>(pub(crate) GenericFraction<T>, pub(crate) P)
 where
     T: Clone + Integer,
     P: Copy + Integer + Into<usize>;
