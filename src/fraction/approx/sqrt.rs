@@ -515,7 +515,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
 #[cfg(test)]
 mod tests {
     use crate::{approx::Accuracy, BigFraction, GenericFraction};
-    use num::{traits::Pow, BigUint};
+    use num::{traits::Pow, BigUint, Zero};
     use std::str::FromStr;
 
     /// Converts `f` to a string. This is useful because `f.to_string()` will round sometimes.
@@ -598,5 +598,40 @@ mod tests {
                 test_sqrt_of(value, false, accuracy);
             }
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_negative() {
+        let x: GenericFraction<u8> = (-2).into();
+        let _ = x.sqrt(10);
+    }
+
+    #[test]
+    fn test_abs() {
+        let x: GenericFraction<u8> = 2.into();
+        assert_eq!(x.sqrt(10), (-x).sqrt_abs(10));
+    }
+
+    #[test]
+    fn test_weird_numbers() {
+        let x: GenericFraction<u8> = f32::NAN.into();
+        assert_eq!(GenericFraction::NaN, x.sqrt(10));
+
+        let x: GenericFraction<u8> = f32::INFINITY.into();
+        assert_eq!(GenericFraction::Infinity(crate::Sign::Plus), x.sqrt(10));
+
+        let x: GenericFraction<u8> = f32::NEG_INFINITY.into();
+        assert_eq!(GenericFraction::Infinity(crate::Sign::Plus), x.sqrt_abs(10));
+
+        let x: GenericFraction<u8> = 0.into();
+        assert!(x.sqrt(10).is_zero());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_negative_inf() {
+        let x: GenericFraction<u8> = f32::NEG_INFINITY.into();
+        let _ = x.sqrt(10);
     }
 }
