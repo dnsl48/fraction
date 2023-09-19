@@ -219,28 +219,33 @@ impl From<SqrtApprox> for GenericFraction<BigUint> {
     }
 }
 
-struct SqrtSetup {
-    /// The initial estimate for the square root, used as a 'seed' for generating a more accurate
-    /// approximation.
-    estimate: SqrtApprox,
+/// Different setup outputs.
+enum SqrtSetup {
+    /// Setup result which can be used as an exact answer without further processing.
+    ShortCircuited(SqrtApprox),
 
-    /// The input value converted to a `Ratio`. This is merely a byproduct of the setup step, but
-    /// since we need it later on it's efficient to keep it around.
-    ///
-    /// This isn't necessary if `estimate` isn't `Rational`.
-    value_as_ratio: Option<Ratio<BigUint>>,
+    /// Setup result providing an initial estimate, not an exact value.
+    Estimated {
+        /// The initial estimate of the square root.
+        estimate: Ratio<BigUint>,
+
+        /// The input value represented as a `Ratio<BigUint>`. This is produced as a byproduct of
+        /// the setup but is useful in the rest of the algorithm too, so we return it.
+        square_ratio: Ratio<BigUint>,
+    },
 }
 
 impl SqrtSetup {
-    /// Generates the setup values for finding the square root of `value.abs()`.
-    ///
-    /// The `value_as_ratio` field of the returned [`SqrtSetup`] will not be `None` if the
-    /// `estimate` field is [`SqrtApprox::Rational`].
+    /// Produces setup values for finding the square root of `value.abs()`.
     fn for_value_abs<Nd>(value: &GenericFraction<Nd>) -> SqrtSetup
     where
         Nd: Clone + GenericInteger + ToBigInt + ToBigUint,
     {
         match value {
+            GenericFraction::Rational(_, ratio) if ratio.is_zero() => {
+                SqrtSetup::ShortCircuited(SqrtApprox::Zero)
+            }
+
             GenericFraction::Rational(_, ratio) => {
                 // If we can convert the components of `ratio` into `f64`s, we can approximate the
                 // square root using `f64::sqrt`. This gives an excellent starting point.
@@ -270,37 +275,22 @@ impl SqrtSetup {
                     ratio.denom().to_bigint().unwrap().into_parts().1,
                 );
 
-                // Now `ratio` is guaranteed to be positive, even if the numerator and denominator
-                // are signed (for whatever weird reason) and have opposite signs.
+                SqrtSetup::Estimated {
+                    estimate: float_estimate.unwrap_or_else(|| {
+                        // If we couldn't use floats, we fall back to a crude estimate using
+                        // truncated integer square roots. This still isn't too bad.
+                        Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt())
+                    }),
 
-                if let Some(estimate) = float_estimate {
-                    return SqrtSetup {
-                        estimate: SqrtApprox::Rational(estimate),
-                        value_as_ratio: Some(ratio),
-                    };
-                }
-
-                // If we couldn't use floats, we fall back to a crude estimate using truncated
-                // integer square roots. This still isn't too bad.
-                let estimate = Ratio::new(ratio.numer().sqrt(), ratio.denom().sqrt());
-
-                SqrtSetup {
-                    estimate: SqrtApprox::Rational(estimate),
-                    value_as_ratio: Some(ratio),
+                    square_ratio: ratio,
                 }
             }
 
             // The absolute value of `-inf` is just `+inf`, so we can handle both infinities the
             // same.
-            GenericFraction::Infinity(_) => SqrtSetup {
-                estimate: SqrtApprox::PlusInf,
-                value_as_ratio: None,
-            },
+            GenericFraction::Infinity(_) => SqrtSetup::ShortCircuited(SqrtApprox::PlusInf),
 
-            GenericFraction::NaN => SqrtSetup {
-                estimate: SqrtApprox::NaN,
-                value_as_ratio: None,
-            },
+            GenericFraction::NaN => SqrtSetup::ShortCircuited(SqrtApprox::NaN),
         }
     }
 }
@@ -372,30 +362,23 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     pub fn sqrt_abs_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> SqrtApprox {
         let accuracy = accuracy.borrow();
 
-        let SqrtSetup {
-            estimate: initial_estimate,
-            value_as_ratio,
-        } = SqrtSetup::for_value_abs(self);
+        let (estimate, value_as_ratio) = match SqrtSetup::for_value_abs(self) {
+            SqrtSetup::Estimated {
+                estimate,
+                square_ratio,
+            } => (estimate, square_ratio),
 
-        // If the initial estimate isn't rational, it must be something weird (inf, NaN, zero), so
-        // we can return immediately.
-        let SqrtApprox::Rational(estimate) = initial_estimate else {
-            return initial_estimate;
+            SqrtSetup::ShortCircuited(exact) => return exact,
         };
 
         // Take ownership of the two parts of the target ratio. This allows us to treat them
         // separately. For example, we must clone the numerator for the next step, but only a
         // reference to the denominator is needed. Therefore, we can avoid needlessly cloning both
         // halves.
-        let (target_numer, target_denom) = {
-            // Safety: `SqrtSetup` guarantees that `value_as_ratio` won't be `None` if
-            // `initial_estimate` is `Rational`, which is what we matched above.
-            // todo: Adapt `SqrtSetup` so that we don't need an `unwrap` here.
-            value_as_ratio.unwrap().into()
-        };
+        let (target_numer, target_denom) = value_as_ratio.into();
 
         // Truncate the target square so we can check against it to determine when to finish. The
-        // implied denominator for the numerator returned by the chop operation ("choperation"?) is
+        // implied denominator for the numerator returned by the chop operation (choperation?) is
         // `accuracy.multiplier()`, so we don't need to store it.
         let truncated_target_numerator =
             accuracy.chopped_numerator_raw(&target_numer, &target_denom);
