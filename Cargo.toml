@@ -53,7 +53,6 @@ with-serde-support = ["serde", "serde_derive", "num/serde"]
 [dev-dependencies]
 criterion = "0.4"
 rand = "0.8.5"
-lazy_static = "1"
 
 [[bench]]
 name = "bench_fraction"
