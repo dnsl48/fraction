@@ -44,6 +44,7 @@ default = ["with-bigint", "with-decimal", "with-dynaint"]
 with-bigint = ["num/num-bigint", "num/std", "lazy_static"]
 with-decimal = []
 with-dynaint = []
+with-approx = ["with-bigint"]
 
 with-juniper-support = ["juniper"]
 with-postgres-support = ["postgres-types", "byteorder", "bytes"]
