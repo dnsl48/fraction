@@ -112,20 +112,23 @@
 //!
 //! ## `abs`
 //! These methods ignore the sign of the value and instead approximate the square root of the
-//! *magnitude* only. They will therefore not panic when a negative number is given as input.
+//! *magnitude* only.
 //!
-//! ```should_panic
-//! # use crate::fraction::GenericFraction;
-//! # let something_negative: GenericFraction<u8> = (-2).into();
-//! // Panics!
-//! let _ = something_negative.sqrt(100);
-//! ```
+//! The default behaviour is as follows:
 //!
 //! ```
 //! # use crate::fraction::GenericFraction;
-//! # let something_negative: GenericFraction<u8> = (-2).into();
-//! // Won't panic.
-//! let _ = something_negative.sqrt_abs(100);
+//! let something_positive: GenericFraction<u8> = 2.into();
+//! let something_negative: GenericFraction<u8> = (-2).into();
+//!
+//! // Calling `sqrt` on a negative number will return `NaN`.
+//! assert_eq!(something_negative.sqrt(100), GenericFraction::NaN);
+//!
+//! // Calling `sqrt_abs` on a negative number will not return `NaN`.
+//! assert_ne!(something_negative.sqrt_abs(100), GenericFraction::NaN);
+//!
+//! // `sqrt +2` is equal to `sqrt_abs -2`.
+//! assert_eq!(something_positive.sqrt(100), something_negative.sqrt_abs(100));
 //! ```
 //!
 //! The following are guaranteed to hold for any pair of `abs` and non-`abs` methods:
@@ -164,7 +167,10 @@ pub enum RawApprox {
     /// Zero. This only occurs when the input is zero.
     Zero,
 
-    /// An invalid number. This can only result from NaN input.
+    /// An invalid number.
+    ///
+    /// `abs` methods will only return this for `NaN` input, but other methods will return `NaN` if
+    /// the value to calculate the square root of is negative.
     NaN,
 }
 
@@ -317,8 +323,6 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// value of `self`. `accuracy` is the accuracy of the square of the return value relative to
     /// `self`.
     ///
-    /// This method will not panic if `self` is negative.
-    ///
     /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_abs_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> RawApprox {
         let accuracy = accuracy.borrow();
@@ -395,8 +399,6 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// Returns a rational approximation of the principal square root of the absolute value of
     /// `self`. `accuracy` is the accuracy of the square of the return value relative to `self`.
     ///
-    /// This method will not panic if `self` is negative.
-    ///
     /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_abs_with_accuracy(
         &self,
@@ -411,8 +413,6 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// value of `self`. `decimal_places` refers to the accuracy of the square of the return value
     /// relative to `self`.
     ///
-    /// This method will not panic if `self` is negative.
-    ///
     /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_abs_raw(&self, decimal_places: u32) -> RawApprox {
         self.sqrt_abs_with_accuracy_raw(Accuracy::decimal_places(decimal_places))
@@ -422,8 +422,6 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// `self`. `decimal_places` refers to the accuracy of the square of the return value relative
     /// to `self`.
     ///
-    /// This method will not panic if `self` is negative.
-    ///
     /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_abs(&self, decimal_places: u32) -> GenericFraction<BigUint> {
         self.sqrt_abs_raw(decimal_places).simplified().into()
@@ -432,15 +430,12 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// Returns an unsimplified rational approximation of the principal square root of `self`.
     /// `accuracy` refers to the square of the return value relative to `self`.
     ///
-    /// See the [module-level documentation](`self`) for more details.
+    /// This method returns `NaN` if `self` is negative.
     ///
-    /// # Panics
-    /// This method will panic if `self` is negative.
+    /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_with_accuracy_raw(&self, accuracy: impl Borrow<Accuracy>) -> RawApprox {
         match self {
-            GenericFraction::Infinity(Sign::Minus) => {
-                panic!("cannot take the square root of a negative number: {}", self)
-            }
+            GenericFraction::Infinity(Sign::Minus) => RawApprox::NaN,
 
             // Short-circuit for zero so we don't have to worry about it when checking the signs.
             GenericFraction::Rational(_, r) if r.is_zero() => RawApprox::Zero,
@@ -470,7 +465,7 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
                     numer_sign != denom_sign
                 } =>
             {
-                panic!("cannot take the square root of a negative number: {}", self)
+                RawApprox::NaN
             }
 
             _positive => self.sqrt_abs_with_accuracy_raw(accuracy),
@@ -480,10 +475,9 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// Returns a rational approximation of the principal square root of `self`. `accuracy` refers
     /// to the square of the return value relative to `self`.
     ///
-    /// See the [module-level documentation](`self`) for more details.
+    /// This method returns `NaN` if `self` is negative.
     ///
-    /// # Panics
-    /// This method will panic if `self` is negative.
+    /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_with_accuracy(&self, accuracy: impl Borrow<Accuracy>) -> GenericFraction<BigUint> {
         self.sqrt_with_accuracy_raw(accuracy).simplified().into()
     }
@@ -492,10 +486,9 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// `decimal_places` refers to the accuracy of the square of the return value relative to
     /// `self`.
     ///
-    /// See the [module-level documentation](`self`) for more details.
+    /// This method returns `NaN` if `self` is negative.
     ///
-    /// # Panics
-    /// This method will panic if `self` is negative.
+    /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt_raw(&self, decimal_places: u32) -> RawApprox {
         self.sqrt_with_accuracy_raw(Accuracy::decimal_places(decimal_places))
     }
@@ -503,10 +496,9 @@ impl<T: Clone + Integer + ToBigUint + ToBigInt + GenericInteger> GenericFraction
     /// Returns a rational approximation of the principal square root of `self`. `decimal_places`
     /// refers to the accuracy of the square of the return value relative to `self`.
     ///
-    /// See the [module-level documentation](`self`) for more details.
+    /// This method returns `NaN` if `self` is negative.
     ///
-    /// # Panics
-    /// This method will panic if `self` is negative.
+    /// See the [module-level documentation](`self`) for more details.
     pub fn sqrt(&self, decimal_places: u32) -> GenericFraction<BigUint> {
         self.sqrt_raw(decimal_places).simplified().into()
     }
@@ -601,10 +593,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_negative() {
         let x: GenericFraction<u8> = (-2).into();
-        let _ = x.sqrt(10);
+        assert_eq!(x.sqrt(10), GenericFraction::NaN);
     }
 
     #[test]
@@ -629,9 +620,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_negative_inf() {
         let x: GenericFraction<u8> = f32::NEG_INFINITY.into();
-        let _ = x.sqrt(10);
+        assert_eq!(x.sqrt(10), GenericFraction::NaN);
     }
 }
