@@ -13,6 +13,11 @@
 //! All of these methods return some form of an approximation for the square root, and they all use
 //! the same algorithm but behave slightly differently.
 //!
+//! **A note on performance:** These methods are designed to be fast in release builds. An
+//! unfortunate side effect of this is that performance is significantly degraded when compiler
+//! optimisations are disabled. Please consider enabling compiler optimisations in your project if
+//! you wish to use these methods.
+//!
 //! # Accuracy of the output
 //!
 //! *The behaviour detailed in this section is common to all methods.*
