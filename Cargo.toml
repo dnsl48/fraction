@@ -22,6 +22,9 @@ exclude = ["src/tests/division/*"]
 [package.metadata.docs.rs]
 all-features = true
 
+[profile.test]
+opt-level = 3
+
 [dependencies]
 
 num = { version = "0.4", default-features = false }
