@@ -58,31 +58,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| GenericFraction::<u8>::from(black_box((3u8, 4u8))));
     });
 
-    let num2 = GenericFraction::<u8>::from(2);
-    let small_num = fraction::BigFraction::new(1_u8, u128::MAX) / u128::MAX;
-    let big_num = fraction::BigFraction::new(u128::MAX, 1_u8) * u128::MAX;
+    #[cfg(feature = "with-approx")]
+    {
+        let num2 = GenericFraction::<u8>::from(2);
+        let small_num = fraction::BigFraction::new(1_u8, u128::MAX) / u128::MAX;
+        let big_num = fraction::BigFraction::new(u128::MAX, 1_u8) * u128::MAX;
 
-    let mut bench_dp = |n: u32| {
-        let mut group = c.benchmark_group(format!("Sqrt {n}dp raw"));
+        let mut bench_dp = |n: u32| {
+            let mut group = c.benchmark_group(format!("Sqrt {n}dp raw"));
 
-        group.bench_function("2", |b| {
-            b.iter(|| num2.sqrt_raw(n));
-        });
+            group.bench_function("2", |b| {
+                b.iter(|| num2.sqrt_raw(n));
+            });
 
-        group.bench_function("Small", |b| {
-            b.iter(|| small_num.sqrt_raw(n));
-        });
+            group.bench_function("Small", |b| {
+                b.iter(|| small_num.sqrt_raw(n));
+            });
 
-        group.bench_function("Big", |b| {
-            b.iter(|| big_num.sqrt_raw(n));
-        });
+            group.bench_function("Big", |b| {
+                b.iter(|| big_num.sqrt_raw(n));
+            });
 
-        group.finish();
-    };
+            group.finish();
+        };
 
-    bench_dp(10_000);
-    bench_dp(1_000);
-    bench_dp(100);
+        bench_dp(10_000);
+        bench_dp(1_000);
+        bench_dp(100);
+    }
 }
 
 criterion_group!(benches, criterion_benchmark);
