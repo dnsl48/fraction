@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.14.0] - 2023-09-27
+### Added
+ - `approx` module with "Approximate mathematical operations", `fn sqrt` (special thanks to @squ1dd13 for the contribution!)
+ - `with-approx` feature, enabling the `approx` module
+
+
 ## [0.13.1] - 2023-02-25
 ### Added
  - Clippy hint to allow manual filtering in GenericFraction::to_i64 implementation
