@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.x.0] - ??????????
+### Added
+ - GenericFraction try_from/try_into implementations for primitive types
+ - GenericFraction try_from/try_into implementations for BigInt/BigUint
+
 ## [0.14.0] - 2023-09-27
 ### Added
  - `approx` module with "Approximate mathematical operations", `fn sqrt` (special thanks to @squ1dd13 for the contribution!)
