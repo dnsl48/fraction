@@ -52,12 +52,7 @@ impl Neg for Sign {
 
 impl PartialOrd for Sign {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match (self, other) {
-            (Sign::Minus, Sign::Minus) => Some(Ordering::Equal),
-            (Sign::Plus, Sign::Minus) => Some(Ordering::Greater),
-            (Sign::Minus, Sign::Plus) => Some(Ordering::Less),
-            (Sign::Plus, Sign::Plus) => Some(Ordering::Equal),
-        }
+        Some(self.cmp(other))
     }
 }
 
