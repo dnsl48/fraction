@@ -746,7 +746,6 @@ macro_rules! dyna_impl {
 }
 
 dyna_impl! (impl_trait_birefs_customret; PartialEq, eq, bool);
-dyna_impl! (impl_trait_birefs_customret; PartialOrd, partial_cmp, Option<Ordering>);
 dyna_impl! (impl_trait_birefs_customret; Ord, cmp, Ordering);
 
 dyna_impl! (impl_trait_math_unary; Neg, neg);
@@ -784,6 +783,16 @@ dyna_impl! (impl_trait_math_checked; CheckedMul, checked_mul);
 dyna_impl! (impl_trait_math_checked; CheckedSub, checked_sub);
 
 dyna_impl!(impl_trait_from_uint; u16, u32, u64, u128, usize);
+
+impl<T, G> PartialOrd for DynaInt<T, G>
+where
+    T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + PartialOrd,
+    G: Clone + GenericInteger + PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl<T, G> Eq for DynaInt<T, G>
 where

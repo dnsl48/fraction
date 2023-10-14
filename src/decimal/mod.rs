@@ -449,8 +449,17 @@ where
     }
 }
 
-dec_impl!(impl_trait_cmp; PartialOrd; partial_cmp; Option<Ordering>);
 dec_impl!(impl_trait_cmp; Ord; cmp; Ordering);
+
+impl<T, P> PartialOrd for GenericDecimal<T, P>
+where
+    T: Clone + GenericInteger + PartialOrd,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl<T, P> PartialEq for GenericDecimal<T, P>
 where
