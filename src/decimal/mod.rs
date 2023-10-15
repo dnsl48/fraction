@@ -32,6 +32,7 @@ mod juniper_support;
 mod approx;
 
 mod ops;
+mod try_from;
 
 /// Decimal type implementation
 ///
