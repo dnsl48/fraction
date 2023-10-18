@@ -31,7 +31,7 @@ where
                     let l_ = mem::replace(l, Ratio::new_raw(T::zero(), T::zero()));
 
                     if ls == Sign::Plus && rs == Sign::Plus {
-                        if l_ < r {
+                        if r > l_ {
                             GenericFraction::Rational(Sign::Minus, r.sub(l_))
                         } else {
                             GenericFraction::Rational(Sign::Plus, l_.sub(r))
@@ -40,10 +40,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
-                    } else if l_ < r {
-                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                    } else {
+                    } else if l_ > r {
                         GenericFraction::Rational(Sign::Minus, l_.sub(r))
+                    } else {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     }
                 }
             },
@@ -85,10 +85,10 @@ where
                         GenericFraction::Rational(Sign::Plus, l_.add(r))
                     } else if rs == Sign::Plus {
                         GenericFraction::Rational(Sign::Minus, l_.add(r))
-                    } else if l_ < *r {
-                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
-                    } else {
+                    } else if l_ > *r {
                         GenericFraction::Rational(Sign::Minus, l_.sub(r))
+                    } else {
+                        GenericFraction::Rational(Sign::Plus, r.sub(l_))
                     }
                 }
             },

@@ -37,12 +37,12 @@ where
                     } else if rs == Sign::Plus {
                         l.checked_add(r)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
-                    } else if l < r {
-                        r.checked_sub(l)
-                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
-                    } else {
+                    } else if l > r {
                         l.checked_sub(r)
                             .map(|value| GenericFraction::Rational(Sign::Minus, value))
+                    } else {
+                        r.checked_sub(l)
+                            .map(|value| GenericFraction::Rational(Sign::Plus, value))
                     }
                 }
             },
