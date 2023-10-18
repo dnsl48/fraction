@@ -3,8 +3,7 @@ use error;
 
 use num::integer::Integer;
 use num::traits::{
-    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Num, One, Signed,
-    ToPrimitive, Zero,
+    Bounded, CheckedAdd, CheckedMul, CheckedSub, FromPrimitive, Num, One, Signed, ToPrimitive, Zero,
 };
 
 use std::cmp::{self, Eq, Ordering, PartialEq, PartialOrd};
@@ -12,9 +11,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::iter::{Product, Sum};
 use std::num::FpCategory;
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
-};
+use std::ops::{Add, DivAssign, Mul, MulAssign, Neg, SubAssign};
 use std::str::FromStr;
 
 use super::{GenericFraction, Sign};
@@ -33,6 +30,8 @@ mod juniper_support;
 
 #[cfg(feature = "with-approx")]
 mod approx;
+
+mod ops;
 
 /// Decimal type implementation
 ///
@@ -171,58 +170,6 @@ where
 }
 
 macro_rules! dec_impl {
-    (impl_trait_math; $trait:ident, $fn:ident) => {
-        impl<T, P> $trait for GenericDecimal<T, P>
-        where
-            T: Clone + GenericInteger + $trait,
-            P: Copy + GenericInteger + Into<usize>
-        {
-            type Output = Self;
-
-            fn $fn(self, other: Self) -> Self::Output {
-                match self {
-                    GenericDecimal(sf, sp) => match other {
-                        GenericDecimal(of, op) => GenericDecimal($trait::$fn(sf, of), cmp::max(sp, op))
-                    }
-                }
-            }
-        }
-
-
-        impl<'a, T, P> $trait for &'a GenericDecimal<T, P>
-        where
-            T: Clone + GenericInteger + $trait,
-            P: Copy + GenericInteger + Into<usize>,
-            &'a T: $trait<Output=T>
-        {
-            type Output = GenericDecimal<T, P>;
-
-            fn $fn(self, other: Self) -> Self::Output {
-                match self {
-                    GenericDecimal(sf, sp) => match other {
-                        GenericDecimal(of, op) => GenericDecimal($trait::$fn(sf, of), cmp::max(*sp, *op))
-                    }
-                }
-            }
-        }
-    };
-
-    (impl_trait_math_checked; $trait:ident, $fn:ident) => {
-        impl<T, P> $trait for GenericDecimal<T, P>
-        where
-            T: Clone + GenericInteger + CheckedAdd + CheckedDiv + CheckedMul + CheckedSub + $trait,
-            P: Copy + GenericInteger + Into<usize>
-        {
-            fn $fn(&self, other: &Self) -> Option<Self> {
-                match *self {
-                    GenericDecimal(ref sf, sp) => match *other {
-                        GenericDecimal(ref of, op) => $trait::$fn(sf, of).map(|val| GenericDecimal(val, cmp::max(sp, op)))
-                    }
-                }
-            }
-        }
-    };
-
     (impl_trait_math_unary; $trait:ident, $fn:ident) => {
         impl<T, P> $trait for GenericDecimal<T, P>
         where
@@ -251,43 +198,6 @@ macro_rules! dec_impl {
                 match self {
                     GenericDecimal(sf, sp) => GenericDecimal($trait::$fn(sf), *sp)
                 }
-            }
-        }
-    };
-
-
-    (impl_trait_math_assign; $trait:ident, $fn:ident) => {
-        impl<T, P> $trait for GenericDecimal<T, P>
-        where
-            T: Clone + GenericInteger + DivAssign + SubAssign + MulAssign + $trait,
-            P: Copy + GenericInteger + Into<usize>
-        {
-            fn $fn(&mut self, other: Self) {
-                match *self {
-                    GenericDecimal(ref mut sf, ref mut sp) => match other {
-                        GenericDecimal(of, op) => {
-                            $trait::$fn(sf, of);
-                            *sp = cmp::max(*sp, op);
-                        }
-                    }
-                };
-            }
-        }
-
-        impl<'a, T, P> $trait<&'a Self> for GenericDecimal<T, P>
-        where
-            T: Clone + Integer + $trait + $trait<&'a T>,
-            P: Copy + Integer + Into<usize>
-        {
-            fn $fn(&mut self, other: &'a Self) {
-                match *self {
-                    GenericDecimal(ref mut sf, ref mut sp) => match other {
-                        GenericDecimal(of, op) => {
-                            $trait::$fn(sf, of);
-                            *sp = cmp::max(*sp, *op);
-                        }
-                    }
-                };
             }
         }
     };
@@ -372,23 +282,6 @@ where
 
 #[cfg(feature = "with-bigint")]
 dec_impl!(impl_trait_from_int; BigUint, BigInt);
-
-dec_impl!(impl_trait_math; Add, add);
-dec_impl!(impl_trait_math; Div, div);
-dec_impl!(impl_trait_math; Mul, mul);
-dec_impl!(impl_trait_math; Sub, sub);
-dec_impl!(impl_trait_math; Rem, rem);
-
-dec_impl!(impl_trait_math_assign; AddAssign, add_assign);
-dec_impl!(impl_trait_math_assign; DivAssign, div_assign);
-dec_impl!(impl_trait_math_assign; MulAssign, mul_assign);
-dec_impl!(impl_trait_math_assign; SubAssign, sub_assign);
-dec_impl!(impl_trait_math_assign; RemAssign, rem_assign);
-
-dec_impl!(impl_trait_math_checked; CheckedAdd, checked_add);
-dec_impl!(impl_trait_math_checked; CheckedDiv, checked_div);
-dec_impl!(impl_trait_math_checked; CheckedMul, checked_mul);
-dec_impl!(impl_trait_math_checked; CheckedSub, checked_sub);
 
 dec_impl!(impl_trait_math_unary; Neg, neg);
 
@@ -1132,7 +1025,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, GenericDecimal, One};
+    use {CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
+
+    use super::{GenericDecimal, One};
     use fraction::GenericFraction;
     use prelude::Decimal;
     use std::hash::{Hash, Hasher};
