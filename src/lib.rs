@@ -78,44 +78,67 @@
 //! ## Construct:
 //!
 //! Fraction:
+//!
 //! ```
 //! use std::str::FromStr;
-//! use fraction::{Fraction, Sign};  // choose the type accordingly with your needs (see prelude module docs)
+//! use fraction::{Fraction, Sign};
 //!
-//! fn main() {
-//!     // There are several ways to construct a fraction, depending on your use case
+//! // fraction crate also re-exports num::{One, Zero} traits for convenience.
+//! use fraction::{One, Zero};
 //!
-//!     let f = Fraction::new(1u8, 2u8);  // constructs with numerator/denominator and normalizes the fraction (finds least common denominator)
-//!     assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());  // with numerator/denominator of different integer types
-//!     assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
-//!     assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
 //!
-//!     // Raw construct with no extra calculations.
-//!     // Most performant, but does not look for common denominator and may lead to unexpected results
-//!     // in following calculations. Only use if you are sure numerator/denominator are already normalized.
-//!     assert_eq!(f, Fraction::new_raw(1u64, 2u64));
-//! }
+//! // There are several ways to construct a fraction, depending on your use case
+//!
+//! // `new` - construct with numerator/denominator and normalize the fraction.
+//! // "Normalization" means it will always find the least common denominator
+//! // and convert the input accordingly.
+//! let f = Fraction::new(1u8, 2u8);
+//!
+//! // `new_generic` - construct with numerator/denominator of different integer types
+//! assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());
+//!
+//! // `from` - converts from primitive types such as i32 and f32.
+//! assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
+//!
+//! // `from_str` - tries parse a string fraction. Supports the usual decimal notation.
+//! assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
+//!
+//! // `from_str` - also supports _fraction_ notation such as "numerator/denominator" delimited by slash (`/`).
+//! assert_eq!(f, Fraction::from_str("1/2").unwrap());  // parse a string
+//!
+//! // `new_raw` - construct with numerator/denominator but do not normalize the fraction.
+//! // This is the most performant constructor, but does not calculate the common denominator,
+//! // so may lead to unexpected results in following calculations if the fraction is not normalised.
+//! // WARNING: Only use if you are sure numerator/denominator are already normalized.
+//! assert_eq!(f, Fraction::new_raw(1u64, 2u64));
+//!
+//! // `one` - implements num::One trait
+//! assert_eq!(f * 2, Fraction::one());
+//!
+//! // `zero` - implements num::Zero trait
+//! assert_eq!(f - f, Fraction::zero());
 //! ```
 //!
 //! Decimal:
 //! ```
 //! use std::str::FromStr;
-//! use fraction::{Decimal, Fraction};  // choose the type accordingly with your needs (see prelude module docs)
+//! use fraction::{Decimal, Fraction};
 //!
-//! fn main() {
-//!     // There are similar ways to construct Decimal. Underneath it is always represented as Fraction.
-//!     // When constructed, Decimal preserves its precision (number of digits after floating point).
-//!     // When two decimals are calculated, the result takes the biggest precision of both.
-//!     // The precision is used for visual representation (formatting and printing) and for comparison of two decimals.
-//!     // Precision is NOT used in any calculations. All calculations are lossless and implemented through Fraction.
-//!     // To override the precision use Decimal::set_precision.
+//! // There are similar ways to construct Decimal. Underneath it is always represented as Fraction.
+//! // When constructed, Decimal preserves its precision (number of digits after floating point).
+//! // When two decimals are calculated, the result takes the biggest precision of both.
+//! // The precision is used for visual representation (formatting and printing) and for comparison of two decimals.
+//! // Precision is NOT used in any calculations. All calculations are lossless and implemented through Fraction.
+//! // To override the precision use Decimal::set_precision.
 //!
-//!     let d = Decimal::from(1);  // from integer, precision = 0
-//!     assert_eq!(d, Decimal::from_fraction(Fraction::from(1))); // from fraction, precision is calculated from fraction
+//! let d = Decimal::from(1);  // from integer, precision = 0
+//! assert_eq!(d, Decimal::from_fraction(Fraction::from(1))); // from fraction, precision is calculated from fraction
 //!
-//!     let d = Decimal::from(1.3);  // from float (f32, f64)
-//!     assert_eq!(d, Decimal::from_str("1.3").unwrap());
-//! }
+//! let d = Decimal::from(1.3);  // from float (f32, f64)
+//! assert_eq!(d, Decimal::from_str("1.3").unwrap());
+//!
+//! let d = Decimal::from(0.5);  // from float (f32, f64)
+//! assert_eq!(d, Decimal::from_str("1/2").unwrap());
 //! ```
 //!
 //! ## Format (convert to string)
@@ -131,14 +154,32 @@
 //! assert_eq!(format!("{:#.3}", result), "1.750"); // to print leading zeroes, pass hash to the format
 //! ```
 //!
-//! ### Generic integer conversion
-//! ```
-//! use fraction::{Sign, GenericFraction};
+//! ## Convert into/from other types
 //!
-//! type F = GenericFraction<u32>;
+//! Both `fraction` and `decimal` types implement
+//!  - `from` and `try_into` for all built-in primitive types.
+//!  - `from` and `try_into` for `BigInt` and `BigUint` when `with-bigint` feature enabled.
 //!
-//! let fra = F::new_generic(Sign::Plus, 1i8, 42usize).unwrap();
-//! assert_eq!(fra, F::new(1u32, 42u32));
+//! ```rust
+//! use fraction::{Fraction, One, BigInt, BigUint};
+//! use std::convert::TryInto;
+//!
+//! // Convert from examples (from primitives always succeed)
+//! assert_eq!(Fraction::from(1i8), Fraction::one());
+//! assert_eq!(Fraction::from(1u8), Fraction::one());
+//! assert_eq!(Fraction::from(BigInt::one()), Fraction::one());
+//! assert_eq!(Fraction::from(BigUint::one()), Fraction::one());
+//! assert_eq!(Fraction::from(1f32), Fraction::one());
+//! assert_eq!(Fraction::from(1f64), Fraction::one());
+//!
+//!
+//! // Convert into examples (try_into returns Result<T, ()>)
+//! assert_eq!(Ok(1i8), Fraction::one().try_into());
+//! assert_eq!(Ok(1u8), Fraction::one().try_into());
+//! assert_eq!(Ok(BigInt::one()), Fraction::one().try_into());
+//! assert_eq!(Ok(BigUint::one()), Fraction::one().try_into());
+//! assert_eq!(Ok(1f32), Fraction::one().try_into());
+//! assert_eq!(Ok(1f64), Fraction::one().try_into());
 //! ```
 //!
 //! ### Postgres usage

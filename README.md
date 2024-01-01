@@ -58,20 +58,40 @@ Fraction:
 use std::str::FromStr;
 use fraction::{Fraction, Sign};
 
-fn main() {
-    // There are several ways to construct a fraction, depending on your use case
+// fraction crate also re-exports num::{One, Zero} traits for convenience.
+use fraction::{One, Zero};
 
-    let f = Fraction::new(1u8, 2u8);  // constructs with numerator/denominator and normalizes the fraction (finds least common denominator)
-    assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());  // with numerator/denominator of different integer types
-    assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
-    assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
-    assert_eq!(f, Fraction::from_str("1/2").unwrap());  // parse a string
 
-    // Raw construct with no extra calculations.
-    // Most performant, but does not look for common denominator and may lead to unexpected results
-    // in following calculations. Only use if you are sure numerator/denominator are already normalized.
-    assert_eq!(f, Fraction::new_raw(1u64, 2u64));
-}
+// There are several ways to construct a fraction, depending on your use case
+
+// `new` - construct with numerator/denominator and normalize the fraction.
+// "Normalization" means it will always find the least common denominator
+// and convert the input accordingly.
+let f = Fraction::new(1u8, 2u8);
+
+// `new_generic` - construct with numerator/denominator of different integer types
+assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());
+
+// `from` - converts from primitive types such as i32 and f32.
+assert_eq!(f, Fraction::from(0.5));  // convert from float (f32, f64)
+
+// `from_str` - tries parse a string fraction. Supports the usual decimal notation.
+assert_eq!(f, Fraction::from_str("0.5").unwrap());  // parse a string
+
+// `from_str` - also supports _fraction_ notation such as "numerator/denominator" delimited by slash (`/`).
+assert_eq!(f, Fraction::from_str("1/2").unwrap());  // parse a string
+
+// `new_raw` - construct with numerator/denominator but do not normalize the fraction.
+// This is the most performant constructor, but does not calculate the common denominator,
+// so may lead to unexpected results in following calculations if the fraction is not normalised.
+// WARNING: Only use if you are sure numerator/denominator are already normalized.
+assert_eq!(f, Fraction::new_raw(1u64, 2u64));
+
+// `one` - implements num::One trait
+assert_eq!(f * 2, Fraction::one());
+
+// `zero` - implements num::Zero trait
+assert_eq!(f - f, Fraction::zero());
 ```
 
 Decimal:
@@ -98,7 +118,37 @@ fn main() {
 }
 ```
 
-## Format (convert to string)
+## Convert into/from other types
+
+Both `fraction` and `decimal` types implement
+ - `from` and `try_into` for all built-in primitive types.
+ - `from` and `try_into` for `BigInt` and `BigUint` when `with-bigint` feature enabled.
+
+```rust
+use fraction::{Fraction, One, BigInt, BigUint};
+use std::convert::TryInto;
+
+
+// Convert from examples (from primitives always succeed)
+assert_eq!(Fraction::from(1i8), Fraction::one());
+assert_eq!(Fraction::from(1u8), Fraction::one());
+assert_eq!(Fraction::from(BigInt::one()), Fraction::one());
+assert_eq!(Fraction::from(BigUint::one()), Fraction::one());
+assert_eq!(Fraction::from(1f32), Fraction::one());
+assert_eq!(Fraction::from(1f64), Fraction::one());
+
+
+// Convert into examples (try_into returns Result<T, ()>)
+assert_eq!(Ok(1i8), Fraction::one().try_into());
+assert_eq!(Ok(1u8), Fraction::one().try_into());
+assert_eq!(Ok(BigInt::one()), Fraction::one().try_into());
+assert_eq!(Ok(BigUint::one()), Fraction::one().try_into());
+assert_eq!(Ok(1f32), Fraction::one().try_into());
+assert_eq!(Ok(1f64), Fraction::one().try_into());
+```
+
+
+### Format (convert to string)
 Formatting works the same for both Decimal and Fraction (Decimal uses Fraction internally).
 The format implementation closely follows the rust Format trait documentation.
 
@@ -111,7 +161,14 @@ assert_eq!(format!("{:.2}", result), "1.75");
 assert_eq!(format!("{:#.3}", result), "1.750");
 ```
 
-### Generic integer conversion
+### Generic integer constructor (construct with loose num/denom types)
+
+If you have `numerator` and `denominator` of two incompatible types,
+which cannot be implicitly casted to a single common type.
+E.g.
+ - numerator `i32`
+ - denominator `u32`
+
 ```rust
 use fraction::{Sign, GenericFraction};
 
