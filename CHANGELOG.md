@@ -1,9 +1,19 @@
 # Change Log
 
-## [0.x.0] - ??????????
+## [0.15.0] - 2024-01-01
 ### Added
- - GenericFraction try_from/try_into implementations for primitive types
- - GenericFraction try_from/try_into implementations for BigInt/BigUint
+ - GenericFraction try_from/try_into implementations for primitive types (u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64)
+ - GenericFraction try_from/try_into implementations for BigInt/BigUint ("with-bigint" feature)
+ - GenericDecimal try_from/try_into implementations for primitive types (u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64)
+ - GenericDecimal try_from/try_into implementations for BigInt/BigUint ("with-bigint" feature)
+ - Tests for all GenericDecimal ops (overloadable operators - std::ops)
+
+### Changed
+ - GenericDecimal ops (overloadable operators) refactoring. Each operator is now implemented separately in its own module, allowing decoupled code with its own optimisations and tests.
+
+### Fixed
+ - PartialOrd will now reuse Ord implementation where possible (refactor to make clippy happier)
+ - Fixed logic in `sub_assign` and `checked_sub` that could sometimes produce incorrect results for a couple of edge cases with a negative zero (`-0`) as an operand.
 
 ## [0.14.0] - 2023-09-27
 ### Added
