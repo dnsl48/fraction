@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
 use crate::fraction::GenericFraction;
-use std::{fmt, str};
 use crate::{error::ParseError, Sign};
 use num::rational::Ratio;
+use std::{fmt, str};
 use Integer;
 
-impl<T: Clone + Integer + Display> GenericFraction<T> {
+impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
     pub fn unicode_display(&self) -> impl fmt::Display + '_ {
         struct UnicodeDisplay<'a, T: Clone + Integer>(&'a GenericFraction<T>);
         impl<'a, T> fmt::Display for UnicodeDisplay<'a, T>
@@ -36,14 +36,21 @@ impl<T: Clone + Integer + Display> GenericFraction<T> {
         struct S<'a, T: Clone + Integer + fmt::Display>(&'a GenericFraction<T>);
         impl<'a, T> fmt::Display for S<'a, T>
         where
-            T: Clone + Integer + fmt::Display,
+            T: Clone + Integer + fmt::Display + From<u8>,
         {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 match &self.0 {
-                    GenericFraction::Rational(s, r) if r.fract() != *r  && !r.denom().is_one() => {
-                        write!(f, "{}{}\u{2064}{}⁄{}", s, r.trunc().numer(), r.fract().numer(), r.fract().denom())
+                    GenericFraction::Rational(s, r) if r.fract() != *r && !r.denom().is_one() => {
+                        write!(
+                            f,
+                            "{}{}\u{2064}{}⁄{}",
+                            s,
+                            r.trunc().numer(),
+                            r.fract().numer(),
+                            r.fract().denom()
+                        )
                     }
-                    _ => write!(f, "{}", self.0.unicode_display())
+                    _ => write!(f, "{}", self.0.unicode_display()),
                 }
             }
         }
@@ -55,7 +62,6 @@ impl<T: Clone + Integer + Display> GenericFraction<T> {
         let sign = if input.starts_with('-') {
             s = &input[1..];
             Sign::Minus
-            
         } else if input.starts_with('+') {
             s = &input[1..];
             Sign::Plus
@@ -65,20 +71,40 @@ impl<T: Clone + Integer + Display> GenericFraction<T> {
         };
         if s.to_lowercase().starts_with("nan") {
             Ok(GenericFraction::nan())
-        } else if s.starts_with("∞")
-            || s.starts_with("inf")
-            || s.starts_with("infty")
-        {
+        } else if s.starts_with("∞") || s.starts_with("inf") || s.starts_with("infty") {
             Ok(GenericFraction::Infinity(sign))
+        // vulgar fractions
+        } else if s.starts_with("½") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 2.into())))
+        } else if s.starts_with("¼") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 4.into())))
+        } else if s.starts_with("¾") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(3.into(), 4.into())))
+        } else if s.starts_with("⅐") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 7.into())))
+        } else if s.starts_with("⅑") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 9.into())))
+        } else if s.starts_with("⅒") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 10.into())))
+        } else if s.starts_with("⅓") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 3.into())))
+        } else if s.starts_with("⅔") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(2.into(), 3.into())))
+        } else if s.starts_with("⅕") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 5.into())))
+        } else if s.starts_with("⅖") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(2.into(), 5.into())))
+        } else if s.starts_with("⅗") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(3.into(), 5.into())))
+        } else if s.starts_with("⅘") {
+            Ok(GenericFraction::Rational(sign, Ratio::new_raw(4.into(), 5.into())))
         } else if let Some((first, denom_str)) = s.split_once(&['/', '⁄', '∕', '÷'][..]) {
             // also allow for mixed fractions to be parsed: `1⁤1⁄2`
             // allowed invisible separators: \u{2064} \u{2063}
             // '+' is disallowed, bc it would be confusing with -1+1/2
             let mut numer: T;
             let denom: T;
-            if let Some((trunc_str, numer_str)) =
-                first.split_once(&['\u{2064}', '\u{2063}'][..])
-            {
+            if let Some((trunc_str, numer_str)) = first.split_once(&['\u{2064}', '\u{2063}'][..]) {
                 let Ok(n) = T::from_str_radix(numer_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
@@ -102,18 +128,12 @@ impl<T: Clone + Integer + Display> GenericFraction<T> {
                 };
                 denom = d;
             }
-            Ok(GenericFraction::Rational(
-                sign,
-                Ratio::new(numer, denom),
-            ))
+            Ok(GenericFraction::Rational(sign, Ratio::new(numer, denom)))
         } else {
             let Ok(val) = T::from_str_radix(&s, 10) else {
                 return Err(ParseError::ParseIntError);
             };
-            Ok(GenericFraction::Rational(
-                sign,
-                Ratio::new(val, T::one()),
-            ))
+            Ok(GenericFraction::Rational(sign, Ratio::new(val, T::one())))
         }
     }
 }
@@ -123,9 +143,7 @@ mod tests {
 
     use num::{One, Zero};
 
-    use crate::{
-        error::ParseError, Fraction,
-    };
+    use crate::{error::ParseError, Fraction};
 
     #[test]
     fn test_fromto_str() {
@@ -141,6 +159,7 @@ mod tests {
             ("-1⁄2", Fraction::new_neg(1u8, 2u8)),
             ("3⁄2", Fraction::new(3u8, 2u8)),
             ("-3⁄2", Fraction::new_neg(3u8, 2u8)),
+            ("12⁄23", Fraction::new(12u8, 23u8)),
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
@@ -151,7 +170,78 @@ mod tests {
     }
 
     #[test]
-    fn test_fromto_str_mixed() {
+    fn test_alternate_parse() {
+        let test_vec = vec![
+            ("nan", Fraction::nan()),
+            ("+∞", Fraction::infinity()),
+            ("+1", Fraction::one()),
+            ("+5", Fraction::from(5)),
+            // vulgar fractions
+            ("½",  Fraction::new    (1u8, 2u8)),
+            ("-½", Fraction::new_neg(1u8, 2u8)),
+            ("+½", Fraction::new    (1u8, 2u8)),
+            ("¼",  Fraction::new    (1u8, 4u8)),
+            ("-¼", Fraction::new_neg(1u8, 4u8)),
+            ("+¼", Fraction::new    (1u8, 4u8)),
+            ("¾",  Fraction::new    (3u8, 4u8)),
+            ("-¾", Fraction::new_neg(3u8, 4u8)),
+            ("+¾", Fraction::new    (3u8, 4u8)),
+            ("⅐",  Fraction::new    (1u8, 7u8)),
+            ("-⅐", Fraction::new_neg(1u8, 7u8)),
+            ("+⅐", Fraction::new    (1u8, 7u8)),
+            ("⅑",  Fraction::new    (1u8, 9u8)),
+            ("-⅑", Fraction::new_neg(1u8, 9u8)),
+            ("+⅑", Fraction::new    (1u8, 9u8)),
+            ("⅒",  Fraction::new    (1u8, 10u8)),
+            ("-⅒", Fraction::new_neg(1u8, 10u8)),
+            ("+⅒", Fraction::new    (1u8, 10u8)),
+            ("⅓",  Fraction::new    (1u8, 3u8)),
+            ("-⅓", Fraction::new_neg(1u8, 3u8)),
+            ("+⅓", Fraction::new    (1u8, 3u8)),
+            ("⅔",  Fraction::new    (2u8, 3u8)),
+            ("-⅔", Fraction::new_neg(2u8, 3u8)),
+            ("+⅔", Fraction::new    (2u8, 3u8)),
+            ("⅕",  Fraction::new    (1u8, 5u8)),
+            ("-⅕", Fraction::new_neg(1u8, 5u8)),
+            ("+⅕", Fraction::new    (1u8, 5u8)),
+            ("⅖",  Fraction::new    (2u8, 5u8)),
+            ("-⅖", Fraction::new_neg(2u8, 5u8)),
+            ("+⅖", Fraction::new    (2u8, 5u8)),
+            ("⅗",  Fraction::new    (3u8, 5u8)),
+            ("-⅗", Fraction::new_neg(3u8, 5u8)),
+            ("+⅗", Fraction::new    (3u8, 5u8)),
+            ("⅘",  Fraction::new    (4u8, 5u8)),
+            ("-⅘", Fraction::new_neg(4u8, 5u8)),
+            ("+⅘", Fraction::new    (4u8, 5u8)),
+            // ("¹⁄₃", Fraction::new(1u8, 3u8)),
+        ];
+        for (string, frac) in test_vec {
+            println!("{} ?= {}", string, frac);
+            assert_eq!(Fraction::unicode_parse(string), Ok(frac));
+            // println!("{} ?= {}", string, frac);
+            // assert_eq!(format!("{}", frac.unicode_display()), string);
+        }
+    }
+
+    #[test]
+    fn test_fromto_supsub() {
+        let test_vec = vec![
+            // super/subscript
+            ("¹/₃", Fraction::new(1u8,3u8)),
+            ("¹²/₂₃", Fraction::new(12u8,23u8)),
+        ];
+    }
+
+    #[test]
+    fn test_fromto_supsub_mixed() {
+        let test_vec = vec![
+            // super/subscript mixed
+            ("1¹/₂", Fraction::new(3u8,2u8)),
+        ];
+    }
+
+    #[test]
+    fn test_fromto_mixed() {
         let test_vec = vec![
             ("NaN", Fraction::nan()),
             ("∞", Fraction::infinity()),
@@ -160,10 +250,6 @@ mod tests {
             ("1", Fraction::one()),
             ("-1", -Fraction::one()),
             ("5", Fraction::from(5)),
-            // ("nan", Fraction::nan()),
-            // ("+∞", Fraction::infinity()),
-            // ("+1", Fraction::one()),
-            // ("+5", Fraction::from(5)),
             ("1\u{2064}1⁄2", Fraction::new(3u8, 2u8)),
             // ("1⁣1⁄2", Fraction::new(3u8, 2u8)),
             ("-1\u{2064}1⁄2", Fraction::new_neg(3u8, 2u8)),
@@ -188,28 +274,21 @@ mod tests {
             "1⁤1⁄2BOGUS",
             "1⁣1⁄2BOGUS",
             "-1⁤1⁄2BOGUS",
-            "1⁢1⁄2" // uses INVISIBLE_TIMES
+            "1⁢1⁄2", // uses INVISIBLE_TIMES
         ];
         for s in test_vec {
             println!("{}", s);
-            assert_eq!(
-                Fraction::unicode_parse(s),
-                Err(ParseError::ParseIntError)
-            )
+            assert_eq!(Fraction::unicode_parse(s), Err(ParseError::ParseIntError))
         }
     }
 
     #[test]
     fn test_fromstr_fraction_ops() {
-        let test_vec = vec![
-            "1",
-            "1/2",
-            "3/2",
-        ];
+        let test_vec = vec!["1", "1/2", "3/2"];
         for s in test_vec {
             let f = Fraction::unicode_parse(s).unwrap();
-            assert_eq!(f*Fraction::one(), f);
-            assert_eq!(f+Fraction::zero(), f);
+            assert_eq!(f * Fraction::one(), f);
+            assert_eq!(f + Fraction::zero(), f);
         }
     }
 }
