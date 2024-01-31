@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::fraction::GenericFraction;
 use crate::{error::ParseError, Sign};
 use num::rational::Ratio;
+use num::Zero;
 use std::{fmt, str};
 use Integer;
 
@@ -75,44 +76,144 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
             Ok(GenericFraction::Infinity(sign))
         // vulgar fractions
         } else if s.starts_with("½") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 2.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 2.into()),
+            ))
         } else if s.starts_with("¼") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 4.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 4.into()),
+            ))
         } else if s.starts_with("¾") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(3.into(), 4.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(3.into(), 4.into()),
+            ))
         } else if s.starts_with("⅐") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 7.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 7.into()),
+            ))
         } else if s.starts_with("⅑") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 9.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 9.into()),
+            ))
         } else if s.starts_with("⅒") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 10.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 10.into()),
+            ))
         } else if s.starts_with("⅓") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 3.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 3.into()),
+            ))
         } else if s.starts_with("⅔") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(2.into(), 3.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(2.into(), 3.into()),
+            ))
         } else if s.starts_with("⅕") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(1.into(), 5.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(1.into(), 5.into()),
+            ))
         } else if s.starts_with("⅖") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(2.into(), 5.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(2.into(), 5.into()),
+            ))
         } else if s.starts_with("⅗") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(3.into(), 5.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(3.into(), 5.into()),
+            ))
         } else if s.starts_with("⅘") {
-            Ok(GenericFraction::Rational(sign, Ratio::new_raw(4.into(), 5.into())))
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new_raw(4.into(), 5.into()),
+            ))
         } else if let Some((first, denom_str)) = s.split_once(&['/', '⁄', '∕', '÷'][..]) {
+            let mut numer: T;
+            let denom: T;
+            // allow for mixed fractions of the shape 1²/₃
+            if let Some(idx) =
+                first.find(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '⁰'][..])
+            {
+                println!("Supsub! {}", first);
+                let trunc = if idx.is_zero() {
+                    T::zero()
+                } else {
+                    let Ok(t) = T::from_str_radix(&first[..idx], 10) else {
+                        return Err(ParseError::ParseIntError);
+                    };
+                    t
+                };
+
+                let Ok(n) = T::from_str_radix(
+                    &first[idx..]
+                        .chars()
+                        .map(|c| match c {
+                            '¹' => '1',
+                            '²' => '2',
+                            '³' => '3',
+                            '⁴' => '4',
+                            '⁵' => '5',
+                            '⁶' => '6',
+                            '⁷' => '7',
+                            '⁸' => '8',
+                            '⁹' => '9',
+                            '⁰' => '0',
+                            _ => '?',
+                        })
+                        .collect::<String>(),
+                    10,
+                ) else {
+                    return Err(ParseError::ParseIntError);
+                };
+                numer = n;
+                println!("numer: {}", &numer);
+                let Ok(d) = T::from_str_radix(
+                    // let n = 
+                    &denom_str
+                        .chars()
+                        .map(|c| match c {
+                            '₁' => '1',
+                            '₂' => '2',
+                            '₃' => '3',
+                            '₄' => '4',
+                            '₅' => '5',
+                            '₆' => '6',
+                            '₇' => '7',
+                            '₈' => '8',
+                            '₉' => '9',
+                            '₀' => '0',
+                            c => c,
+                        })
+                        .collect::<String>(),
+                    10,
+                ) else {
+                    return Err(ParseError::ParseIntError);
+                };
+                println!("denom: {}", d);
+                denom = d;
+                numer = numer + trunc * denom.clone();
+            } else
             // also allow for mixed fractions to be parsed: `1⁤1⁄2`
             // allowed invisible separators: \u{2064} \u{2063}
             // '+' is disallowed, bc it would be confusing with -1+1/2
-            let mut numer: T;
-            let denom: T;
-            if let Some((trunc_str, numer_str)) = first.split_once(&['\u{2064}', '\u{2063}'][..]) {
+            if let Some((trunc_str, numer_str)) =
+                first.split_once(&['\u{2064}', '\u{2063}'][..])
+            {
                 let Ok(n) = T::from_str_radix(numer_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
                 numer = n;
-                let Ok(t) = T::from_str_radix(trunc_str, 10) else {
+                let Ok(trunc) = T::from_str_radix(trunc_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
-                let trunc = t;
                 let Ok(d) = T::from_str_radix(denom_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
@@ -177,42 +278,42 @@ mod tests {
             ("+1", Fraction::one()),
             ("+5", Fraction::from(5)),
             // vulgar fractions
-            ("½",  Fraction::new    (1u8, 2u8)),
+            ("½", Fraction::new(1u8, 2u8)),
             ("-½", Fraction::new_neg(1u8, 2u8)),
-            ("+½", Fraction::new    (1u8, 2u8)),
-            ("¼",  Fraction::new    (1u8, 4u8)),
+            ("+½", Fraction::new(1u8, 2u8)),
+            ("¼", Fraction::new(1u8, 4u8)),
             ("-¼", Fraction::new_neg(1u8, 4u8)),
-            ("+¼", Fraction::new    (1u8, 4u8)),
-            ("¾",  Fraction::new    (3u8, 4u8)),
+            ("+¼", Fraction::new(1u8, 4u8)),
+            ("¾", Fraction::new(3u8, 4u8)),
             ("-¾", Fraction::new_neg(3u8, 4u8)),
-            ("+¾", Fraction::new    (3u8, 4u8)),
-            ("⅐",  Fraction::new    (1u8, 7u8)),
+            ("+¾", Fraction::new(3u8, 4u8)),
+            ("⅐", Fraction::new(1u8, 7u8)),
             ("-⅐", Fraction::new_neg(1u8, 7u8)),
-            ("+⅐", Fraction::new    (1u8, 7u8)),
-            ("⅑",  Fraction::new    (1u8, 9u8)),
+            ("+⅐", Fraction::new(1u8, 7u8)),
+            ("⅑", Fraction::new(1u8, 9u8)),
             ("-⅑", Fraction::new_neg(1u8, 9u8)),
-            ("+⅑", Fraction::new    (1u8, 9u8)),
-            ("⅒",  Fraction::new    (1u8, 10u8)),
+            ("+⅑", Fraction::new(1u8, 9u8)),
+            ("⅒", Fraction::new(1u8, 10u8)),
             ("-⅒", Fraction::new_neg(1u8, 10u8)),
-            ("+⅒", Fraction::new    (1u8, 10u8)),
-            ("⅓",  Fraction::new    (1u8, 3u8)),
+            ("+⅒", Fraction::new(1u8, 10u8)),
+            ("⅓", Fraction::new(1u8, 3u8)),
             ("-⅓", Fraction::new_neg(1u8, 3u8)),
-            ("+⅓", Fraction::new    (1u8, 3u8)),
-            ("⅔",  Fraction::new    (2u8, 3u8)),
+            ("+⅓", Fraction::new(1u8, 3u8)),
+            ("⅔", Fraction::new(2u8, 3u8)),
             ("-⅔", Fraction::new_neg(2u8, 3u8)),
-            ("+⅔", Fraction::new    (2u8, 3u8)),
-            ("⅕",  Fraction::new    (1u8, 5u8)),
+            ("+⅔", Fraction::new(2u8, 3u8)),
+            ("⅕", Fraction::new(1u8, 5u8)),
             ("-⅕", Fraction::new_neg(1u8, 5u8)),
-            ("+⅕", Fraction::new    (1u8, 5u8)),
-            ("⅖",  Fraction::new    (2u8, 5u8)),
+            ("+⅕", Fraction::new(1u8, 5u8)),
+            ("⅖", Fraction::new(2u8, 5u8)),
             ("-⅖", Fraction::new_neg(2u8, 5u8)),
-            ("+⅖", Fraction::new    (2u8, 5u8)),
-            ("⅗",  Fraction::new    (3u8, 5u8)),
+            ("+⅖", Fraction::new(2u8, 5u8)),
+            ("⅗", Fraction::new(3u8, 5u8)),
             ("-⅗", Fraction::new_neg(3u8, 5u8)),
-            ("+⅗", Fraction::new    (3u8, 5u8)),
-            ("⅘",  Fraction::new    (4u8, 5u8)),
+            ("+⅗", Fraction::new(3u8, 5u8)),
+            ("⅘", Fraction::new(4u8, 5u8)),
             ("-⅘", Fraction::new_neg(4u8, 5u8)),
-            ("+⅘", Fraction::new    (4u8, 5u8)),
+            ("+⅘", Fraction::new(4u8, 5u8)),
             // ("¹⁄₃", Fraction::new(1u8, 3u8)),
         ];
         for (string, frac) in test_vec {
@@ -227,17 +328,30 @@ mod tests {
     fn test_fromto_supsub() {
         let test_vec = vec![
             // super/subscript
-            ("¹/₃", Fraction::new(1u8,3u8)),
-            ("¹²/₂₃", Fraction::new(12u8,23u8)),
+            ("¹²/₂₃", Fraction::new(12u8, 23u8)),
+            ("¹²³⁴⁵⁶⁷⁸⁹⁰/₂₃", Fraction::new(1234567890u64, 23u8)),
+            ("¹²/₁₂₃₄₅₆₇₈₉₀", Fraction::new(12u8, 1234567890u64)),
         ];
+        for (string, frac) in test_vec {
+            println!("{} ?= {}", string, frac);
+            assert_eq!(Fraction::unicode_parse(string), Ok(frac));
+            // println!("{} ?= {}", string, frac);
+            // assert_eq!(format!("{}", frac.unicode_display()), string);
+        }
     }
 
     #[test]
     fn test_fromto_supsub_mixed() {
         let test_vec = vec![
             // super/subscript mixed
-            ("1¹/₂", Fraction::new(3u8,2u8)),
+            ("1¹/₂", Fraction::new(3u8, 2u8)),
         ];
+        for (string, frac) in test_vec {
+            println!("{} ?= {}", string, frac);
+            assert_eq!(Fraction::unicode_parse(string), Ok(frac));
+            // println!("{} ?= {}", string, frac);
+            // assert_eq!(format!("{}", frac.unicode_display()), string);
+        }
     }
 
     #[test]
