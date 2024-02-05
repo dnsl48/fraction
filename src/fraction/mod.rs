@@ -5,7 +5,9 @@ pub use self::sign::Sign;
 pub mod approx;
 
 pub mod display;
-mod unicode_fromto_str;
+
+#[cfg(feature = "with-unicode")]
+mod unicode_str_io;
 
 #[cfg(feature = "with-juniper-support")]
 pub mod juniper_support;

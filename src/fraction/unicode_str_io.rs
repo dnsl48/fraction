@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::fraction::GenericFraction;
 use crate::{error::ParseError, Sign};
 use num::rational::Ratio;
@@ -7,67 +5,50 @@ use num::Zero;
 use std::{fmt, str};
 use Integer;
 
-impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
-    /// Display the fraction using FRACTION SLASH '\u{2044}' '⁄'
-    /// If you have font support, this is the way Unicode wants to display fractions
-    /// ```
-    /// use fraction::Fraction;
-    /// assert_eq!(
-    ///   format!("{}", Fraction::new(1u8,2u8).display_unicode()),
-    ///   "1⁄2"
-    /// );
-    /// assert_eq!(
-    ///   format!("{}", Fraction::new(3u8,2u8).display_unicode()),
-    ///   "3⁄2"
-    /// );
-    /// ```
-    pub fn display_unicode(&self) -> impl fmt::Display + '_ {
-        struct UnicodeDisplay<'a, T: Clone + Integer>(&'a GenericFraction<T>);
-        impl<'a, T> fmt::Display for UnicodeDisplay<'a, T>
-        where
-            T: Clone + Integer + fmt::Display,
-        {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match &self.0 {
-                    GenericFraction::NaN => write!(f, "NaN"),
-                    GenericFraction::Infinity(s) => {
-                        write!(f, "{}∞", s)
-                    }
-                    GenericFraction::Rational(s, r) => {
-                        write!(f, "{}{}", s, r.numer())?;
-                        if !r.denom().is_one() {
-                            write!(f, "⁄{}", r.denom())?;
-                        }
-                        Ok(())
-                    }
+pub struct UnicodeDisplay<'a, T: Clone + Integer>(&'a GenericFraction<T>);
+pub struct SupSubDisplay<'a, T: Clone + Integer>(&'a UnicodeDisplay<'a, T>);
+
+impl<'a, T> fmt::Display for UnicodeDisplay<'a, T>
+where
+    T: Clone + Integer + fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            GenericFraction::NaN => write!(f, "NaN"),
+            GenericFraction::Infinity(s) => {
+                write!(f, "{}∞", s)
+            }
+            GenericFraction::Rational(s, r) => {
+                write!(f, "{}{}", s, r.numer())?;
+                if !r.denom().is_one() {
+                    write!(f, "⁄{}", r.denom())?;
                 }
+                Ok(())
             }
         }
-        UnicodeDisplay(self)
     }
+}
 
+impl<'a, T: Clone + Integer + fmt::Display> UnicodeDisplay<'a, T> {
     /// Display the fraction using FRACTION SLASH '\u{2044}' '⁄' as a mixed fraction e.g. "1⁤1⁄2"
     /// Will put INVISIBLE PLUS '\u{2064}' as a separator '⁤'
     /// If you have font support, this is the way Unicode wants to display fractions
     /// ```
     /// use fraction::Fraction;
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(1u8,2u8).display_unicode_mixed()),
+    ///   format!("{}", Fraction::new(1u8,2u8).get_unicode_display().mixed()),
     ///   "1⁄2"
     /// );
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(3u8,2u8).display_unicode_mixed()),
+    ///   format!("{}", Fraction::new(3u8,2u8).get_unicode_display().mixed()),
     ///   "1⁤1⁄2"
     /// );
     /// ```
-    pub fn display_unicode_mixed(&self) -> impl Display + '_ {
-        struct S<'a, T: Clone + Integer + fmt::Display>(&'a GenericFraction<T>);
-        impl<'a, T> fmt::Display for S<'a, T>
-        where
-            T: Clone + Integer + fmt::Display + From<u8>,
-        {
+    pub fn mixed(&self) -> impl fmt::Display + '_ {
+        struct D<'a, T: Clone + Integer + fmt::Display>(&'a UnicodeDisplay<'a, T>);
+        impl<'a, T: Clone + Integer + fmt::Display> fmt::Display for D<'a, T> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match &self.0 {
+                match &self.0 .0 {
                     GenericFraction::Rational(s, r) if r.fract() != *r && !r.denom().is_one() => {
                         write!(
                             f,
@@ -78,11 +59,11 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
                             r.fract().denom()
                         )
                     }
-                    _ => write!(f, "{}", self.0.display_unicode()),
+                    _ => write!(f, "{}", self.0),
                 }
             }
         }
-        S(self)
+        D(self)
     }
 
     /// Display the fraction using super/subscript
@@ -90,91 +71,38 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
     /// ```
     /// use fraction::Fraction;
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(1u8,2u8).display_supsub()),
+    ///   format!("{}", Fraction::new(1u8,2u8).get_unicode_display().supsub()),
     ///   "¹/₂"
     /// );
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(3u8,2u8).display_supsub()),
+    ///   format!("{}", Fraction::new(3u8,2u8).get_unicode_display().supsub()),
     ///   "³/₂"
     /// );
     /// ```
-    pub fn display_supsub(&self) -> impl Display + '_ {
-        struct S<'a, T: Clone + Integer + fmt::Display>(&'a GenericFraction<T>);
-        impl<'a, T> fmt::Display for S<'a, T>
-        where
-            T: Clone + Integer + fmt::Display + From<u8>,
-        {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match &self.0 {
-                    GenericFraction::Rational(s, r) => {
-                        write!(
-                            f,
-                            "{}{}/{}",
-                            s,
-                            r.numer()
-                                .to_string()
-                                .chars()
-                                .map(|c| match c {
-                                    '1' => '¹',
-                                    '2' => '²',
-                                    '3' => '³',
-                                    '4' => '⁴',
-                                    '5' => '⁵',
-                                    '6' => '⁶',
-                                    '7' => '⁷',
-                                    '8' => '⁸',
-                                    '9' => '⁹',
-                                    '0' => '⁰',
-                                    _ => '?',
-                                })
-                                .collect::<String>(),
-                            r.denom()
-                                .to_string()
-                                .chars()
-                                .map(|c| match c {
-                                    '1' => '₁',
-                                    '2' => '₂',
-                                    '3' => '₃',
-                                    '4' => '₄',
-                                    '5' => '₅',
-                                    '6' => '₆',
-                                    '7' => '₇',
-                                    '8' => '₈',
-                                    '9' => '₉',
-                                    '0' => '₀',
-                                    c => c,
-                                })
-                                .collect::<String>(),
-                        )
-                    }
-                    _ => write!(f, "{}", self.0.display_unicode()),
-                }
-            }
-        }
-        S(self)
+    pub fn supsub(&'a self) -> SupSubDisplay<'a, T> {
+        SupSubDisplay(self)
     }
+}
 
+impl<'a, T: Clone + Integer + fmt::Display> SupSubDisplay<'a, T> {
     /// Display the fraction as a mixed fraction using super/subscript e.g. "1¹/₂"
     /// This will look OK without font support
     /// ```
     /// use fraction::Fraction;
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(1u8,2u8).display_supsub_mixed()),
+    ///   format!("{}", Fraction::new(1u8,2u8).get_unicode_display().supsub().mixed()),
     ///   "¹/₂"
     /// );
     /// assert_eq!(
-    ///   format!("{}", Fraction::new(3u8,2u8).display_supsub_mixed()),
+    ///   format!("{}", Fraction::new(3u8,2u8).get_unicode_display().supsub().mixed()),
     ///   "1¹/₂"
     /// );
     /// ```
-    pub fn display_supsub_mixed(&self) -> impl Display + '_ {
-        struct S<'a, T: Clone + Integer + fmt::Display>(&'a GenericFraction<T>);
-        impl<'a, T> fmt::Display for S<'a, T>
-        where
-            T: Clone + Integer + fmt::Display + From<u8>,
-        {
+    pub fn mixed(&self) -> impl fmt::Display + '_ {
+        struct D<'a, T: Clone + Integer + fmt::Display>(&'a SupSubDisplay<'a, T>);
+        impl<'a, T: Clone + Integer + fmt::Display> fmt::Display for D<'a, T> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match &self.0 {
+                match &self.0 .0 .0 {
                     GenericFraction::Rational(s, r) if r.fract() != *r && !r.denom().is_one() => {
                         write!(
                             f,
@@ -182,20 +110,91 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
                             s,
                             r.trunc().numer(),
                             GenericFraction::Rational(Sign::Plus, r.fract().clone())
-                                .display_supsub()
+                                .get_unicode_display()
+                                .supsub()
                         )
                     }
-                    _ => write!(f, "{}", self.0.display_supsub()),
+                    _ => write!(f, "{}", self.0),
                 }
             }
         }
-        S(self)
+        D(self)
     }
+}
 
+impl<'a, T: Clone + Integer + fmt::Display> fmt::Display for SupSubDisplay<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 .0 {
+            GenericFraction::Rational(s, r) => {
+                write!(
+                    f,
+                    "{}{}/{}",
+                    s,
+                    r.numer()
+                        .to_string()
+                        .chars()
+                        .map(|c| match c {
+                            '1' => '¹',
+                            '2' => '²',
+                            '3' => '³',
+                            '4' => '⁴',
+                            '5' => '⁵',
+                            '6' => '⁶',
+                            '7' => '⁷',
+                            '8' => '⁸',
+                            '9' => '⁹',
+                            '0' => '⁰',
+                            _ => '?',
+                        })
+                        .collect::<String>(),
+                    r.denom()
+                        .to_string()
+                        .chars()
+                        .map(|c| match c {
+                            '1' => '₁',
+                            '2' => '₂',
+                            '3' => '₃',
+                            '4' => '₄',
+                            '5' => '₅',
+                            '6' => '₆',
+                            '7' => '₇',
+                            '8' => '₈',
+                            '9' => '₉',
+                            '0' => '₀',
+                            c => c,
+                        })
+                        .collect::<String>(),
+                )
+            }
+            _ => write!(f, "{}", self.0),
+        }
+    }
+}
+
+impl<T: Clone + Integer + fmt::Display> GenericFraction<T> {
+    /// Display the fraction using FRACTION SLASH '\u{2044}' '⁄'
+    /// If you have font support, this is the way Unicode wants to display fractions
+    /// ```
+    /// use fraction::Fraction;
+    /// assert_eq!(
+    ///   format!("{}", Fraction::new(1u8,2u8).get_unicode_display()),
+    ///   "1⁄2"
+    /// );
+    /// assert_eq!(
+    ///   format!("{}", Fraction::new(3u8,2u8).get_unicode_display()),
+    ///   "3⁄2"
+    /// );
+    /// ```
+    pub fn get_unicode_display(&self) -> UnicodeDisplay<'_, T> {
+        UnicodeDisplay(self)
+    }
+}
+
+impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
     /// Parse a unicode string
     /// The string can be:
     /// - A normal fraction e.g. "1/2"
-    /// - A vulgar fraction e.g. "½"
+    /// - A vulgar fraction e.g. '½'
     /// - ~A mixed vulgar fraction "1½"~
     /// - A unicode fraction e.g. "1⁄2" where '⁄' can be any of:
     ///   - '/' ASCII SOLIDUS
@@ -228,16 +227,16 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
     ///  ("-1¹/₂", Fraction::new_neg(3u8,2u8)),
     /// ];
     /// for (f_str, f) in v {
-    ///   assert_eq!(Fraction::parse_unicode(f_str), Ok(f))
+    ///   assert_eq!(Fraction::from_unicode_str(f_str), Ok(f))
     /// }
     /// ```
-    pub fn parse_unicode(input: &str) -> Result<Self, ParseError> {
+    pub fn from_unicode_str(input: &str) -> Result<Self, ParseError> {
         let s: &str;
         let sign = if input.starts_with('-') {
-            s = &input[1..];
+            s = &input.strip_prefix('-').unwrap();
             Sign::Minus
         } else if input.starts_with('+') {
-            s = &input[1..];
+            s = &input.strip_prefix('+').unwrap();
             Sign::Plus
         } else {
             s = input;
@@ -245,65 +244,65 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
         };
         if s.to_lowercase().starts_with("nan") {
             Ok(GenericFraction::nan())
-        } else if s.starts_with("∞") || s.starts_with("inf") || s.starts_with("infty") {
+        } else if s.starts_with('∞') || s.starts_with("inf") || s.starts_with("infty") {
             Ok(GenericFraction::Infinity(sign))
         // vulgar fractions
-        } else if s.starts_with("½") {
+        } else if s.starts_with('½') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 2.into()),
             ))
-        } else if s.starts_with("¼") {
+        } else if s.starts_with('¼') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 4.into()),
             ))
-        } else if s.starts_with("¾") {
+        } else if s.starts_with('¾') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(3.into(), 4.into()),
             ))
-        } else if s.starts_with("⅐") {
+        } else if s.starts_with('⅐') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 7.into()),
             ))
-        } else if s.starts_with("⅑") {
+        } else if s.starts_with('⅑') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 9.into()),
             ))
-        } else if s.starts_with("⅒") {
+        } else if s.starts_with('⅒') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 10.into()),
             ))
-        } else if s.starts_with("⅓") {
+        } else if s.starts_with('⅓') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 3.into()),
             ))
-        } else if s.starts_with("⅔") {
+        } else if s.starts_with('⅔') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(2.into(), 3.into()),
             ))
-        } else if s.starts_with("⅕") {
+        } else if s.starts_with('⅕') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(1.into(), 5.into()),
             ))
-        } else if s.starts_with("⅖") {
+        } else if s.starts_with('⅖') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(2.into(), 5.into()),
             ))
-        } else if s.starts_with("⅗") {
+        } else if s.starts_with('⅗') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(3.into(), 5.into()),
             ))
-        } else if s.starts_with("⅘") {
+        } else if s.starts_with('⅘') {
             Ok(GenericFraction::Rational(
                 sign,
                 Ratio::new_raw(4.into(), 5.into()),
@@ -375,11 +374,10 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
                     sign,
                     Ratio::new(numer + trunc * denom.clone(), denom),
                 ))
-            } else
-            // also allow for mixed fractions to be parsed: `1⁤1⁄2`
-            // allowed invisible separators: \u{2064} \u{2063}
-            // '+' is disallowed, bc it would be confusing with -1+1/2
-            if let Some((trunc_str, numer_str)) =
+            } else if let Some((trunc_str, numer_str)) =
+                // also allow for mixed fractions to be parsed: `1⁤1⁄2`
+                // allowed invisible separators: \u{2064} \u{2063}
+                // '+' is disallowed, bc it would be confusing with -1+1/2
                 first.split_once(&['\u{2064}', '\u{2063}'][..])
             {
                 let Ok(numer) = T::from_str_radix(numer_str, 10) else {
@@ -396,7 +394,7 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
                     Ratio::new(numer + trunc * denom.clone(), denom),
                 ))
             } else {
-                let Ok(numer) = T::from_str_radix(&first, 10) else {
+                let Ok(numer) = T::from_str_radix(first, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
 
@@ -407,7 +405,7 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
                 Ok(GenericFraction::Rational(sign, Ratio::new(numer, denom)))
             }
         } else {
-            let Ok(val) = T::from_str_radix(&s, 10) else {
+            let Ok(val) = T::from_str_radix(s, 10) else {
                 return Err(ParseError::ParseIntError);
             };
             Ok(GenericFraction::Rational(sign, Ratio::new(val, T::one())))
@@ -418,9 +416,8 @@ impl<T: Clone + Integer + Display + From<u8>> GenericFraction<T> {
 #[cfg(test)]
 mod tests {
 
-    use num::{One, Zero};
-
     use crate::{error::ParseError, Fraction};
+    use num::{One, Zero};
 
     #[test]
     fn test_fromto_str() {
@@ -440,9 +437,9 @@ mod tests {
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
-            assert_eq!(Fraction::parse_unicode(string), Ok(frac));
+            assert_eq!(Fraction::from_unicode_str(string), Ok(frac));
             println!("{} ?= {}", string, frac);
-            assert_eq!(format!("{}", frac.display_unicode()), string);
+            assert_eq!(format!("{}", frac.get_unicode_display()), string);
         }
     }
 
@@ -496,9 +493,9 @@ mod tests {
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
-            assert_eq!(Fraction::parse_unicode(string), Ok(frac));
+            assert_eq!(Fraction::from_unicode_str(string), Ok(frac));
             // println!("{} ?= {}", string, frac);
-            // assert_eq!(format!("{}", frac.display_unicode()), string);
+            // assert_eq!(format!("{}", frac.get_unicode_display()), string);
         }
     }
 
@@ -512,9 +509,9 @@ mod tests {
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
-            assert_eq!(Fraction::parse_unicode(string), Ok(frac));
+            assert_eq!(Fraction::from_unicode_str(string), Ok(frac));
             println!("{} ?= {}", string, frac);
-            assert_eq!(format!("{}", frac.display_supsub()), string);
+            assert_eq!(format!("{}", frac.get_unicode_display().supsub()), string);
         }
     }
 
@@ -527,9 +524,12 @@ mod tests {
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
-            assert_eq!(Fraction::parse_unicode(string), Ok(frac));
+            assert_eq!(Fraction::from_unicode_str(string), Ok(frac));
             println!("{} ?= {}", string, frac);
-            assert_eq!(format!("{}", frac.display_supsub_mixed()), string);
+            assert_eq!(
+                format!("{}", frac.get_unicode_display().supsub().mixed()),
+                string
+            );
         }
     }
 
@@ -551,9 +551,9 @@ mod tests {
         ];
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
-            let f_test = Fraction::parse_unicode(string);
+            let f_test = Fraction::from_unicode_str(string);
             assert_eq!(f_test, Ok(frac));
-            assert_eq!(format!("{}", frac.display_unicode_mixed()), string);
+            assert_eq!(format!("{}", frac.get_unicode_display().mixed()), string);
         }
     }
 
@@ -573,7 +573,10 @@ mod tests {
         ];
         for s in test_vec {
             println!("{}", s);
-            assert_eq!(Fraction::parse_unicode(s), Err(ParseError::ParseIntError))
+            assert_eq!(
+                Fraction::from_unicode_str(s),
+                Err(ParseError::ParseIntError)
+            )
         }
     }
 
@@ -581,7 +584,7 @@ mod tests {
     fn test_fromstr_fraction_ops() {
         let test_vec = vec!["1", "1/2", "3/2"];
         for s in test_vec {
-            let f = Fraction::parse_unicode(s).unwrap();
+            let f = Fraction::from_unicode_str(s).unwrap();
             assert_eq!(f * Fraction::one(), f);
             assert_eq!(f + Fraction::zero(), f);
         }
