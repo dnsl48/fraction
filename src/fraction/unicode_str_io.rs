@@ -190,7 +190,7 @@ impl<T: Clone + Integer + fmt::Display> GenericFraction<T> {
     }
 }
 
-impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
+impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     /// Parse a unicode string
     /// The string can be:
     /// - A normal fraction e.g. "1/2"
@@ -215,8 +215,8 @@ impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
     ///  ("1/2", Fraction::new(1u8,2u8)),
     ///  ("-1/2", Fraction::new_neg(1u8,2u8)),
     ///  ("½", Fraction::new(1u8,2u8)),
-    ///  // ("1½", Fraction::new(1u8,2u8)),
-    ///  // ("-1½", Fraction::new_neg(1u8,2u8)),
+    ///  // ("1½", Fraction::new(3u8,2u8)),       // mixed vulgar fractions
+    ///  // ("-1½", Fraction::new_neg(3u8,2u8)),  // currently not supported
     ///  ("1⁄2", Fraction::new(1u8,2u8)),
     ///  ("-1⁄2", Fraction::new_neg(1u8,2u8)),
     ///  ("1⁤1⁄2", Fraction::new(3u8,2u8)),
@@ -312,7 +312,6 @@ impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
             if let Some(idx) =
                 first.find(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '⁰'][..])
             {
-                println!("Supsub! {}", first);
                 let trunc = if idx.is_zero() {
                     T::zero()
                 } else {
@@ -343,8 +342,6 @@ impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
                 ) else {
                     return Err(ParseError::ParseIntError);
                 };
-                // numer = n;
-                println!("numer: {}", &numer);
                 let Ok(denom) = T::from_str_radix(
                     // let n =
                     &denom_str
@@ -367,9 +364,6 @@ impl<T: Clone + Integer + fmt::Display + From<u8>> GenericFraction<T> {
                 ) else {
                     return Err(ParseError::ParseIntError);
                 };
-                println!("denom: {}", denom);
-                // denom = d;
-                // numer = numer + trunc * denom.clone();
                 Ok(GenericFraction::Rational(
                     sign,
                     Ratio::new(numer + trunc * denom.clone(), denom),
@@ -494,8 +488,6 @@ mod tests {
         for (string, frac) in test_vec {
             println!("{} ?= {}", string, frac);
             assert_eq!(Fraction::from_unicode_str(string), Ok(frac));
-            // println!("{} ?= {}", string, frac);
-            // assert_eq!(format!("{}", frac.get_unicode_display()), string);
         }
     }
 
@@ -544,7 +536,6 @@ mod tests {
             ("-1", -Fraction::one()),
             ("5", Fraction::from(5)),
             ("1\u{2064}1⁄2", Fraction::new(3u8, 2u8)),
-            // ("1⁣1⁄2", Fraction::new(3u8, 2u8)),
             ("-1\u{2064}1⁄2", Fraction::new_neg(3u8, 2u8)),
             ("1⁄2", Fraction::new(1u8, 2u8)),
             ("-1⁄2", Fraction::new_neg(1u8, 2u8)),
@@ -559,11 +550,11 @@ mod tests {
 
     #[test]
     fn test_from_fail() {
+        // TODO: "nanBOGUS" and "∞BOGUS" will parse.
+        // Either make that everything with BOGUS 
+        // after will parse, or make ^those fail.
         let test_vec = vec![
             "asdf",
-            // "NanBOGUS",
-            // "nanBOGUS",
-            // "+∞BOGUS",
             "+1BOGUS",
             "+5BOGUS",
             "1⁤1⁄2BOGUS",
