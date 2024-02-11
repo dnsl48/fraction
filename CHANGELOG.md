@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.15.1] - 2024-02-11
+### Added
+ - "with-unicode" feature implementation to format (and parse) floats with Unicode characters (special thanks to @feefladder)
+
 ## [0.15.0] - 2024-01-01
 ### Added
  - GenericFraction try_from/try_into implementations for primitive types (u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64)
