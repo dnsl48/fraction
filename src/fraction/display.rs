@@ -299,39 +299,46 @@ where
                 let mut length = 0;
 
                 if let Some(precision) = format.precision() {
-                    match division::divide_to_callback(
+                    let callback = |digit| {
+                        length += 1;
+                        division::write_digit(buffer, digit)
+                    };
+
+                    if division::divide_to_callback(
                         numer,
                         denom,
                         *precision,
                         format.alternate(),
-                        |digit| {
-                            length += 1;
-                            division::write_digit(buffer, digit)
-                        },
-                    ) {
-                        Ok(_) => Ok(()),
-                        Err(_) => Err(fmt::Error),
-                    }?;
+                        callback,
+                    )
+                    .is_err()
+                    {
+                        return Err(fmt::Error);
+                    }
                 } else {
-                    match division::divide_to_callback(numer, T::one(), 0, false, |digit| {
+                    let callback = |digit| {
                         length += 1;
                         division::write_digit(buffer, digit)
-                    }) {
-                        Ok(_) => Ok(()),
-                        Err(_) => Err(fmt::Error),
-                    }?;
+                    };
+
+                    if division::divide_to_callback(numer, T::one(), 0, false, callback).is_err() {
+                        return Err(fmt::Error);
+                    }
 
                     if !ratio.numer().is_zero() && !ratio.denom().is_one() {
                         length += 1;
                         buffer.write_char('/')?;
 
-                        match division::divide_to_callback(denom, T::one(), 0, false, |digit| {
+                        let callback = |digit| {
                             length += 1;
                             division::write_digit(buffer, digit)
-                        }) {
-                            Ok(_) => Ok(()),
-                            Err(_) => Err(fmt::Error),
-                        }?;
+                        };
+
+                        if division::divide_to_callback(denom, T::one(), 0, false, callback)
+                            .is_err()
+                        {
+                            return Err(fmt::Error);
+                        };
                     }
                 }
 

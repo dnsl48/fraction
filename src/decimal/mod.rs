@@ -407,38 +407,32 @@ where
 
                             let mut precision: usize = 0;
                             loop {
-                                s_state = match division::divide_rem_resume(
-                                    s_state.take().unwrap(),
-                                    |s, d| {
+                                s_state = if let Ok(s) =
+                                    division::divide_rem_resume(s_state.take().unwrap(), |s, d| {
                                         s_digit = d;
                                         Ok(Err(s))
-                                    },
-                                ) {
-                                    Ok(s) => {
-                                        if s.remainder.is_zero() {
-                                            None
-                                        } else {
-                                            Some(s)
-                                        }
+                                    }) {
+                                    if s.remainder.is_zero() {
+                                        None
+                                    } else {
+                                        Some(s)
                                     }
-                                    Err(_) => return false,
+                                } else {
+                                    return false;
                                 };
 
-                                o_state = match division::divide_rem_resume(
-                                    o_state.take().unwrap(),
-                                    |s, d| {
+                                o_state = if let Ok(s) =
+                                    division::divide_rem_resume(o_state.take().unwrap(), |s, d| {
                                         o_digit = d;
                                         Ok(Err(s))
-                                    },
-                                ) {
-                                    Ok(s) => {
-                                        if s.remainder.is_zero() {
-                                            None
-                                        } else {
-                                            Some(s)
-                                        }
+                                    }) {
+                                    if s.remainder.is_zero() {
+                                        None
+                                    } else {
+                                        Some(s)
                                     }
-                                    Err(_) => return false,
+                                } else {
+                                    return false;
                                 };
 
                                 if s_digit != o_digit {

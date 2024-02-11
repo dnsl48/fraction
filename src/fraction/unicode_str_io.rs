@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn test_from_fail() {
         // TODO: "nanBOGUS" and "∞BOGUS" will parse.
-        // Either make that everything with BOGUS 
+        // Either make that everything with BOGUS
         // after will parse, or make ^those fail.
         let test_vec = vec![
             "asdf",
