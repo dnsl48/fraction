@@ -31,6 +31,7 @@
 //! - `with-bigint` (default) integration with [num::BigInt] and [num::BigUint] data types
 //! - `with-decimal` (default) [Decimal] type implemented upon [GenericFraction]
 //! - `with-dynaint` (default) dynamically growing integer avoiding stack overflows
+//! - `with-unicode` Unicode formatting and parsing options
 //! - `with-approx` adds methods for approximate computations (currently `sqrt`)
 //! - `with-juniper-support` [Juniper](https://crates.io/crates/juniper) integration
 //! - `with-postgres-support` [PostgreSQL](https://crates.io/crates/postgres) integration; Numeric/Decimal type
@@ -152,6 +153,19 @@
 //! assert_eq!(format!("{}", result), "7/4");  // Printed as fraction by default
 //! assert_eq!(format!("{:.2}", result), "1.75"); // if precision is defined, printed as decimal
 //! assert_eq!(format!("{:#.3}", result), "1.750"); // to print leading zeroes, pass hash to the format
+//! ```
+//!
+//! Additionally, there are [methods](GenericFraction::get_unicode_display) available for various unicode display options:
+//! See [this SO answer](https://stackoverflow.com/a/77861320/14681457) for a discussion.
+//!
+//! ```
+//! type F = fraction::Fraction;
+//!
+//! let res = F::from(0.7) / F::from(0.4);
+//! assert_eq!("7⁄4",format!("{}", res.get_unicode_display())); // needs font support. Unicode way
+//! assert_eq!("1⁤3⁄4",format!("{}", res.get_unicode_display().mixed())); // interpreted wrongly without font support
+//! assert_eq!("⁷/₄",format!("{}", res.get_unicode_display().supsub())); // no need for font support
+//! assert_eq!("1³/₄",format!("{}", res.get_unicode_display().supsub().mixed()));
 //! ```
 //!
 //! ## Convert into/from other types

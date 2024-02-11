@@ -6,6 +6,9 @@ pub mod approx;
 
 pub mod display;
 
+#[cfg(feature = "with-unicode")]
+pub mod unicode_str_io;
+
 #[cfg(feature = "with-juniper-support")]
 pub mod juniper_support;
 

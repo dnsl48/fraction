@@ -53,6 +53,8 @@ with-juniper-support = ["juniper"]
 with-postgres-support = ["postgres-types", "byteorder", "bytes"]
 with-serde-support = ["serde", "serde_derive", "num/serde"]
 
+with-unicode = []
+
 [dev-dependencies]
 criterion = "0.4"
 rand = "0.8.5"
