@@ -225,7 +225,7 @@ pub use num::rational::{ParseRatioError, Ratio};
 
 pub use num::{
     Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
-    Signed, ToPrimitive, Zero,
+    Signed, ToPrimitive, traits::{ConstOne, ConstZero}, Zero,
 };
 
 #[cfg(test)]
