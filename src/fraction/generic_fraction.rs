@@ -1264,7 +1264,7 @@ mod tests {
     #[cfg(feature = "with-bigint")]
     use crate::{BigInt, BigUint};
 
-    use crate::{Bounded, Fraction, GenericFraction, Num, One, Sign, Signed, ToPrimitive, Zero};
+    use crate::{Bounded, ConstOne, ConstZero, Fraction, GenericFraction, Num, One, Sign, Signed, ToPrimitive, Zero};
 
     use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 
@@ -2709,6 +2709,20 @@ mod tests {
         }
     }
 
+    #[test]
+    fn constant_one() {
+        let constant_one = <Frac as ConstOne>::ONE;
+        let one = Frac::one();
+        assert_eq!(constant_one, one);
+    }
+    
+    #[test]
+    fn constant_zero() {
+        let constant_zero = <Frac as ConstZero>::ZERO;
+        let zero = Frac::zero();
+        assert_eq!(constant_zero, zero);
+    }
+    
     #[test]
     fn consistency_partial_cmp() {
         let nan = Frac::nan();
