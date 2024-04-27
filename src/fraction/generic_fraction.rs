@@ -1,7 +1,7 @@
 use crate::fraction::Sign;
 use crate::{
-    display, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstOne, ConstZero, FromPrimitive, Integer, Num,
-    One, ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
+    display, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstOne, ConstZero,
+    FromPrimitive, Integer, Num, One, ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
 };
 #[cfg(feature = "with-bigint")]
 use crate::{BigInt, BigUint};
@@ -595,7 +595,8 @@ impl<T: Clone + Integer> Zero for GenericFraction<T> {
 }
 
 impl<T: ConstOne + ConstZero + Integer + Clone> ConstZero for GenericFraction<T> {
-    const ZERO: GenericFraction<T> = GenericFraction::Rational(Sign::Plus, Ratio::new_raw(ConstZero::ZERO, ConstOne::ONE));
+    const ZERO: GenericFraction<T> =
+        GenericFraction::Rational(Sign::Plus, Ratio::new_raw(ConstZero::ZERO, ConstOne::ONE));
 }
 
 impl<T: Clone + Integer> One for GenericFraction<T> {
@@ -605,7 +606,8 @@ impl<T: Clone + Integer> One for GenericFraction<T> {
 }
 
 impl<T: ConstOne + Integer + Clone> ConstOne for GenericFraction<T> {
-	const ONE: GenericFraction<T> = GenericFraction::Rational(Sign::Plus, Ratio::new_raw(ConstOne::ONE, ConstOne::ONE));
+    const ONE: GenericFraction<T> =
+        GenericFraction::Rational(Sign::Plus, Ratio::new_raw(ConstOne::ONE, ConstOne::ONE));
 }
 
 impl<T: Clone + Integer> Num for GenericFraction<T> {
@@ -1264,7 +1266,10 @@ mod tests {
     #[cfg(feature = "with-bigint")]
     use crate::{BigInt, BigUint};
 
-    use crate::{Bounded, ConstOne, ConstZero, Fraction, GenericFraction, Num, One, Sign, Signed, ToPrimitive, Zero};
+    use crate::{
+        Bounded, ConstOne, ConstZero, Fraction, GenericFraction, Num, One, Sign, Signed,
+        ToPrimitive, Zero,
+    };
 
     use super::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 
@@ -2715,14 +2720,14 @@ mod tests {
         let one = Frac::one();
         assert_eq!(constant_one, one);
     }
-    
+
     #[test]
     fn constant_zero() {
         let constant_zero = <Frac as ConstZero>::ZERO;
         let zero = Frac::zero();
         assert_eq!(constant_zero, zero);
     }
-    
+
     #[test]
     fn consistency_partial_cmp() {
         let nan = Frac::nan();
