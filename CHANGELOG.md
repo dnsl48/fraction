@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.15.2] - 2024-04-28
+### Added
+ - GenericFraction ConstOne and ConstZero trait implementations (special thanks to Raimundo Saona, aka @saona-raimundo)
+
 ## [0.15.1] - 2024-02-11
 ### Added
  - "with-unicode" feature implementation to format (and parse) floats with Unicode characters (special thanks to @feefladder)

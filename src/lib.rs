@@ -224,8 +224,9 @@ pub use num::bigint::{BigInt, BigUint};
 pub use num::rational::{ParseRatioError, Ratio};
 
 pub use num::{
+    traits::{ConstOne, ConstZero},
     Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, FromPrimitive, Integer, Num, One,
-    Signed, ToPrimitive, traits::{ConstOne, ConstZero}, Zero,
+    Signed, ToPrimitive, Zero,
 };
 
 #[cfg(test)]
