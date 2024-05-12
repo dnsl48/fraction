@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.15.3] - 2024-05-12
+### Changed
+ - `num` crate min required version is now `0.4.2`
+
 ## [0.15.2] - 2024-04-28
 ### Added
  - GenericFraction ConstOne and ConstZero trait implementations (special thanks to Raimundo Saona, aka @saona-raimundo)
