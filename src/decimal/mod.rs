@@ -999,6 +999,15 @@ where
 
         GenericDecimal(fraction, P::zero()).calc_precision(Some(max_precision))
     }
+
+    #[inline]
+    pub fn from_fraction_with_precision(fraction: GenericFraction<T>, precision: P) -> Self
+    where
+        T: GenericInteger + ToPrimitive,
+        P: Bounded + CheckedAdd,
+    {
+        GenericDecimal(fraction, precision)
+    }
 }
 
 impl<T, F, P1, P2> TryToConvertFrom<GenericDecimal<F, P1>> for GenericDecimal<T, P2>
@@ -1164,6 +1173,16 @@ mod tests {
             assert_eq!("0", format!("{}", dec));
             assert_eq!(0, dec.get_precision());
         }
+    }
+
+    #[test]
+    fn from_fraction_with_precision() {
+        let one_third: GenericFraction<u64> = GenericFraction::new(1u64, 3u64);
+
+        assert_eq!(
+            GenericDecimal::<u64, u8>::from_fraction_with_precision(one_third, 18).get_precision(),
+            18
+        );
     }
 
     // TODO: more tests
