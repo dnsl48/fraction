@@ -233,10 +233,10 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     pub fn from_unicode_str(input: &str) -> Result<Self, ParseError> {
         let s: &str;
         let sign = if input.starts_with('-') {
-            s = &input.strip_prefix('-').unwrap();
+            s = input.strip_prefix('-').unwrap();
             Sign::Minus
         } else if input.starts_with('+') {
-            s = &input.strip_prefix('+').unwrap();
+            s = input.strip_prefix('+').unwrap();
             Sign::Plus
         } else {
             s = input;

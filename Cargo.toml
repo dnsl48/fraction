@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.15.3"
+version = "0.16.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless fractions and decimals; drop-in float replacement"
@@ -27,7 +27,7 @@ opt-level = 3
 
 [dependencies]
 
-num = { version = "0.4.2", default-features = false }
+num = { version = "0.4.3", default-features = false }
 
 byteorder = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
@@ -56,8 +56,8 @@ with-serde-support = ["serde", "serde_derive", "num/serde"]
 with-unicode = []
 
 [dev-dependencies]
-criterion = "0.4"
-rand = "0.8.5"
+criterion = "0.5"
+rand = "0.8"
 
 [[bench]]
 name = "bench_fraction"
