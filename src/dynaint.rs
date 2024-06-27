@@ -113,7 +113,7 @@ where
 
     /// Unpacks the value
     ///
-    /// Utilises [Result::Ok] for S(small) numbers and [Result::Err] for __H(huge) ones
+    /// Utilises [Ok] for S(small) numbers and [Err] for __H(huge) ones
     ///
     /// # Examples
     /// ```
@@ -887,7 +887,6 @@ where
     dyna_impl!(impl_fn_refmath; gcd);
     dyna_impl!(impl_fn_refmath; lcm);
 
-    dyna_impl!(impl_fn_refmath_bool; divides);
     dyna_impl!(impl_fn_refmath_bool; is_multiple_of);
 
     dyna_impl!(impl_fn_isref; is_even);
@@ -916,7 +915,7 @@ where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + ToBigUint,
     G: Clone + GenericInteger + ToBigUint,
 {
-    fn to_biguint(&self) -> Option<num::BigUint> {
+    fn to_biguint(&self) -> Option<BigUint> {
         match self {
             DynaInt::S(s) => s.to_biguint(),
             DynaInt::__H(h) => h.to_biguint(),
@@ -943,7 +942,7 @@ mod tests {
 
     #[test]
     fn growth() {
-        let m8 = u8::max_value();
+        let m8 = u8::MAX;
 
         let mut val = D::from(m8);
 
@@ -1242,8 +1241,8 @@ mod tests {
             D::from(256u16).checked_add(&D::from(256u16))
         );
 
-        assert_eq!(None, D::from(u16::max_value()).checked_add(&D::one()));
-        assert_eq!(None, D::one().checked_add(&D::from(u16::max_value())));
+        assert_eq!(None, D::from(u16::MAX).checked_add(&D::one()));
+        assert_eq!(None, D::one().checked_add(&D::from(u16::MAX)));
     }
 
     #[test]
@@ -1282,10 +1281,10 @@ mod tests {
         assert_eq!(D::from(128u8), D::from(256u16).div_floor(&D::from(2u8)));
         assert_eq!(D::one(), D::from(257u16).div_floor(&D::from(256u16)));
 
-        assert!(D::one().divides(&D::one()));
-        assert!(!D::one().divides(&D::from(257u16)));
-        assert!(D::from(257u16).divides(&D::one()));
-        assert!(!D::from(257u16).divides(&D::from(256u16)));
+        assert!(D::one().is_multiple_of(&D::one()));
+        assert!(!D::one().is_multiple_of(&D::from(257u16)));
+        assert!(D::from(257u16).is_multiple_of(&D::one()));
+        assert!(!D::from(257u16).is_multiple_of(&D::from(256u16)));
 
         assert!(D::one().is_odd());
         assert!(D::from(256u16).is_even());

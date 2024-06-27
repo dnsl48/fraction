@@ -74,11 +74,11 @@ impl Accuracy {
     /// printed as binary".
     ///
     /// Prefer using [`Accuracy::decimal_places`] when `base == 10`.
-    pub fn base_places<B: GenericInteger, N: GenericInteger>(base: B, n: N) -> Self
+    pub fn base_places<B, N: GenericInteger>(base: B, n: N) -> Self
     where
         // Assuming `n` is anything other than really small, `base^n` will likely be pretty big, so
         // we calculate the multiplier using `BigUint`.
-        B: Into<BigUint>,
+        B: Into<BigUint> + GenericInteger,
 
         // We need to be able to raise `BigUint(base)` to the power of `n`...
         BigUint: Pow<N>,

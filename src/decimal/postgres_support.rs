@@ -35,7 +35,7 @@ where
                 r#" your decimal type supports up to "#,
                 P::max_value(),
                 r#"you may increase the precision type size up to "usize", which is "#,
-                usize::max_value(),
+                usize::MAX,
                 r#"PostgreSQL supports precision up to "#,
                 PG_MAX_PRECISION
             )
