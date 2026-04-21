@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<'a, T, O> Sub<O> for &'a GenericFraction<T>
+impl<T, O> Sub<O> for &GenericFraction<T>
 where
     T: Clone + Integer,
     O: Into<GenericFraction<T>>,
@@ -98,7 +98,7 @@ where
     }
 }
 
-impl<'a, T> Sub for &'a GenericFraction<T>
+impl<T> Sub for &GenericFraction<T>
 where
     T: Clone + Integer,
 {

@@ -537,7 +537,7 @@ impl<T: Clone + Integer> Neg for GenericFraction<T> {
     }
 }
 
-impl<'a, T: Clone + Integer> Neg for &'a GenericFraction<T> {
+impl<T: Clone + Integer> Neg for &GenericFraction<T> {
     type Output = GenericFraction<T>;
 
     fn neg(self) -> Self::Output {

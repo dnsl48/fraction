@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'a, T, O> Div<O> for &'a GenericFraction<T>
+impl<T, O> Div<O> for &GenericFraction<T>
 where
     T: Clone + Integer,
     O: Into<GenericFraction<T>>,
@@ -103,7 +103,7 @@ where
     }
 }
 
-impl<'a, T> Div for &'a GenericFraction<T>
+impl<T> Div for &GenericFraction<T>
 where
     T: Clone + Integer,
 {

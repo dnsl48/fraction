@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<'a, T, O> Mul<O> for &'a GenericFraction<T>
+impl<T, O> Mul<O> for &GenericFraction<T>
 where
     T: Clone + Integer,
     O: Into<GenericFraction<T>>,
@@ -115,7 +115,7 @@ where
     }
 }
 
-impl<'a, T> Mul for &'a GenericFraction<T>
+impl<T> Mul for &GenericFraction<T>
 where
     T: Clone + Integer,
 {

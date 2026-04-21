@@ -97,10 +97,7 @@ where
 {
     fn from_input_value(value: &::juniper::InputValue<S>) -> Option<Self> {
         {
-            let val = match value.as_string_value() {
-                None => return None,
-                Some(string) => string,
-            };
+            let val = value.as_string_value()?;
             if val.len() < 2 {
                 None
             } else if val == "NaN" {

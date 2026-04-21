@@ -9,10 +9,9 @@ use crate::{GenericFraction, Sign, Zero};
 use division::{divide_integral, divide_rem};
 use generic::GenericInteger;
 
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
-use std::mem;
-
 const PG_POS: u16 = 0x0000;
 const PG_NEG: u16 = 0x4000;
 const PG_NAN: u16 = 0xC000;
@@ -77,8 +76,9 @@ where
             });
         }
 
-        // safe to transmute as it is > 0
-        let ndigits: usize = unsafe { mem::transmute::<i16, u16>(ndigits) }.into();
+        let ndigits: usize = u16::try_from(ndigits)
+            .map_err(|_| "data package declares negative digit count")?
+            .into();
         if (raw.len() - 8) / 2 < ndigits {
             return Err("data package declares more digits than received".into());
         }
@@ -87,8 +87,9 @@ where
         let uweight: usize = if weight <= 0 {
             0
         } else {
-            // safe to transmute as it is > 0
-            unsafe { mem::transmute::<i16, u16>(weight) }.into()
+            u16::try_from(weight)
+                .map_err(|_| "data package declares negative scale")?
+                .into()
         };
 
         let mut num: T = 0u16.into();
@@ -123,7 +124,7 @@ where
             let mut digits = if digits < 0 {
                 return Err("database sent unexpected negative value".into());
             } else {
-                unsafe { mem::transmute::<i16, u16>(digits) }
+                u16::try_from(digits).map_err(|_| "database sent unexpected negative value")?
             };
 
             /* Digit x000 */

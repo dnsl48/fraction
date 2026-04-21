@@ -98,11 +98,8 @@ where
 {
     fn from_input_value(value: &::juniper::InputValue<S>) -> Option<Self> {
         {
-            let val = match value.as_string_value() {
-                None => return None,
-                Some(string) => string,
-            };
-            Some(FromStr::from_str(val).ok())?
+            let val = value.as_string_value()?;
+            FromStr::from_str(val).ok()
         }
     }
 }

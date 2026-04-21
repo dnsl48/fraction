@@ -2,6 +2,7 @@
 name = "fraction"
 version = "0.15.4"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
+edition = "2015"
 
 description = "Lossless fractions and decimals; drop-in float replacement"
 keywords = ["fraction", "decimal", "float", "numeric"]

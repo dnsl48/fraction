@@ -1,5 +1,17 @@
 # Change Log
 
+## [0.15.4] - 2026-04-22
+### Added
+ - `from_fraction_with_precision` helper
+
+### Changed
+ - Captured the crate edition explicitly in `Cargo.toml` as `edition = "2015"`.
+ - `num` crate min required version is now `0.4.3`
+
+### Fixed
+ - Tidy-up deprecation and clippy warnings, plus small docs/licence metadata fixes.
+ - Corrected the crate-level Unicode example/docs so default `cargo test` no longer fails without `with-unicode`.
+
 ## [0.15.3] - 2024-05-12
 ### Changed
  - `num` crate min required version is now `0.4.2`

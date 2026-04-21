@@ -155,10 +155,12 @@
 //! assert_eq!(format!("{:#.3}", result), "1.750"); // to print leading zeroes, pass hash to the format
 //! ```
 //!
-//! Additionally, there are [methods](GenericFraction::get_unicode_display) available for various unicode display options:
+//! Additionally, when the `with-unicode` feature is enabled, there are methods available for various unicode display options:
 //! See [this SO answer](https://stackoverflow.com/a/77861320/14681457) for a discussion.
 //!
-//! ```
+//! ```rust
+//! # #[cfg(feature = "with-unicode")]
+//! # {
 //! type F = fraction::Fraction;
 //!
 //! let res = F::from(0.7) / F::from(0.4);
@@ -166,6 +168,7 @@
 //! assert_eq!("1⁤3⁄4",format!("{}", res.get_unicode_display().mixed())); // interpreted wrongly without font support
 //! assert_eq!("⁷/₄",format!("{}", res.get_unicode_display().supsub())); // no need for font support
 //! assert_eq!("1³/₄",format!("{}", res.get_unicode_display().supsub().mixed()));
+//! # }
 //! ```
 //!
 //! ## Convert into/from other types

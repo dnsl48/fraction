@@ -13,7 +13,7 @@ use num::{rational::Ratio, traits::Pow, BigUint, Integer};
 pub mod sqrt;
 
 /// Levels of accuracy for an approximation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum Accuracy {
     /// At least 20 digits correct after the decimal point.
     #[cfg(feature = "lazy_static")]
@@ -21,6 +21,7 @@ pub enum Accuracy {
 
     /// At least 100 digits correct after the decimal point.
     #[cfg(feature = "lazy_static")]
+    #[default]
     Dp100,
 
     /// At least 500 digits correct after the decimal point.
@@ -160,11 +161,5 @@ impl Accuracy {
 
             multiplier
         }
-    }
-}
-
-impl Default for Accuracy {
-    fn default() -> Self {
-        Self::Dp100
     }
 }

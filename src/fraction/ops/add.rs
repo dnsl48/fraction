@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<'a, T, O> Add<O> for &'a GenericFraction<T>
+impl<T, O> Add<O> for &GenericFraction<T>
 where
     T: Clone + Integer,
     O: Into<GenericFraction<T>>,
@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<'a, T> Add for &'a GenericFraction<T>
+impl<T> Add for &GenericFraction<T>
 where
     T: Clone + Integer,
 {
