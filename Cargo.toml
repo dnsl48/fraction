@@ -1,13 +1,13 @@
 [package]
 name = "fraction"
-version = "0.16.0"
+version = "0.15.4"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 
 description = "Lossless fractions and decimals; drop-in float replacement"
 keywords = ["fraction", "decimal", "float", "numeric"]
 categories = ["data-structures"]
 
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 homepage = "https://github.com/dnsl48/fraction.git"
 repository = "https://github.com/dnsl48/fraction.git"
