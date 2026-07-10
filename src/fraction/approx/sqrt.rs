@@ -568,8 +568,9 @@ mod tests {
         );
     }
 
-    lazy_static! {
-        static ref VALUES: [BigFraction; 5] = [
+    #[test]
+    fn test_raw() {
+        let values: [BigFraction; 5] = [
             BigFraction::from(2),
             BigFraction::from(123_654),
             BigFraction::from(123_655),
@@ -578,18 +579,15 @@ mod tests {
             727314244020586751748892724760644\
             /\
             478953213143537128483961697945367179924659061093095449962100933428918126\
-            6216833845985099376094324166"
+            6216833845985099376094324166",
             )
             .unwrap(),
             BigFraction::from(0.2),
         ];
-    }
 
-    const ACCURACIES: [usize; 5] = [10, 100, 1000, 10000, 100_000];
+        const ACCURACIES: [usize; 5] = [10, 100, 1000, 10000, 100_000];
 
-    #[test]
-    fn test_raw() {
-        for value in &*VALUES {
+        for value in &values {
             for accuracy in ACCURACIES {
                 println!("sqrt({value}) to {accuracy} d.p., unsimplified");
                 test_sqrt_of(value, false, accuracy);

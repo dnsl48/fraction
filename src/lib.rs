@@ -218,10 +218,6 @@
 extern crate num;
 
 #[cfg(feature = "with-bigint")]
-#[macro_use]
-extern crate lazy_static;
-
-#[cfg(feature = "with-bigint")]
 pub use num::bigint::{BigInt, BigUint};
 
 pub use num::rational::{ParseRatioError, Ratio};
