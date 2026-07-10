@@ -16,16 +16,16 @@ pub mod sqrt;
 #[derive(Clone, Debug, Default)]
 pub enum Accuracy {
     /// At least 20 digits correct after the decimal point.
-    #[cfg(feature = "lazy_static")]
+    #[cfg(feature = "with-bigint")]
     Dp20,
 
     /// At least 100 digits correct after the decimal point.
-    #[cfg(feature = "lazy_static")]
+    #[cfg(feature = "with-bigint")]
     #[default]
     Dp100,
 
     /// At least 500 digits correct after the decimal point.
-    #[cfg(feature = "lazy_static")]
+    #[cfg(feature = "with-bigint")]
     Dp500,
 
     /// An arbitrary number of correct digits.
@@ -51,7 +51,7 @@ impl Accuracy {
         BigUint: Pow<N>,
         <BigUint as Pow<N>>::Output: Into<BigUint>,
     {
-        #[cfg(feature = "lazy_static")]
+        #[cfg(feature = "with-bigint")]
         {
             // If we have access to pre-allocated `Accuracy` values, use them instead of allocating
             // a new multiplier.
@@ -134,32 +134,23 @@ impl Accuracy {
     /// Returns a reference to the multiplier used by `self` to chop off irrelevant digits.
     #[must_use]
     pub fn multiplier(&self) -> &BigUint {
-        #[cfg(feature = "lazy_static")]
-        {
-            lazy_static! {
-                static ref DP20_MUL: BigUint = BigUint::from(10_u8).pow(20_u32);
-                static ref DP100_MUL: BigUint = BigUint::from(10_u8).pow(100_u32);
-                static ref DP500_MUL: BigUint = BigUint::from(10_u8).pow(500_u32);
-            };
-
-            return match self {
-                Accuracy::Dp20 => &DP20_MUL,
-                Accuracy::Dp100 => &DP100_MUL,
-                Accuracy::Dp500 => &DP500_MUL,
-                Accuracy::Custom { multiplier } => multiplier,
-            };
-        }
-
-        // When `lazy_static` is enabled, this gets flagged as unreachable which it technically is,
-        // but *only* when `lazy_static` is on.
-        #[allow(unreachable_code)]
-        {
-            let Accuracy::Custom { multiplier } = self else {
-                // `Custom` is the only available variant when `lazy_static` is off.
-                unreachable!()
-            };
-
-            multiplier
-        }
+        return match self {
+            #[cfg(feature = "with-bigint")]
+            Accuracy::Dp20 => {
+                static DP20_MUL: std::sync::OnceLock<BigUint> = std::sync::OnceLock::new();
+                DP20_MUL.get_or_init(|| BigUint::from(10_u8).pow(20_u32))
+            }
+            #[cfg(feature = "with-bigint")]
+            Accuracy::Dp100 => {
+                static DP100_MUL: std::sync::OnceLock<BigUint> = std::sync::OnceLock::new();
+                DP100_MUL.get_or_init(|| BigUint::from(10_u8).pow(100_u32))
+            }
+            #[cfg(feature = "with-bigint")]
+            Accuracy::Dp500 => {
+                static DP500_MUL: std::sync::OnceLock<BigUint> = std::sync::OnceLock::new();
+                DP500_MUL.get_or_init(|| BigUint::from(10_u8).pow(500_u32))
+            }
+            Accuracy::Custom { multiplier } => multiplier,
+        };
     }
 }

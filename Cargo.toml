@@ -3,6 +3,7 @@ name = "fraction"
 version = "0.15.4"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 edition = "2015"
+rust-version = "1.70"
 
 description = "Lossless fractions and decimals; drop-in float replacement"
 keywords = ["fraction", "decimal", "float", "numeric"]
@@ -30,6 +31,8 @@ opt-level = 3
 
 num = { version = "0.4.3", default-features = false }
 
+num-bigint = { version = "0.4.8", optional = true }
+
 byteorder = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
 postgres-types = { version = "0.2", optional = true }
@@ -39,13 +42,11 @@ serde_derive = { version = "1", optional = true }
 
 juniper = { version = "0.15", optional = true }
 
-lazy_static = { version = "1", optional = true }
-
 
 [features]
 default = ["with-bigint", "with-decimal", "with-dynaint"]
 
-with-bigint = ["num/num-bigint", "num/std", "lazy_static"]
+with-bigint = ["num/num-bigint", "num/std", "num-bigint"]
 with-decimal = []
 with-dynaint = []
 with-approx = ["with-bigint"]

@@ -9,7 +9,7 @@ use std::{any::TypeId, cmp::PartialOrd};
 use Sign;
 
 #[cfg(feature = "with-bigint")]
-use super::{BigInt, BigUint, One, Signed, Zero};
+use super::{BigInt, BigUint, Signed};
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 
@@ -69,39 +69,32 @@ pub trait GenericInteger:
 }
 
 #[cfg(feature = "with-bigint")]
-lazy_static! {
-    static ref _0_BU: BigUint = BigUint::zero();
-    static ref _1_BU: BigUint = BigUint::one();
-    static ref _10_BU: BigUint = BigUint::from(10u8);
-    static ref _0_BI: BigInt = BigInt::zero();
-    static ref _1_BI: BigInt = BigInt::one();
-    static ref _10_BI: BigInt = BigInt::from(10i8);
-}
-
-#[cfg(feature = "with-bigint")]
 impl GenericInteger for BigUint {
     #[inline]
     fn _0() -> Self {
-        BigUint::zero()
+        BigUint::ZERO
     }
     #[inline]
     fn _1() -> Self {
-        BigUint::one()
+        BigUint::ONE
     }
     #[inline]
     fn _10() -> Self {
-        _10_BU.clone()
+        BigUint::new_const(10u32)
     }
     #[inline]
     fn _0r() -> Option<&'static Self> {
+        static _0_BU: BigUint = BigUint::ZERO;
         Some(&_0_BU)
     }
     #[inline]
     fn _1r() -> Option<&'static Self> {
+        static _1_BU: BigUint = BigUint::ONE;
         Some(&_1_BU)
     }
     #[inline]
     fn _10r() -> Option<&'static Self> {
+        static _10_BU: BigUint = BigUint::new_const(10u32);
         Some(&_10_BU)
     }
 
@@ -115,26 +108,29 @@ impl GenericInteger for BigUint {
 impl GenericInteger for BigInt {
     #[inline]
     fn _0() -> Self {
-        BigInt::zero()
+        BigInt::ZERO
     }
     #[inline]
     fn _1() -> Self {
-        BigInt::one()
+        BigInt::ONE
     }
     #[inline]
     fn _10() -> Self {
-        _10_BI.clone()
+        BigInt::new_const(10i32)
     }
     #[inline]
     fn _0r() -> Option<&'static Self> {
+        static _0_BI: BigInt = BigInt::ZERO;
         Some(&_0_BI)
     }
     #[inline]
     fn _1r() -> Option<&'static Self> {
+        static _1_BI: BigInt = BigInt::ONE;
         Some(&_1_BI)
     }
     #[inline]
     fn _10r() -> Option<&'static Self> {
+        static _10_BI: BigInt = BigInt::new_const(10i32);
         Some(&_10_BI)
     }
 
