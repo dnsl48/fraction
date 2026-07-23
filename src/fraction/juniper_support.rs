@@ -87,7 +87,7 @@ where
     T: Clone + GenericInteger,
 {
     fn to_input_value(&self) -> ::juniper::InputValue<S> {
-        ::juniper::ToInputValue::to_input_value(&format!("{:+}", &self))
+        ::juniper::ToInputValue::to_input_value(&format!("{:+}", self))
     }
 }
 impl<S, T> ::juniper::FromInputValue<S> for GenericFraction<T>

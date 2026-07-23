@@ -134,7 +134,7 @@ impl Accuracy {
     /// Returns a reference to the multiplier used by `self` to chop off irrelevant digits.
     #[must_use]
     pub fn multiplier(&self) -> &BigUint {
-        return match self {
+        match self {
             #[cfg(feature = "with-bigint")]
             Accuracy::Dp20 => {
                 static DP20_MUL: std::sync::OnceLock<BigUint> = std::sync::OnceLock::new();
@@ -151,6 +151,6 @@ impl Accuracy {
                 DP500_MUL.get_or_init(|| BigUint::from(10_u8).pow(500_u32))
             }
             Accuracy::Custom { multiplier } => multiplier,
-        };
+        }
     }
 }
