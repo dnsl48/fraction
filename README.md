@@ -5,6 +5,7 @@ Lossless fractions and decimals for Rust; an aspirational drop-in replacement fo
 [![GitHub Actions](https://github.com/dnsl48/fraction/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/dnsl48/fraction/actions/workflows/main.yml?query=branch%3Amaster)
 [![Documentation](https://docs.rs/fraction/badge.svg)](https://docs.rs/fraction/)
 [![Current Version on crates.io](https://img.shields.io/crates/v/fraction.svg)](https://crates.io/crates/fraction/)
+[![MSRV](https://img.shields.io/badge/MSRV-1.70-blue.svg)](#features)
 [![Licence](https://img.shields.io/badge/licence-MIT%20/%20Apache%202.0-blue.svg)](#licence)
 
 ## Overview
