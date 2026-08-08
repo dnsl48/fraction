@@ -24,24 +24,32 @@ jobs:
 
 
   test:
-    name: Test
+    name: Test (${{ matrix.rust }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust: "1.70.0"
+            args: --manifest-path tests/msrv/Cargo.toml --verbose
+          - rust: "stable"
+            args: --verbose --all-features
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Install stable toolchain
+      - name: Install matrix toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
           override: true
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --all-features
+          args: ${{ matrix.args }}
 
   lints:
     name: Lints

@@ -1,5 +1,10 @@
 # Change Log
 
+## [Unreleased]
+### Changed
+ - Replaced optional `lazy_static` usage with `std::sync::OnceLock` and `num-bigint` constants for approximation accuracy multipliers (special thanks to [Expyron](https://github.com/Expyron) for the `std::sync::OnceLock` patch).
+ - Declared Rust 1.70 as the minimum supported Rust version (MSRV).
+
 ## [0.15.4] - 2026-04-22
 ### Added
  - `from_fraction_with_precision` helper

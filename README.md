@@ -49,6 +49,8 @@ Optional features:
 
 `with-bigint` is enabled by default and is required for `BigInt` and `BigUint` conversions. `with-approx` currently adds approximate helpers such as `sqrt`.
 
+MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx` surface exercised by the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration dependency graphs, including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under fresh dependency resolution.
+
 Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes fractions usable in sets, hash maps, and B-trees.
 
 ## Examples
