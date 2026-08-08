@@ -1,0 +1,9 @@
+[package]
+name = "fraction-msrv-smoke"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.70"
+publish = false
+
+[dependencies]
+fraction = { path = "../..", default-features = false, features = ["with-approx"] }
