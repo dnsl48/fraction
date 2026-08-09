@@ -7,6 +7,7 @@
 
 ### Fixed
  - Fraction and Decimal parsing now routes zero-denominator inputs to signed infinity or NaN (including optional Unicode `from_unicode_str`) rather than panicking.
+ - Restored Decimal `Ord`/`PartialOrd`/`Eq`/`Hash` consistency by comparing each value using its stored precision, including truncation and canonical zero handling (`-0`, `-0.9@p0`, `-0.04@p1`), so ordered and hashed collections now agree.
 
 ## [0.15.4] - 2026-04-22
 ### Added
