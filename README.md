@@ -88,7 +88,7 @@ let d = Decimal::from(1.3);
 assert_eq!(d, Decimal::from_str("1.3").unwrap());
 
 let d = Decimal::from(0.5);
-// Decimal fraction notation inherits the same zero-denominator mapping as Fraction::from_str.
+// Decimal fraction notation uses the same zero-denominator mapping as `Fraction::from_str`.
 assert_eq!(d, Decimal::from_str("1/2").unwrap());
 assert_eq!(Decimal::from_str("1/0").unwrap(), Decimal::infinity());
 assert_eq!(Decimal::from_str("-1/0").unwrap(), Decimal::neg_infinity());
@@ -99,7 +99,16 @@ assert_eq!(
     Decimal::from_fraction_with_precision(one_third, 4).to_string(),
     "0.3333"
 );
+
+let lhs = Decimal::from(0.5) / Decimal::from(0.3); // 5/3, precision 1
+let rhs = Decimal::from_str("1.6").unwrap(); // 8/5, precision 1
+assert_eq!(lhs, rhs);
+assert_eq!(lhs.partial_cmp(&rhs), Some(std::cmp::Ordering::Equal));
 ```
+
+Decimals compare by truncating fractional digits to each value’s own precision.
+Trailing zeroes are ignored, `p0` drops all fractional digits, and canonical zero values
+such as `-0`, `-0.9@p0`, and `-0.04@p1` compare and hash as positive zero.
 
 ### Formatting
 
