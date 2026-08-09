@@ -14,6 +14,8 @@ use std::error::Error;
 use std::fmt;
 const PG_POS: u16 = 0x0000;
 const PG_NEG: u16 = 0x4000;
+const PG_PINF: u16 = 0xD000;
+const PG_NINF: u16 = 0xF000;
 const PG_NAN: u16 = 0xC000;
 const PG_NBASE_U: u16 = 10000;
 const PG_NBASE_I: i16 = 10000;
@@ -65,6 +67,8 @@ where
             PG_NEG => Sign::Minus,
             PG_POS => Sign::Plus,
             PG_NAN => return Ok(Self::nan()),
+            PG_PINF => return Ok(Self::infinity()),
+            PG_NINF => return Ok(Self::neg_infinity()),
             _ => return Err("unexpected sign byte in the data package".into()),
         };
 
@@ -252,6 +256,17 @@ where
 
     if source.is_nan() {
         write_u16(&mut buf[buffer_offset + 4..buffer_offset + 6], PG_NAN)?;
+        return Ok(IsNull::No);
+    }
+
+    if source.is_infinite() {
+        write_u16(
+            &mut buf[buffer_offset + 4..buffer_offset + 6],
+            match source.sign() {
+                Some(Sign::Minus) => PG_NINF,
+                _ => PG_PINF,
+            },
+        )?;
         return Ok(IsNull::No);
     }
 
@@ -510,6 +525,12 @@ mod tests {
             ),
             (Fraction::zero(), &[0, 0, 0, 0, 0, 0, 0, 0]),
             (Fraction::nan(), &[0, 0, 0, 0, 192, 0, 0, 0]),
+            (Fraction::infinity(), &[0, 0, 0, 0, 208, 0, 0, 0]),
+            (
+                Fraction::new(1u128, 1u128) / Fraction::new(0u128, 1u128),
+                &[0, 0, 0, 0, 208, 0, 0, 0],
+            ),
+            (Fraction::neg_infinity(), &[0, 0, 0, 0, 240, 0, 0, 0]),
             (
                 Fraction::new_raw(617283945061706172839450617u128, 50000000000000u128),
                 &[
@@ -623,5 +644,24 @@ mod tests {
 
             assert_eq!(&buf, &test.1);
         }
+    }
+
+    #[test]
+    fn test_to_sql_infinity_appends_after_existing_bytes() {
+        let t = Type::from_oid(NUMERIC_OID).unwrap();
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[1u8, 2, 3, 4]);
+
+        let res = <Fraction as ToSql>::to_sql(&Fraction::infinity(), &t, &mut buf)
+            .ok()
+            .unwrap();
+
+        match res {
+            IsNull::Yes => assert!(false),
+            IsNull::No => assert!(true),
+        };
+
+        assert_eq!(&buf[..4], &[1u8, 2, 3, 4]);
+        assert_eq!(&buf[4..], &[0u8, 0, 0, 0, 208, 0, 0, 0]);
     }
 }
