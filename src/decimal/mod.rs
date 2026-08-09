@@ -39,7 +39,7 @@ mod try_from;
 /// T is the type for data
 /// P is the type for precision
 ///
-/// Uses [GenericFraction]<T> internally to represent the data.
+/// Uses [GenericFraction] internally to represent the data.
 /// Precision is used for display, ordering and hashing.
 /// Calculations are exact and ignore precision; comparisons and hashes use each
 /// value’s stored precision and truncate fractional digits accordingly.

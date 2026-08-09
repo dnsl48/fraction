@@ -54,13 +54,13 @@ pub trait GenericInteger:
     /// Returns value 10 of the type
     fn _10() -> Self;
 
-    /// Returns Maybe<static reference> of 0
+    /// Returns an optional static reference to 0
     fn _0r() -> Option<&'static Self>;
 
-    /// Returns Maybe<static reference> of 1
+    /// Returns an optional static reference to 1
     fn _1r() -> Option<&'static Self>;
 
-    /// Returns Maybe<static reference> of 10
+    /// Returns an optional static reference to 10
     fn _10r() -> Option<&'static Self>;
 
     /// Returns the sign and the value itself.

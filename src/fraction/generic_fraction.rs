@@ -360,8 +360,8 @@ where
         }
     }
 
-    /// Generates a GenericFraction<T> from GenericFraction<F>
-    /// where T: From<F>
+    /// Generates a `GenericFraction<T>` from `GenericFraction<F>`
+    /// where `T: From<F>`
     ///
     /// ```
     /// use fraction::{ Fraction, GenericFraction };
@@ -385,8 +385,8 @@ where
         }
     }
 
-    /// Generates a GenericFraction<I> from GenericFraction<T>
-    /// where T: Into<I>
+    /// Generates a `GenericFraction<I>` from `GenericFraction<T>`
+    /// where `T: Into<I>`
     ///
     /// ```
     /// use fraction::{ Fraction, GenericFraction };
