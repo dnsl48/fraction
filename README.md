@@ -145,6 +145,10 @@ For very large or repeating values such as `1/3` or `1/7`, `Fraction` can grow t
 which is slower than an explicitly precision-bound `Decimal`. If you need dynamic growth, `DynaInt<u8, _>` or
 `DynaInt<usize, BigUint>` can help.
 
+Infinity values round-trip using PostgreSQL numeric infinity markers from PostgreSQL 14+ (`0xD000` and `0xF000`).
+Older PostgreSQL versions do not support these values, and constrained `NUMERIC` columns (with declared
+precision/scale limits) reject infinity as out of range.
+
 ## Documentation
 
 - [crate docs on docs.rs](https://docs.rs/fraction/)

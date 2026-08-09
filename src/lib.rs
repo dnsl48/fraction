@@ -219,6 +219,10 @@
 //! Decimal uses its own precision.
 //! So, if you may end up with bad numbers, it may be preferable to go with Decimals over Fractions.
 //!
+//! Infinity is encoded as PostgreSQL numeric infinity markers (`0xD000` and `0xF000`) and can
+//! be used only with PostgreSQL 14+ numeric columns. Older PostgreSQL versions, and constrained
+//! `NUMERIC` columns with fixed precision/scale, do not accept infinity values.
+//!
 //! Both types (fractions and decimals) should work transparently
 //! in accordance with Postgres crate documentation
 
