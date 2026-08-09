@@ -156,6 +156,8 @@ mod tests {
             ),
             (Decimal::zero(), &[0, 0, 0, 0, 0, 0, 0, 0]),
             (Decimal::nan(), &[0, 0, 0, 0, 192, 0, 0, 0]),
+            (Decimal::infinity(), &[0, 0, 0, 0, 208, 0, 0, 0]),
+            (Decimal::neg_infinity(), &[0, 0, 0, 0, 240, 0, 0, 0]),
             (
                 Decimal::from_str("12345678901234.12345678901234").unwrap(),
                 &[
