@@ -106,6 +106,9 @@
 //!
 //! // `from_str` - also supports _fraction_ notation such as "numerator/denominator" delimited by slash (`/`).
 //! assert_eq!(f, Fraction::from_str("1/2").unwrap());  // parse a string
+//! assert_eq!(Fraction::from_str("1/0").unwrap(), Fraction::infinity());
+//! assert_eq!(Fraction::from_str("-1/0").unwrap(), Fraction::neg_infinity());
+//! assert_eq!(Fraction::from_str("0/0").unwrap(), Fraction::nan());
 //!
 //! // `new_raw` - construct with numerator/denominator but do not normalize the fraction.
 //! // This is the most performant constructor, but does not calculate the common denominator,
@@ -140,6 +143,10 @@
 //!
 //! let d = Decimal::from(0.5);  // from float (f32, f64)
 //! assert_eq!(d, Decimal::from_str("1/2").unwrap());
+//! // Decimal fraction notation inherits this same zero-denominator behaviour from Fraction internals.
+//! assert_eq!(Decimal::from_str("1/0").unwrap(), Decimal::infinity());
+//! assert_eq!(Decimal::from_str("-1/0").unwrap(), Decimal::neg_infinity());
+//! assert_eq!(Decimal::from_str("0/0").unwrap(), Decimal::nan());
 //! ```
 //!
 //! ## Format (convert to string)

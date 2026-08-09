@@ -68,6 +68,9 @@ assert_eq!(f, Fraction::new_generic(Sign::Plus, 1i32, 2u8).unwrap());
 assert_eq!(f, Fraction::from(0.5));
 assert_eq!(f, Fraction::from_str("0.5").unwrap());
 assert_eq!(f, Fraction::from_str("1/2").unwrap());
+assert_eq!(Fraction::from_str("1/0").unwrap(), Fraction::infinity());
+assert_eq!(Fraction::from_str("-1/0").unwrap(), Fraction::neg_infinity());
+assert_eq!(Fraction::from_str("0/0").unwrap(), Fraction::nan());
 assert_eq!(f * 2, Fraction::one());
 assert_eq!(f - f, Fraction::zero());
 ```
@@ -85,7 +88,11 @@ let d = Decimal::from(1.3);
 assert_eq!(d, Decimal::from_str("1.3").unwrap());
 
 let d = Decimal::from(0.5);
+// Decimal fraction notation inherits the same zero-denominator mapping as Fraction::from_str.
 assert_eq!(d, Decimal::from_str("1/2").unwrap());
+assert_eq!(Decimal::from_str("1/0").unwrap(), Decimal::infinity());
+assert_eq!(Decimal::from_str("-1/0").unwrap(), Decimal::neg_infinity());
+assert_eq!(Decimal::from_str("0/0").unwrap(), Decimal::nan());
 
 let one_third = Fraction::new(1u8, 3u8);
 assert_eq!(
