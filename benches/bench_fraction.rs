@@ -2,7 +2,7 @@ extern crate criterion;
 extern crate fraction;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fraction::generic;
-use fraction::{GenericDecimal, GenericFraction};
+use fraction::{prelude::Decimal, GenericDecimal, GenericFraction};
 use std::str::FromStr;
 
 #[allow(clippy::missing_panics_doc)]
@@ -44,6 +44,70 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let b = GenericFraction::<u8>::from_str(black_box("255/255"));
             (a, b)
         });
+    });
+
+    c.bench_function("Decimal cmp integer early exit", |b| {
+        let left = Decimal::from_str("123456").unwrap();
+        let right = Decimal::from_str("999999").unwrap();
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
+    });
+
+    c.bench_function("Decimal cmp reported equal pair", |b| {
+        let left = Decimal::from_str("0.5").unwrap() / Decimal::from_str("0.3").unwrap();
+        let right = Decimal::from_str("1.6").unwrap();
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
+    });
+
+    c.bench_function(
+        "Decimal cmp exact fraction same value different precision",
+        |b| {
+            let left = GenericDecimal::<u64, u8>::from_fraction_with_precision(
+                GenericFraction::new(5u64, 3u64),
+                1,
+            );
+            let right = GenericDecimal::<u64, u8>::from_fraction_with_precision(
+                GenericFraction::new(5u64, 3u64),
+                2,
+            );
+
+            b.iter(|| black_box(left).cmp(&black_box(right)));
+        },
+    );
+
+    c.bench_function("Decimal cmp negative canonical zero", |b| {
+        let left = Decimal::from_str("-0.9").unwrap().set_precision(0);
+        let right = Decimal::from_str("-0.04").unwrap().set_precision(1);
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
+    });
+
+    c.bench_function("Decimal cmp long common prefix p1", |b| {
+        let left = Decimal::from_str("1.4").unwrap();
+        let right = Decimal::from_str("1.5").unwrap();
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
+    });
+
+    c.bench_function("Decimal cmp long common prefix p16", |b| {
+        let left = Decimal::from_str("0.3141592653589793").unwrap();
+        let right = Decimal::from_str("0.3141592653589794").unwrap();
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
+    });
+
+    c.bench_function("Decimal cmp long common prefix p255", |b| {
+        let left = GenericDecimal::<u64, u8>::from_fraction_with_precision(
+            GenericFraction::new(1u64, 3u64),
+            255,
+        );
+        let right = GenericDecimal::<u64, u8>::from_fraction_with_precision(
+            GenericFraction::new(1u64, 3u64),
+            254,
+        );
+
+        b.iter(|| black_box(left).cmp(&black_box(right)));
     });
 
     c.bench_function("generic::read_generic_integer / i8 to u8", |b| {
