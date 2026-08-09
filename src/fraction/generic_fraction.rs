@@ -138,7 +138,7 @@ where
                 return Err(ParseError::OverflowError);
             };
 
-            Ok(GenericFraction::Rational(sign, Ratio::new(num, den)))
+            Ok(Self::new_signed(sign, num, den))
         } else if let Some(split_idx) = src.find('/') {
             let num = match T::from_str_radix(&src[start..split_idx], 10) {
                 Ok(value) => value,
@@ -149,14 +149,14 @@ where
                 Err(_) => return Err(ParseError::ParseIntError),
             };
 
-            Ok(GenericFraction::Rational(sign, Ratio::new(num, den)))
+            Ok(Self::new_signed(sign, num, den))
         } else {
             let num = match T::from_str_radix(&src[start..], 10) {
                 Ok(value) => value,
                 Err(_) => return Err(ParseError::ParseIntError),
             };
 
-            Ok(GenericFraction::Rational(sign, Ratio::new(num, T::one())))
+            Ok(Self::new_signed(sign, num, T::one()))
         }
     }
 }
@@ -196,10 +196,10 @@ where
 
         let sign = ns * ds * sign;
 
-        Some(Self::_new(sign, num, den))
+        Some(Self::new_signed(sign, num, den))
     }
 
-    fn _new<N, D>(sign: Sign, num: N, den: D) -> GenericFraction<T>
+    pub(super) fn new_signed<N, D>(sign: Sign, num: N, den: D) -> GenericFraction<T>
     where
         N: Into<T>,
         D: Into<T>,
@@ -235,7 +235,7 @@ where
         N: Into<T>,
         D: Into<T>,
     {
-        Self::_new(Sign::Plus, num, den)
+        Self::new_signed(Sign::Plus, num, den)
     }
 
     /// Constructs a new negative fraction with the specified numerator and denominator
@@ -255,7 +255,7 @@ where
         N: Into<T>,
         D: Into<T>,
     {
-        Self::_new(Sign::Minus, num, den)
+        Self::new_signed(Sign::Minus, num, den)
     }
 
     /// Constructs a new fraction without types casting, checking for denom == 0 and reducing numbers.
@@ -1878,6 +1878,49 @@ mod tests {
         assert_eq!(Err(ParseError::OverflowError), Frac::from_str("255.255"));
 
         assert_eq!(Err(ParseError::ParseIntError), Frac::from_str("256/256"));
+    }
+
+    #[test]
+    fn from_str_zero_denominator() {
+        assert_eq!(Ok(Fraction::infinity()), Fraction::from_str("1/0"));
+        assert_eq!(Ok(Fraction::neg_infinity()), Fraction::from_str("-1/0"));
+        assert_eq!(Ok(Fraction::infinity()), Fraction::from_str("+1/0"));
+        assert_eq!(Ok(Fraction::nan()), Fraction::from_str("0/0"));
+        assert_eq!(Ok(Fraction::infinity()), Fraction::from_str("1/000"));
+
+        assert_eq!(
+            Ok(GenericFraction::<u64>::infinity()),
+            GenericFraction::<u64>::from_str("1/0")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u64>::nan()),
+            GenericFraction::<u64>::from_str("0/0")
+        );
+
+        assert_eq!(
+            Ok(GenericFraction::<u8>::infinity()),
+            GenericFraction::<u8>::from_str("1/0")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u8>::neg_infinity()),
+            GenericFraction::<u8>::from_str("-1/0")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u8>::infinity()),
+            GenericFraction::<u8>::from_str("+1/0")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u8>::infinity()),
+            GenericFraction::<u8>::from_str("1/000")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u8>::new(1u8, 2u8)),
+            GenericFraction::<u8>::from_str("2/4")
+        );
+        assert_eq!(
+            Ok(GenericFraction::<u8>::nan()),
+            GenericFraction::<u8>::from_str("0/0")
+        );
     }
 
     #[test]
