@@ -1,9 +1,11 @@
 # Change Log
 
 ## [Unreleased]
+
+## [0.16.0] - 2026-08-09
 ### Changed
  - Replaced optional `lazy_static` usage with `std::sync::OnceLock` and `num-bigint` constants for approximation accuracy multipliers (special thanks to [Expyron](https://github.com/Expyron) for the `std::sync::OnceLock` patch).
- - Declared Rust 1.70 as the minimum supported Rust version (MSRV).
+ - **Breaking:** Rust 1.70 is now the minimum supported Rust version (MSRV).
 
 ### Fixed
  - Fraction and Decimal parsing now routes zero-denominator inputs to signed infinity or NaN (including optional Unicode `from_unicode_str`) rather than panicking.
