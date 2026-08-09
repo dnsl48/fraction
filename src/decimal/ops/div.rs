@@ -66,16 +66,32 @@ mod tests {
 
     #[test]
     fn div_scalar() {
-        assert_eq!(F::from(3) / 2, F::from(1.5));
+        {
+            let result = F::from(3) / 2;
+            assert_eq!(result.get_precision(), 0);
+            assert_eq!(result.set_precision(1), F::from(1.5));
+        }
         assert_eq!(F::from(3) / 1.5, F::from(2));
 
-        assert_eq!(&F::from(3) / 2, F::from(1.5));
+        {
+            let result = &F::from(3) / 2;
+            assert_eq!(result.get_precision(), 0);
+            assert_eq!(result.set_precision(1), F::from(1.5));
+        }
         assert_eq!(&F::from(3) / 1.5, F::from(2));
 
-        assert_eq!(F::from(3) / F::from(2), F::from(1.5));
+        {
+            let result = F::from(3) / F::from(2);
+            assert_eq!(result.get_precision(), 0);
+            assert_eq!(result.set_precision(1), F::from(1.5));
+        }
         assert_eq!(F::from(3) / F::from(1.5), F::from(2));
 
-        assert_eq!(&F::from(3) / &F::from(2), F::from(1.5));
+        {
+            let result = &F::from(3) / &F::from(2);
+            assert_eq!(result.get_precision(), 0);
+            assert_eq!(result.set_precision(1), F::from(1.5));
+        }
         assert_eq!(&F::from(3) / &F::from(1.5), F::from(2));
     }
 }

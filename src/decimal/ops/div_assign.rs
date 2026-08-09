@@ -106,7 +106,8 @@ mod tests {
         {
             let mut v = -F::one();
             v /= F::from(2);
-            assert_eq!(v, -F::from(0.5));
+            assert_eq!(v.get_precision(), 0);
+            assert_eq!(v.set_precision(1), -F::from(0.5));
         }
 
         {
@@ -118,7 +119,8 @@ mod tests {
         {
             let mut v = -F::one();
             v /= -F::from(2);
-            assert_eq!(v, F::from(0.5));
+            assert_eq!(v.get_precision(), 0);
+            assert_eq!(v.set_precision(1), F::from(0.5));
         }
 
         {
@@ -199,7 +201,8 @@ mod tests {
         {
             let mut v = -F::one();
             v /= &F::from(2);
-            assert_eq!(v, -F::from(0.5));
+            assert_eq!(v.get_precision(), 0);
+            assert_eq!(v.set_precision(1), -F::from(0.5));
         }
 
         {
@@ -211,7 +214,8 @@ mod tests {
         {
             let mut v = -F::one();
             v /= &(-F::from(2));
-            assert_eq!(v, F::from(0.5));
+            assert_eq!(v.get_precision(), 0);
+            assert_eq!(v.set_precision(1), F::from(0.5));
         }
 
         {
@@ -244,7 +248,8 @@ mod tests {
         {
             let mut v = F::from(3);
             v /= 2;
-            assert_eq!(v, F::from(1.5));
+            assert_eq!(v.get_precision(), 0);
+            assert_eq!(v.set_precision(1), F::from(1.5));
         }
     }
 }

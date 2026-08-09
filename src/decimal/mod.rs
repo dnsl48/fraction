@@ -40,8 +40,9 @@ mod try_from;
 /// P is the type for precision
 ///
 /// Uses [GenericFraction]<T> internally to represent the data.
-/// Precision is being used for representation purposes only.
-/// Calculations do not use precision, but comparison does.
+/// Precision is used for display, ordering and hashing.
+/// Calculations are exact and ignore precision; comparisons and hashes use each
+/// value’s stored precision and truncate fractional digits accordingly.
 ///
 /// # Examples
 ///
@@ -203,23 +204,6 @@ macro_rules! dec_impl {
         }
     };
 
-    (impl_trait_cmp; $trait:ident; $fn:ident; $return:ty) => {
-        impl<T, P> $trait for GenericDecimal<T, P>
-        where
-            T: Clone + GenericInteger + $trait,
-            P: Copy + GenericInteger + Into<usize>
-        {
-            fn $fn(&self, other: &Self) -> $return {
-                match self {
-                    GenericDecimal(sf, _) => match other {
-                        GenericDecimal(of, _) => $trait::$fn(sf, of)
-                    }
-                }
-            }
-        }
-    };
-
-
     (impl_trait_proxy; $trait:ident; $(($fn:ident ; $self:tt ; ; $return:ty)),*) => {
         impl<T, P> $trait for GenericDecimal<T, P>
         where
@@ -343,7 +327,198 @@ where
     }
 }
 
-dec_impl!(impl_trait_cmp; Ord; cmp; Ordering);
+fn decimal_fraction_next_digit<T>(state_slot: &mut Option<division::DivisionState<T>>) -> Option<u8>
+where
+    T: Clone + GenericInteger,
+{
+    let state = match state_slot.take() {
+        None => return Some(0),
+        Some(state) => state,
+    };
+
+    if state.remainder.is_zero() {
+        *state_slot = Some(state);
+        return Some(0);
+    }
+
+    let mut digit = 0u8;
+    match division::divide_rem_resume(state, |s, d| {
+        digit = d;
+        Ok(Err(s))
+    }) {
+        Ok(next_state) => {
+            *state_slot = Some(next_state);
+            Some(digit)
+        }
+        Err(_) => None,
+    }
+}
+
+fn decimal_is_canonical_zero<T>(numer: &T, denom: &T, precision: usize) -> bool
+where
+    T: Clone + GenericInteger,
+{
+    let (integral, remainder) = numer.div_rem(denom);
+    if !integral.is_zero() {
+        return false;
+    }
+
+    if precision == 0 {
+        return true;
+    }
+
+    let mut state = if remainder.is_zero() {
+        None
+    } else {
+        Some(division::DivisionState::new(remainder, denom.clone()))
+    };
+
+    for _ in 0..precision {
+        let digit = match decimal_fraction_next_digit(&mut state) {
+            Some(digit) => digit,
+            None => return false,
+        };
+        if digit != 0 {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn decimal_fraction_cmp<T>(
+    lhs_num: &T,
+    lhs_den: &T,
+    lhs_precision: usize,
+    rhs_num: &T,
+    rhs_den: &T,
+    rhs_precision: usize,
+) -> Ordering
+where
+    T: Clone + GenericInteger,
+{
+    let (lhs_int, lhs_rem) = lhs_num.div_rem(lhs_den);
+    let (rhs_int, rhs_rem) = rhs_num.div_rem(rhs_den);
+
+    if lhs_int != rhs_int {
+        return lhs_int.cmp(&rhs_int);
+    }
+
+    let max_precision = if lhs_precision > rhs_precision {
+        lhs_precision
+    } else {
+        rhs_precision
+    };
+
+    let mut lhs_state = if lhs_rem.is_zero() {
+        None
+    } else {
+        Some(division::DivisionState::new(lhs_rem, lhs_den.clone()))
+    };
+    let mut rhs_state = if rhs_rem.is_zero() {
+        None
+    } else {
+        Some(division::DivisionState::new(rhs_rem, rhs_den.clone()))
+    };
+
+    for digit in 0..max_precision {
+        let lhs_digit = if digit >= lhs_precision {
+            0
+        } else {
+            decimal_fraction_next_digit(&mut lhs_state).unwrap_or(0)
+        };
+
+        let rhs_digit = if digit >= rhs_precision {
+            0
+        } else {
+            decimal_fraction_next_digit(&mut rhs_state).unwrap_or(0)
+        };
+
+        if lhs_digit != rhs_digit {
+            return lhs_digit.cmp(&rhs_digit);
+        }
+    }
+
+    Ordering::Equal
+}
+
+impl<T, P> Ord for GenericDecimal<T, P>
+where
+    T: Clone + GenericInteger + Ord,
+    P: Copy + GenericInteger + Into<usize>,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self {
+            GenericDecimal(sf, sp) => match other {
+                GenericDecimal(of, op) => match (sf, of) {
+                    (GenericFraction::NaN, GenericFraction::NaN) => Ordering::Equal,
+                    (GenericFraction::NaN, _) => Ordering::Less,
+                    (_, GenericFraction::NaN) => Ordering::Greater,
+                    (GenericFraction::Infinity(sign), GenericFraction::Infinity(other_sign)) => {
+                        sign.cmp(other_sign)
+                    }
+                    (GenericFraction::Infinity(Sign::Plus), GenericFraction::Rational(_, _)) => {
+                        Ordering::Greater
+                    }
+                    (GenericFraction::Infinity(Sign::Minus), GenericFraction::Rational(_, _)) => {
+                        Ordering::Less
+                    }
+                    (GenericFraction::Rational(_, _), GenericFraction::Infinity(Sign::Plus)) => {
+                        Ordering::Less
+                    }
+                    (GenericFraction::Rational(_, _), GenericFraction::Infinity(Sign::Minus)) => {
+                        Ordering::Greater
+                    }
+                    (
+                        GenericFraction::Rational(s_sign, s_ratio),
+                        GenericFraction::Rational(o_sign, o_ratio),
+                    ) => {
+                        let lhs_precision = (*sp).into();
+                        let rhs_precision = (*op).into();
+
+                        let lhs_zero = decimal_is_canonical_zero(
+                            s_ratio.numer(),
+                            s_ratio.denom(),
+                            lhs_precision,
+                        );
+                        let rhs_zero = decimal_is_canonical_zero(
+                            o_ratio.numer(),
+                            o_ratio.denom(),
+                            rhs_precision,
+                        );
+
+                        if lhs_zero && rhs_zero {
+                            return Ordering::Equal;
+                        }
+
+                        if s_sign != o_sign {
+                            return if *s_sign == Sign::Minus {
+                                Ordering::Less
+                            } else {
+                                Ordering::Greater
+                            };
+                        }
+
+                        let abs_cmp = decimal_fraction_cmp(
+                            s_ratio.numer(),
+                            s_ratio.denom(),
+                            lhs_precision,
+                            o_ratio.numer(),
+                            o_ratio.denom(),
+                            rhs_precision,
+                        );
+
+                        if *s_sign == Sign::Minus {
+                            abs_cmp.reverse()
+                        } else {
+                            abs_cmp
+                        }
+                    }
+                },
+            },
+        }
+    }
+}
 
 impl<T, P> PartialOrd for GenericDecimal<T, P>
 where
@@ -361,177 +536,7 @@ where
     P: Copy + GenericInteger + Into<usize>,
 {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            GenericDecimal(sf, sp) => match other {
-                GenericDecimal(of, op) => {
-                    if sf.sign() != of.sign() {
-                        return false;
-                    }
-
-                    if sf.is_zero() {
-                        return of.is_zero();
-                    }
-
-                    if of.is_zero() {
-                        return false;
-                    }
-
-                    if !sf.is_normal() || !of.is_normal() {
-                        return PartialEq::eq(sf, of);
-                    }
-
-                    if sp == op && PartialEq::eq(sf, of) {
-                        return true;
-                    }
-
-                    // if either precision or fractions are not equal,
-                    // then we potentially have different numbers represented so
-                    // we need to figure out their numeric representation and compare it
-
-                    if let GenericFraction::Rational(_, sr) = sf {
-                        if let GenericFraction::Rational(_, or) = of {
-                            let (si, srem) = sr.numer().div_rem(sr.denom());
-                            let (oi, orem) = or.numer().div_rem(or.denom());
-
-                            if si != oi {
-                                return false;
-                            }
-
-                            let mut s_state =
-                                Some(division::DivisionState::new(srem, sr.denom().clone()));
-                            let mut o_state =
-                                Some(division::DivisionState::new(orem, or.denom().clone()));
-
-                            let mut s_digit: u8 = 0;
-                            let mut o_digit: u8 = 0;
-
-                            let mut precision: usize = 0;
-                            loop {
-                                s_state = if let Ok(s) =
-                                    division::divide_rem_resume(s_state.take().unwrap(), |s, d| {
-                                        s_digit = d;
-                                        Ok(Err(s))
-                                    }) {
-                                    if s.remainder.is_zero() {
-                                        None
-                                    } else {
-                                        Some(s)
-                                    }
-                                } else {
-                                    return false;
-                                };
-
-                                o_state = if let Ok(s) =
-                                    division::divide_rem_resume(o_state.take().unwrap(), |s, d| {
-                                        o_digit = d;
-                                        Ok(Err(s))
-                                    }) {
-                                    if s.remainder.is_zero() {
-                                        None
-                                    } else {
-                                        Some(s)
-                                    }
-                                } else {
-                                    return false;
-                                };
-
-                                if s_digit != o_digit {
-                                    return false;
-                                }
-
-                                precision += 1;
-
-                                if precision == (*sp).into() {
-                                    if sp == op {
-                                        return true;
-                                    }
-
-                                    if op > sp {
-                                        for _ in 0..(*op - *sp).into() {
-                                            if let Some(state) = o_state.take() {
-                                                let div_result = division::divide_rem_resume(
-                                                    state,
-                                                    |state, digit| {
-                                                        o_digit = digit;
-                                                        Ok(Err(state))
-                                                    },
-                                                );
-                                                o_state = match div_result {
-                                                    Ok(s) => {
-                                                        if s.remainder.is_zero() {
-                                                            None
-                                                        } else {
-                                                            Some(s)
-                                                        }
-                                                    }
-                                                    Err(_) => return false,
-                                                };
-
-                                                if o_digit != 0 {
-                                                    return false;
-                                                }
-                                            } else {
-                                                return true;
-                                            }
-                                        }
-                                        return true;
-                                    } else {
-                                        return o_state.is_none();
-                                    }
-                                }
-
-                                if precision == (*op).into() {
-                                    if sp > op {
-                                        for _ in 0..(*sp - *op).into() {
-                                            if let Some(state) = s_state.take() {
-                                                let div_result = division::divide_rem_resume(
-                                                    state,
-                                                    |state, digit| {
-                                                        s_digit = digit;
-                                                        Ok(Err(state))
-                                                    },
-                                                );
-                                                s_state = match div_result {
-                                                    Ok(s) => {
-                                                        if s.remainder.is_zero() {
-                                                            None
-                                                        } else {
-                                                            Some(s)
-                                                        }
-                                                    }
-                                                    Err(_) => return false,
-                                                };
-
-                                                if s_digit != 0 {
-                                                    return false;
-                                                }
-                                            } else {
-                                                return true;
-                                            }
-                                        }
-                                        return true;
-                                    } else {
-                                        return s_state.is_none();
-                                    }
-                                }
-
-                                if s_state.is_none() {
-                                    return o_state.is_none();
-                                }
-
-                                if o_state.is_none() {
-                                    return s_state.is_none();
-                                }
-                            }
-                        } else {
-                            unreachable!()
-                        }
-                    } else {
-                        unreachable!()
-                    }
-                }
-            },
-        }
+        self.cmp(other) == Ordering::Equal
     }
 }
 
@@ -552,56 +557,48 @@ where
                     }
                 }
                 GenericFraction::Rational(sign, ratio) => {
-                    if let Sign::Plus = sign {
-                        state.write_u8(3u8)
-                    } else {
-                        state.write_u8(4u8)
-                    }
-
                     let num = ratio.numer();
                     let den = ratio.denom();
+                    let precision = (*precision).into();
+                    let canonical_zero = decimal_is_canonical_zero(num, den, precision);
 
-                    let div_state =
+                    if *sign == Sign::Plus || canonical_zero {
+                        state.write_u8(3u8);
+                    } else {
+                        state.write_u8(4u8);
+                    }
+
+                    let mut hasher_state =
                         division::divide_integral(num.clone(), den.clone(), |digit: u8| {
                             state.write_u8(digit);
                             Ok(true)
                         })
-                        .ok();
+                        .ok()
+                        .filter(|hash_state| !hash_state.remainder.is_zero());
 
-                    if !precision.is_zero() {
+                    if precision != 0 {
                         let mut dot = false;
                         let mut trailing_zeroes: usize = 0;
 
-                        if let Some(div_state) = div_state {
-                            if !div_state.remainder.is_zero() {
-                                let mut precision = *precision;
-                                division::divide_rem(
-                                    div_state.remainder,
-                                    div_state.divisor,
-                                    |s, digit: u8| {
-                                        precision -= P::one();
+                        for _ in 0..precision {
+                            let digit = decimal_fraction_next_digit(&mut hasher_state).unwrap_or(0);
 
-                                        if digit == 0 {
-                                            trailing_zeroes += 1;
-                                        } else {
-                                            if !dot {
-                                                dot = true;
-                                                state.write_u8(10u8);
-                                            }
-
-                                            if trailing_zeroes > 0 {
-                                                trailing_zeroes = 0;
-                                                state.write_usize(trailing_zeroes);
-                                            }
-
-                                            state.write_u8(digit);
-                                        }
-
-                                        Ok(if precision.is_zero() { Err(s) } else { Ok(s) })
-                                    },
-                                )
-                                .ok();
+                            if digit == 0 {
+                                trailing_zeroes += 1;
+                                continue;
                             }
+
+                            if !dot {
+                                dot = true;
+                                state.write_u8(10u8);
+                            }
+
+                            if trailing_zeroes > 0 {
+                                state.write_usize(trailing_zeroes);
+                                trailing_zeroes = 0;
+                            }
+
+                            state.write_u8(digit);
                         }
                     }
                 }
@@ -727,11 +724,15 @@ where
         self.0.sign()
     }
 
-    /// Sets representational precision for the Decimal
-    /// The precision is only used for comparison and representation, not for calculations.
+    /// Sets representational precision for the Decimal.
     ///
-    /// This is suggested method for you to utilise if you know what precision you want to
-    /// work with.
+    /// Precision controls truncation for comparison and hashing.
+    /// `set_precision(0)` drops all fractional digits.
+    ///
+    /// Canonical zero values (for example `-0`, `-0.9@p0`, and
+    /// `-0.04@p1`) compare and hash as positive zero.
+    ///
+    /// Use this method when you know the precision you want to work with.
     ///
     /// # Examples
     ///
@@ -749,9 +750,9 @@ where
     /// // exact initial precision
     /// assert_eq!(first + second, D::from("0.01"));
     ///
-    /// // The comparison, on the other hand, takes the precision into account
-    /// // so the actual compared numbers will be calculated up the highest
-    /// // precision of both operands
+    /// // The comparison, on the other hand, takes each value’s own precision first.
+    /// // The comparison then pads the shorter representation with zeroes so both
+    /// // operands can be compared in the same precision grid.
     /// assert_ne!(  // compares "0.010" with "0.011"
     ///     D::from("0.01"),  // has precision 2
     ///     D::from("0.011")  // has precision 3
@@ -1029,6 +1030,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+    use std::collections::{BTreeSet, HashSet};
     use {CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 
     use super::{GenericDecimal, One};
@@ -1088,6 +1091,208 @@ mod tests {
                 hash_it(&Decimal::from("50159.540302"))
             );
         }
+    }
+
+    #[test]
+    fn comparison_reported_bug_pair() {
+        let a = Decimal::from_str("0.5").unwrap() / Decimal::from_str("0.3").unwrap();
+        let b = Decimal::from_str("1.6").unwrap();
+
+        assert_eq!(a, b);
+        assert_eq!(Some(Ordering::Equal), a.partial_cmp(&b));
+        assert_eq!(Ordering::Equal, a.cmp(&b));
+        assert!(!(a < b));
+        assert!(!(a > b));
+        assert!(a <= b);
+        assert!(a >= b);
+
+        let mut set = BTreeSet::new();
+        set.insert(a);
+        set.insert(b);
+        assert_eq!(set.len(), 1);
+
+        let mut hash = HashSet::new();
+        hash.insert(a);
+        hash.insert(b);
+        assert_eq!(hash.len(), 1);
+        assert_eq!(hash_it(&a), hash_it(&b));
+
+        assert_eq!(vec![a].binary_search(&b), Ok(0));
+    }
+
+    #[test]
+    fn comparison_trailing_zeroes_and_precision() {
+        let one = Decimal::from_str("1.0").unwrap();
+        let one_with_more_zeroes = Decimal::from_str("1.000").unwrap();
+
+        assert_eq!(one, one_with_more_zeroes);
+        assert_eq!(hash_it(&one), hash_it(&one_with_more_zeroes));
+
+        let mut set = BTreeSet::new();
+        set.insert(one);
+        set.insert(one_with_more_zeroes);
+        assert_eq!(set.len(), 1);
+
+        let mut hash = HashSet::new();
+        hash.insert(one);
+        hash.insert(one_with_more_zeroes);
+        assert_eq!(hash.len(), 1);
+
+        assert_eq!(vec![one].binary_search(&one_with_more_zeroes), Ok(0));
+    }
+
+    #[test]
+    fn comparison_same_exact_fraction_different_precision() {
+        type D = GenericDecimal<u64, u8>;
+
+        let five_thirds_p1: D =
+            GenericDecimal::from_fraction_with_precision(GenericFraction::new(5u64, 3u64), 1u8);
+        let five_thirds_p2: D =
+            GenericDecimal::from_fraction_with_precision(GenericFraction::new(5u64, 3u64), 2u8);
+
+        assert!(five_thirds_p1 < five_thirds_p2);
+        assert_eq!(five_thirds_p1, five_thirds_p1.set_precision(1));
+        assert_eq!(five_thirds_p2, five_thirds_p2.set_precision(2));
+    }
+
+    #[test]
+    fn comparison_truncation_p0() {
+        let positive_one = Decimal::from_str("1.99").unwrap().set_precision(0);
+        let positive_other = Decimal::from_str("1.01").unwrap().set_precision(0);
+        let negative_one = Decimal::from_str("-1.99").unwrap().set_precision(0);
+        let negative_other = Decimal::from_str("-1.01").unwrap().set_precision(0);
+
+        assert_eq!(positive_one, positive_other);
+        assert_eq!(negative_one, negative_other);
+        assert!(!(positive_one < positive_other));
+        assert!(!(negative_one < negative_other));
+    }
+
+    #[test]
+    fn comparison_negative_and_zero() {
+        use num::traits::Zero;
+
+        let negative_zero = -Decimal::zero();
+        let negative_zero_p0 = -Decimal::from_str("0.9").unwrap().set_precision(0);
+        let negative_zero_p1 = -Decimal::from_str("0.04").unwrap().set_precision(1);
+
+        assert_eq!(negative_zero, Decimal::from(0));
+        assert_eq!(negative_zero_p0, Decimal::from(0));
+        assert_eq!(negative_zero_p1, Decimal::from(0));
+        assert_eq!(negative_zero, negative_zero_p0);
+        assert_eq!(negative_zero, negative_zero_p1);
+        assert_eq!(negative_zero_p0, negative_zero_p1);
+        assert_eq!(hash_it(&negative_zero), hash_it(&negative_zero_p1));
+
+        let mut set = BTreeSet::new();
+        set.insert(negative_zero);
+        set.insert(negative_zero_p0);
+        set.insert(negative_zero_p1);
+        assert_eq!(set.len(), 1);
+
+        let mut set = HashSet::new();
+        set.insert(negative_zero);
+        set.insert(negative_zero_p0);
+        set.insert(negative_zero_p1);
+        assert_eq!(set.len(), 1);
+        assert_eq!(hash_it(&negative_zero), hash_it(&negative_zero_p1));
+
+        assert_eq!(vec![negative_zero].binary_search(&negative_zero_p1), Ok(0));
+    }
+
+    #[test]
+    fn comparison_special_value_order() {
+        let nan = Decimal::nan();
+        let neg_inf = Decimal::neg_infinity();
+        let finite = Decimal::from_str("1.6").unwrap();
+        let inf = Decimal::infinity();
+
+        assert_eq!(nan.cmp(&nan), Ordering::Equal);
+        assert_eq!(nan.cmp(&neg_inf), Ordering::Less);
+        assert_eq!(nan.cmp(&finite), Ordering::Less);
+        assert_eq!(nan.cmp(&inf), Ordering::Less);
+
+        assert_eq!(neg_inf.cmp(&finite), Ordering::Less);
+        assert_eq!(neg_inf.cmp(&inf), Ordering::Less);
+
+        assert_eq!(finite.cmp(&inf), Ordering::Less);
+    }
+
+    #[test]
+    fn comparison_pairwise_eq_iff_cmp_equal() {
+        let values = vec![
+            Decimal::nan(),
+            Decimal::neg_infinity(),
+            (-Decimal::from_str("1").unwrap()),
+            Decimal::from_str("-0.5").unwrap(),
+            Decimal::from(0),
+            Decimal::from_str("0.5").unwrap(),
+            Decimal::from_str("1.6").unwrap(),
+            Decimal::infinity(),
+        ];
+
+        for left in &values {
+            for right in &values {
+                let cmp = left.cmp(right);
+                assert_eq!(left.eq(right), cmp == Ordering::Equal);
+                assert_eq!(left.partial_cmp(right), Some(cmp));
+            }
+        }
+    }
+
+    #[test]
+    fn comparison_reverse_antisymmetry() {
+        let values = vec![
+            Decimal::nan(),
+            Decimal::neg_infinity(),
+            (-Decimal::from_str("1").unwrap()),
+            Decimal::from_str("-0.5").unwrap(),
+            Decimal::from(0),
+            Decimal::from_str("0.5").unwrap(),
+            Decimal::from_str("1.6").unwrap(),
+            Decimal::infinity(),
+        ];
+
+        for left in &values {
+            for right in &values {
+                let forward = left.cmp(right);
+                let reverse = right.cmp(left);
+
+                assert_eq!(forward, reverse.reverse());
+            }
+        }
+    }
+
+    #[test]
+    fn comparison_transitivity_5_thirds_chain() {
+        let five_thirds_p1 =
+            Decimal::from_fraction_with_precision(GenericFraction::new(5u64, 3u64), 1);
+        let one_dot_six = Decimal::from_str("1.6").unwrap();
+        let one_dot_sixty_five = Decimal::from_str("1.65").unwrap();
+        let negative_five_thirds_p1 = -five_thirds_p1;
+        let negative_one_dot_six = -Decimal::from_str("1.6").unwrap();
+
+        assert_eq!(five_thirds_p1, one_dot_six);
+        assert_eq!(
+            Some(Ordering::Equal),
+            five_thirds_p1.partial_cmp(&one_dot_six)
+        );
+        assert!(one_dot_six < one_dot_sixty_five);
+        assert!(five_thirds_p1 < one_dot_sixty_five);
+
+        assert_eq!(negative_five_thirds_p1, negative_one_dot_six);
+        assert_eq!(
+            Some(Ordering::Equal),
+            negative_five_thirds_p1.partial_cmp(&negative_one_dot_six)
+        );
+        assert_eq!(
+            Ordering::Equal,
+            negative_five_thirds_p1.cmp(&negative_one_dot_six)
+        );
+        assert!(!(negative_five_thirds_p1 < negative_one_dot_six));
+        assert!(!(negative_five_thirds_p1 > negative_one_dot_six));
+        assert!(negative_five_thirds_p1 <= negative_one_dot_six);
+        assert!(negative_five_thirds_p1 >= negative_one_dot_six);
     }
 
     #[test]

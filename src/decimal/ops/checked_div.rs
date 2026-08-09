@@ -60,8 +60,13 @@ mod tests {
         assert_eq!(Some(-F::one()), (-F::one()).checked_div(&F::one()));
         assert_eq!(Some(F::one()), (-F::one()).checked_div(&(-F::one())));
 
-        assert_eq!(Some(F::from(0.5)), F::one().checked_div(&F::from(2)));
-        assert_eq!(Some(F::from(0.5)), (-F::one()).checked_div(&(-F::from(2))));
+        let result = F::one().checked_div(&F::from(2)).unwrap();
+        assert_eq!(result.get_precision(), 0);
+        assert_eq!(result.set_precision(1), F::from(0.5));
+
+        let result = (-F::one()).checked_div(&(-F::from(2))).unwrap();
+        assert_eq!(result.get_precision(), 0);
+        assert_eq!(result.set_precision(1), F::from(0.5));
 
         assert_eq!(Some(F::infinity()), F::one().checked_div(&F::zero()));
         assert_eq!(Some(F::neg_infinity()), (-F::one()).checked_div(&F::zero()));
