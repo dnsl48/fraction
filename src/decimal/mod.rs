@@ -1035,6 +1035,7 @@ mod tests {
     use fraction::GenericFraction;
     use prelude::Decimal;
     use std::hash::{Hash, Hasher};
+    use std::str::FromStr;
 
     type D = GenericDecimal<u8, u8>;
 
@@ -1183,6 +1184,29 @@ mod tests {
             GenericDecimal::<u64, u8>::from_fraction_with_precision(one_third, 18).get_precision(),
             18
         );
+    }
+
+    #[test]
+    fn from_str_zero_denominator() {
+        assert_eq!(Ok(Decimal::infinity()), Decimal::from_str("1/0"));
+        assert_eq!(Ok(Decimal::infinity()), Decimal::from_str("+1/0"));
+        assert_eq!(Ok(Decimal::neg_infinity()), Decimal::from_str("-1/0"));
+        assert_eq!(Ok(Decimal::nan()), Decimal::from_str("0/0"));
+
+        assert_eq!(
+            Ok(GenericDecimal::<u8, u8>::infinity()),
+            GenericDecimal::<u8, u8>::from_str("1/0")
+        );
+        assert_eq!(
+            Ok(GenericDecimal::<u8, u8>::neg_infinity()),
+            GenericDecimal::<u8, u8>::from_str("-1/0")
+        );
+        assert_eq!(
+            Ok(GenericDecimal::<u8, u8>::nan()),
+            GenericDecimal::<u8, u8>::from_str("0/0")
+        );
+
+        assert_eq!(Decimal::from("1/0"), Decimal::infinity());
     }
 
     // TODO: more tests

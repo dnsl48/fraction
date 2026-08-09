@@ -230,6 +230,15 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     ///   assert_eq!(Fraction::from_unicode_str(f_str), Ok(f))
     /// }
     /// ```
+    /// Slash and fraction-slash inputs keep the same zero-denominator semantics:
+    /// `1⁄0` yields positive infinity, `-1⁄0` yields negative infinity, and `0⁄0` yields NaN.
+    /// ```
+    /// use fraction::Fraction;
+    ///
+    /// assert_eq!(Fraction::from_unicode_str("1⁄0"), Ok(Fraction::infinity()));
+    /// assert_eq!(Fraction::from_unicode_str("-1⁄0"), Ok(Fraction::neg_infinity()));
+    /// assert_eq!(Fraction::from_unicode_str("0⁄0"), Ok(Fraction::nan()));
+    /// ```
     pub fn from_unicode_str(input: &str) -> Result<Self, ParseError> {
         let s: &str;
         let sign = if input.starts_with('-') {
@@ -364,10 +373,7 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 ) else {
                     return Err(ParseError::ParseIntError);
                 };
-                Ok(GenericFraction::Rational(
-                    sign,
-                    Ratio::new(numer + trunc * denom.clone(), denom),
-                ))
+                Ok(Self::new_signed(sign, numer + trunc * denom.clone(), denom))
             } else if let Some((trunc_str, numer_str)) =
                 // also allow for mixed fractions to be parsed: `1⁤1⁄2`
                 // allowed invisible separators: \u{2064} \u{2063}
@@ -383,10 +389,7 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 let Ok(denom) = T::from_str_radix(denom_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
-                Ok(GenericFraction::Rational(
-                    sign,
-                    Ratio::new(numer + trunc * denom.clone(), denom),
-                ))
+                Ok(Self::new_signed(sign, numer + trunc * denom.clone(), denom))
             } else {
                 let Ok(numer) = T::from_str_radix(first, 10) else {
                     return Err(ParseError::ParseIntError);
@@ -396,7 +399,7 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                     return Err(ParseError::ParseIntError);
                 };
 
-                Ok(GenericFraction::Rational(sign, Ratio::new(numer, denom)))
+                Ok(Self::new_signed(sign, numer, denom))
             }
         } else {
             let Ok(val) = T::from_str_radix(s, 10) else {
@@ -545,6 +548,25 @@ mod tests {
             let f_test = Fraction::from_unicode_str(string);
             assert_eq!(f_test, Ok(frac));
             assert_eq!(format!("{}", frac.get_unicode_display().mixed()), string);
+        }
+    }
+
+    #[test]
+    fn from_unicode_str_zero_denominator() {
+        let test_vec = vec![
+            ("1\u{2064}1/0", Fraction::infinity()),
+            ("1/0", Fraction::infinity()),
+            ("0/0", Fraction::nan()),
+            ("²/₀", Fraction::infinity()),
+            ("⁰/₀", Fraction::nan()),
+            ("1⁄0", Fraction::infinity()),
+            ("5⁄0", Fraction::infinity()),
+            ("-1⁄0", Fraction::neg_infinity()),
+            ("1\u{2064}0/0", Fraction::nan()),
+            ("1⁰/₀", Fraction::nan()),
+        ];
+        for (string, fraction) in test_vec {
+            assert_eq!(Fraction::from_unicode_str(string), Ok(fraction));
         }
     }
 
