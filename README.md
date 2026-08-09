@@ -34,25 +34,26 @@ fraction = { version = "0.15.4", features = ["with-postgres-support", "with-serd
 
 ## Features
 
-Default features:
+The `default` feature set enables the features marked **Yes** below.
 
-- `with-bigint`
-- `with-decimal`
-- `with-dynaint`
+| Feature                 | Default? | Overview                                                                                                             |
+|-------------------------|----------|----------------------------------------------------------------------------------------------------------------------|
+| `with-bigint`           | Yes      | Adds `num::BigInt`/`BigUint` support, re-exports those types, and enables aliases such as `BigFraction`.             |
+| `with-decimal`          | Yes      | Adds `GenericDecimal` and decimal aliases such as `Decimal`, with precision retained for formatting and comparison.  |
+| `with-dynaint`          | Yes      | Adds `DynaInt`, which keeps small integers inline and promotes them to a larger backing type on overflow.            |
+| `with-approx`           | No       | Enables `with-bigint` and adds accuracy-controlled square-root helpers for fractions and, when enabled, decimals.    |
+| `with-juniper-support`  | No       | Adds Juniper GraphQL scalar, input, and output implementations for the enabled fraction and decimal types.           |
+| `with-postgres-support` | No       | Adds PostgreSQL `NUMERIC` `ToSql`/`FromSql` conversions for the enabled fraction and decimal types.                  |
+| `with-serde-support`    | No       | Adds Serde `Serialize`/`Deserialize` implementations for enabled fraction, decimal, sign, and dynamic-integer types. |
+| `with-unicode`          | No       | Adds Unicode fraction formatting and parsing helpers for `GenericFraction`.                                          |
 
-Optional features:
+MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx` surface exercised by
+the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration dependency graphs,
+including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under fresh dependency
+resolution.
 
-- `with-approx`
-- `with-juniper-support`
-- `with-postgres-support`
-- `with-serde-support`
-- `with-unicode`
-
-`with-bigint` is enabled by default and is required for `BigInt` and `BigUint` conversions. `with-approx` currently adds approximate helpers such as `sqrt`.
-
-MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx` surface exercised by the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration dependency graphs, including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under fresh dependency resolution.
-
-Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes fractions usable in sets, hash maps, and B-trees.
+Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes
+fractions usable in sets, hash maps, and B-trees.
 
 ## Examples
 
@@ -121,9 +122,12 @@ When `with-unicode` is enabled, Unicode display helpers are available.
 
 ## PostgreSQL notes
 
-Use `Decimal` rather than `Fraction` for PostgreSQL work where possible. PostgreSQL’s binary protocol uses `i16`, so the base type for `GenericFraction` or `GenericDecimal` should be at least `u16`.
+Use `Decimal` rather than `Fraction` for PostgreSQL work where possible. PostgreSQL’s binary protocol uses `i16`, so the
+base type for `GenericFraction` or `GenericDecimal` should be at least `u16`.
 
-For very large or repeating values such as `1/3` or `1/7`, `Fraction` can grow to 16383 digits after the decimal point, which is slower than an explicitly precision-bound `Decimal`. If you need dynamic growth, `DynaInt<u8, _>` or `DynaInt<usize, BigUint>` can help.
+For very large or repeating values such as `1/3` or `1/7`, `Fraction` can grow to 16383 digits after the decimal point,
+which is slower than an explicitly precision-bound `Decimal`. If you need dynamic growth, `DynaInt<u8, _>` or
+`DynaInt<usize, BigUint>` can help.
 
 ## Documentation
 
