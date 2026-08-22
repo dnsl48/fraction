@@ -3,6 +3,8 @@ extern crate fraction;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fraction::generic;
 use fraction::{prelude::Decimal, GenericDecimal, GenericFraction};
+#[cfg(all(feature = "with-bigint", feature = "with-dynaint"))]
+use fraction::{DynaFraction, DynaInt, Num};
 use std::str::FromStr;
 
 #[allow(clippy::missing_panics_doc)]
@@ -45,6 +47,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             (a, b)
         });
     });
+
+    #[cfg(all(feature = "with-bigint", feature = "with-dynaint"))]
+    {
+        // Round-five reference (CPU 0; 2 s warm-up / 8 s measurement; median of three):
+        // Parser f7c4917 -> f774a72: small 4.4264 -> 4.2729 ns (-3.47%); promoted
+        // 12.627 -> 12.710 ns (+0.66%); DynaFraction 50.565 -> 50.491 ns (-0.15%).
+        // Absolute values are layout-sensitive and comparable only when this benchmark body/order is unchanged.
+        c.bench_function("DynaInt small from_str_radix", |b| {
+            b.iter(|| {
+                let value: Result<DynaInt<u8, u16>, _> = Num::from_str_radix(black_box("42"), 10);
+                black_box(value)
+            });
+        });
+
+        c.bench_function("DynaInt promoted from_str_radix", |b| {
+            b.iter(|| {
+                let value: Result<DynaInt<u8, u16>, _> = Num::from_str_radix(black_box("4096"), 10);
+                black_box(value)
+            });
+        });
+
+        c.bench_function("DynaFraction from_str_radix", |b| {
+            b.iter(|| {
+                let value: Result<DynaFraction<u8>, _> = Num::from_str_radix(black_box("1/2"), 10);
+                black_box(value)
+            });
+        });
+    }
 
     c.bench_function("Decimal cmp integer early exit", |b| {
         let left = Decimal::from_str("123456").unwrap();
