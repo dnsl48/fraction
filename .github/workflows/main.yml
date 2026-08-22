@@ -72,8 +72,20 @@ jobs:
           command: fmt
           args: --all -- --check
 
+      - name: Run MSRV harness cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path tests/msrv/Cargo.toml --all -- --check
+
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --all-features -- -D warnings -A deprecated
+
+      - name: Run MSRV harness cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path tests/msrv/Cargo.toml --all-targets -- -D warnings -A deprecated
