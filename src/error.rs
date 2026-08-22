@@ -14,14 +14,16 @@ use std::io;
 /// ```
 /// use fraction::error::ParseError;
 ///
-/// fn is_parse_failure(error: ParseError) -> bool {
+/// fn error_label(error: ParseError) -> &'static str {
 ///     match error {
-///         ParseError::ParseIntError => true,
-///         _ => false,
+///         ParseError::ParseIntError => "bad digits",
+///         ParseError::UnsupportedBase => "bad radix",
+///         _ => "other",
 ///     }
 /// }
 ///
-/// let _ = is_parse_failure(ParseError::ParseIntError);
+/// assert_eq!(error_label(ParseError::ParseIntError), "bad digits");
+/// assert_eq!(error_label(ParseError::UnsupportedBase), "bad radix");
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
@@ -32,8 +34,11 @@ pub enum ParseError {
     /// Could not convert a character into a digit or a string into a number
     ParseIntError,
 
-    /// The base is not supported. E.g. a type only supports base 10, but we try to
-    /// parse with the base 7.
+    /// The requested base is outside the range supported by the parser.
+    /// [`GenericFraction`](crate::GenericFraction)'s `from_str_radix` and
+    /// direct `DynaInt` parsing accept bases 2 through 36, while
+    /// `GenericDecimal` supports base 10 only. Backing types may have their
+    /// own additional requirements for an in-range base.
     UnsupportedBase,
 
     /// A fraction denominator was zero where the parser requires a finite ratio.
