@@ -162,4 +162,21 @@ mod tests {
             assert_eq!(value.unwrap().get_precision(), v.get_precision())
         }
     }
+
+    #[test]
+    fn from_input_value_component_sign_rejected_for_signed_storage() {
+        type SignedDecimal = GenericDecimal<i16, u8>;
+
+        assert!(
+            <SignedDecimal as FromInputValue>::from_input_value(&InputValue::scalar("-1/2"))
+                .is_some()
+        );
+        for input in ["1/-2", "1/+2", "--1/2", "1/-128"] {
+            assert_eq!(
+                <SignedDecimal as FromInputValue>::from_input_value(&InputValue::scalar(input)),
+                None,
+                "input should not place a sign inside a decimal Juniper component: {input}"
+            );
+        }
+    }
 }

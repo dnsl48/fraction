@@ -7,7 +7,24 @@ use std::fmt;
 use std::io;
 
 /// Happens when we parse stuff from strings
+///
+/// Consumers should include a wildcard arm when matching this error so that
+/// additions to the error set remain source-compatible.
+///
+/// ```
+/// use fraction::error::ParseError;
+///
+/// fn is_parse_failure(error: ParseError) -> bool {
+///     match error {
+///         ParseError::ParseIntError => true,
+///         _ => false,
+///     }
+/// }
+///
+/// let _ = is_parse_failure(ParseError::ParseIntError);
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum ParseError {
     /// Not enough capacity in underlying integer to perform a math operation
     OverflowError,
@@ -18,6 +35,9 @@ pub enum ParseError {
     /// The base is not supported. E.g. a type only supports base 10, but we try to
     /// parse with the base 7.
     UnsupportedBase,
+
+    /// A fraction denominator was zero where the parser requires a finite ratio.
+    ZeroDenominator,
 }
 
 unsafe impl Send for ParseError {}
@@ -29,6 +49,7 @@ impl fmt::Display for ParseError {
             ParseError::OverflowError => write!(f, "Overflow"),
             ParseError::ParseIntError => write!(f, "Could not parse integer"),
             ParseError::UnsupportedBase => write!(f, "Unsupported base"),
+            ParseError::ZeroDenominator => write!(f, "Zero denominator"),
         }
     }
 }

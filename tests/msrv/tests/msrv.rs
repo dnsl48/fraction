@@ -1,9 +1,11 @@
 use fraction::approx::Accuracy;
+use fraction::error::ParseError;
 use fraction::generic::GenericInteger;
 use fraction::BigInt;
 use fraction::BigUint;
-use fraction::error::ParseError;
 use fraction::Fraction;
+use fraction::{GenericFraction, Num, Sign};
+use std::str::FromStr;
 
 #[test]
 fn msrv_accuracy_multipliers_are_cached() {
@@ -78,13 +80,48 @@ fn msrv_generic_integer_accessors_are_usable() {
 
 #[test]
 fn msrv_unicode_mixed_overflow_is_reported() {
-    for input in [
-        "18446744073709551615¹/₂",
-        "18446744073709551615\u{2064}1⁄2",
-    ] {
+    for input in ["18446744073709551615¹/₂", "18446744073709551615\u{2064}1⁄2"] {
         assert_eq!(
             Fraction::from_unicode_str(input),
             Err(ParseError::ParseIntError)
         );
     }
+}
+
+#[test]
+fn msrv_parser_component_sign_contract_is_stable() {
+    let parsed = GenericFraction::<i16>::from_str("-1/2").unwrap();
+    assert_eq!(parsed.sign(), Some(Sign::Minus));
+    assert_eq!(parsed.numer(), Some(&1i16));
+    assert_eq!(parsed.denom(), Some(&2i16));
+
+    for input in ["1/-2", "1/+2", "--1/2", "-32768"] {
+        assert_eq!(
+            GenericFraction::<i16>::from_str(input),
+            Err(ParseError::ParseIntError)
+        );
+    }
+
+    assert_eq!(
+        GenericFraction::<i16>::from_str_radix("-1/2", 10),
+        Ok(GenericFraction::new_neg(1i16, 2i16))
+    );
+    assert_eq!(
+        GenericFraction::<i16>::from_str_radix("1/0", 10),
+        Err(ParseError::ZeroDenominator)
+    );
+    for radix in [1, 37] {
+        assert_eq!(
+            GenericFraction::<i16>::from_str_radix("1/2", radix),
+            Err(ParseError::UnsupportedBase)
+        );
+    }
+    assert_eq!(
+        GenericFraction::<i16>::from_str_radix("10/10", 2),
+        Ok(GenericFraction::new(1i16, 1i16))
+    );
+    assert_eq!(
+        GenericFraction::<i16>::from_str_radix("z/z", 36),
+        Ok(GenericFraction::new(1i16, 1i16))
+    );
 }
