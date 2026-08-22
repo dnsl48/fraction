@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+ - **Breaking:** Unicode mixed-number parsing now requires backing integer types to provide checked addition and multiplication operations. This source-contract tightening prevents bounded integer overflow in 0.17.
+
+### Fixed
+ - Unicode mixed-number parsing now returns `ParseIntError` when combining the whole and fractional parts would overflow the backing integer type, instead of panicking in debug builds or wrapping in release builds.
+
 ## [0.16.0] - 2026-08-09
 ### Changed
  - Replaced optional `lazy_static` usage with `std::sync::OnceLock` and `num-bigint` constants for approximation accuracy multipliers (special thanks to [Expyron](https://github.com/Expyron) for the `std::sync::OnceLock` patch).

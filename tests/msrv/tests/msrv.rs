@@ -2,6 +2,8 @@ use fraction::approx::Accuracy;
 use fraction::generic::GenericInteger;
 use fraction::BigInt;
 use fraction::BigUint;
+use fraction::error::ParseError;
+use fraction::Fraction;
 
 #[test]
 fn msrv_accuracy_multipliers_are_cached() {
@@ -72,4 +74,17 @@ fn msrv_generic_integer_accessors_are_usable() {
     let bi10_b = BigInt::_10r().expect("BigInt::_10r should be present");
     assert_eq!(*bi10_a, BigInt::from(10_i8));
     assert!(std::ptr::eq(bi10_a, bi10_b));
+}
+
+#[test]
+fn msrv_unicode_mixed_overflow_is_reported() {
+    for input in [
+        "18446744073709551615¹/₂",
+        "18446744073709551615\u{2064}1⁄2",
+    ] {
+        assert_eq!(
+            Fraction::from_unicode_str(input),
+            Err(ParseError::ParseIntError)
+        );
+    }
 }
