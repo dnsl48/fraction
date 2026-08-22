@@ -1,12 +1,22 @@
 use crate::fraction::GenericFraction;
 use crate::{error::ParseError, Sign};
 use num::rational::Ratio;
-use num::Zero;
+use num::{CheckedAdd, CheckedMul, Zero};
 use std::{fmt, str};
 use Integer;
 
 pub struct UnicodeDisplay<'a, T: Clone + Integer>(&'a GenericFraction<T>);
 pub struct SupSubDisplay<'a, T: Clone + Integer>(&'a UnicodeDisplay<'a, T>);
+
+fn checked_mixed_numerator<T>(trunc: &T, numer: &T, denom: &T) -> Result<T, ParseError>
+where
+    T: Clone + CheckedAdd + CheckedMul,
+{
+    let scaled_trunc = trunc.checked_mul(denom).ok_or(ParseError::ParseIntError)?;
+    scaled_trunc
+        .checked_add(numer)
+        .ok_or(ParseError::ParseIntError)
+}
 
 impl<'a, T> fmt::Display for UnicodeDisplay<'a, T>
 where
@@ -209,6 +219,11 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     /// - A mixed super-subscript fraction  "1¹/₂"
     ///
     /// Focus is on being lenient towards input rather than being fast.
+    ///
+    /// Mixed-number components are combined with checked arithmetic. If the
+    /// raw combined numerator does not fit in `T`, parsing returns
+    /// [`ParseError::ParseIntError`].
+    ///
     /// ```
     /// use fraction::Fraction;
     /// let v = vec![
@@ -239,7 +254,10 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     /// assert_eq!(Fraction::from_unicode_str("-1⁄0"), Ok(Fraction::neg_infinity()));
     /// assert_eq!(Fraction::from_unicode_str("0⁄0"), Ok(Fraction::nan()));
     /// ```
-    pub fn from_unicode_str(input: &str) -> Result<Self, ParseError> {
+    pub fn from_unicode_str(input: &str) -> Result<Self, ParseError>
+    where
+        T: CheckedAdd + CheckedMul,
+    {
         let s: &str;
         let sign = if input.starts_with('-') {
             s = input.strip_prefix('-').unwrap();
@@ -373,7 +391,8 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 ) else {
                     return Err(ParseError::ParseIntError);
                 };
-                Ok(Self::new_signed(sign, numer + trunc * denom.clone(), denom))
+                let numer = checked_mixed_numerator(&trunc, &numer, &denom)?;
+                Ok(Self::new_signed(sign, numer, denom))
             } else if let Some((trunc_str, numer_str)) =
                 // also allow for mixed fractions to be parsed: `1⁤1⁄2`
                 // allowed invisible separators: \u{2064} \u{2063}
@@ -389,7 +408,8 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 let Ok(denom) = T::from_str_radix(denom_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
-                Ok(Self::new_signed(sign, numer + trunc * denom.clone(), denom))
+                let numer = checked_mixed_numerator(&trunc, &numer, &denom)?;
+                Ok(Self::new_signed(sign, numer, denom))
             } else {
                 let Ok(numer) = T::from_str_radix(first, 10) else {
                     return Err(ParseError::ParseIntError);
@@ -413,8 +433,102 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{error::ParseError, Fraction};
+    use crate::{error::ParseError, Fraction, GenericFraction};
     use num::{One, Zero};
+    #[cfg(feature = "with-bigint")]
+    use std::str::FromStr;
+
+    #[test]
+    fn from_unicode_str_mixed_rejects_reported_overflow() {
+        let inputs = ["18446744073709551615¹/₂", "18446744073709551615\u{2064}1⁄2"];
+
+        for input in inputs {
+            assert_eq!(
+                GenericFraction::<u64>::from_unicode_str(input),
+                Err(ParseError::ParseIntError)
+            );
+        }
+    }
+
+    #[test]
+    fn from_unicode_str_mixed_rejects_component_overflow() {
+        let multiplication_overflow = ["128¹/₂", "128\u{2064}1/2"];
+        let addition_overflow = ["255¹/₁", "255\u{2064}1/1"];
+
+        for input in multiplication_overflow
+            .iter()
+            .chain(addition_overflow.iter())
+        {
+            assert_eq!(
+                GenericFraction::<u8>::from_unicode_str(input),
+                Err(ParseError::ParseIntError)
+            );
+        }
+    }
+
+    #[test]
+    fn from_unicode_str_mixed_accepts_fitting_signed_values() {
+        assert_eq!(
+            GenericFraction::<u8>::from_unicode_str("127¹/₂"),
+            Ok(GenericFraction::<u8>::new(255, 2))
+        );
+        assert_eq!(
+            GenericFraction::<u8>::from_unicode_str("+127\u{2064}1/2"),
+            Ok(GenericFraction::<u8>::new(255, 2))
+        );
+        assert_eq!(
+            GenericFraction::<u8>::from_unicode_str("-127¹/₂"),
+            Ok(GenericFraction::<u8>::new_neg(255, 2))
+        );
+    }
+
+    #[test]
+    fn from_unicode_str_mixed_rejects_raw_overflow_before_reduction() {
+        for input in ["127²/₂", "127\u{2064}2/2"] {
+            assert_eq!(
+                GenericFraction::<u8>::from_unicode_str(input),
+                Err(ParseError::ParseIntError)
+            );
+        }
+    }
+
+    #[test]
+    fn from_unicode_str_mixed_preserves_zero_denominator_semantics() {
+        assert_eq!(
+            Fraction::from_unicode_str("1\u{2064}1/0"),
+            Ok(Fraction::infinity())
+        );
+        assert_eq!(Fraction::from_unicode_str("1¹/₀"), Ok(Fraction::infinity()));
+        assert_eq!(
+            Fraction::from_unicode_str("0\u{2064}0/0"),
+            Ok(Fraction::nan())
+        );
+    }
+
+    #[cfg(feature = "with-bigint")]
+    #[test]
+    fn from_unicode_str_mixed_preserves_big_fraction_capacity() {
+        use crate::BigFraction;
+
+        let expected = BigFraction::from_str("36893488147419103231/2").unwrap();
+        for input in ["18446744073709551615¹/₂", "18446744073709551615\u{2064}1⁄2"] {
+            assert_eq!(BigFraction::from_unicode_str(input), Ok(expected.clone()));
+        }
+    }
+
+    #[cfg(all(feature = "with-bigint", feature = "with-dynaint"))]
+    #[test]
+    fn from_unicode_str_mixed_preserves_dyna_fraction_capacity() {
+        use crate::DynaFraction;
+
+        let expected = DynaFraction::<u64>::from_str("36893488147419103231/2").unwrap();
+        for input in ["18446744073709551615¹/₂", "18446744073709551615\u{2064}1⁄2"] {
+            assert_eq!(
+                DynaFraction::<u64>::from_unicode_str(input),
+                Ok(expected.clone())
+            );
+        }
+    }
 
     #[test]
     fn test_fromto_str() {

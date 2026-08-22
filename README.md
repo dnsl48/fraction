@@ -47,10 +47,10 @@ The `default` feature set enables the features marked **Yes** below.
 | `with-serde-support`    | No       | Adds Serde `Serialize`/`Deserialize` implementations for enabled fraction, decimal, sign, and dynamic-integer types. |
 | `with-unicode`          | No       | Adds Unicode fraction formatting and parsing helpers for `GenericFraction`.                                          |
 
-MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx` surface exercised by
-the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration dependency graphs,
-including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under fresh dependency
-resolution.
+MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx`/`with-unicode`
+surface exercised by the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration
+dependency graphs, including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under
+fresh dependency resolution.
 
 Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes
 fractions usable in sets, hash maps, and B-trees.
