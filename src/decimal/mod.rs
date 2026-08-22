@@ -1030,6 +1030,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::error::ParseError;
     use std::cmp::Ordering;
     use std::collections::{BTreeSet, HashSet};
     use {CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
@@ -1412,6 +1413,29 @@ mod tests {
         );
 
         assert_eq!(Decimal::from("1/0"), Decimal::infinity());
+    }
+
+    #[test]
+    fn from_str_infallible_conversion_rejects_component_signs_as_nan() {
+        assert!(Decimal::from("1/+2").is_nan());
+        assert!(Decimal::from("1.+5").is_nan());
+    }
+
+    #[test]
+    fn from_str_component_sign_rejected_for_signed_storage() {
+        type SignedDecimal = GenericDecimal<i16, u8>;
+
+        assert_eq!(
+            SignedDecimal::from_str("-1/2").unwrap(),
+            SignedDecimal::from_fraction_with_precision(GenericFraction::new_neg(1i16, 2i16), 16)
+        );
+        for input in ["1/-2", "1/+2", "--1/2", "1.-2", "-32768", "1/-32768"] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                SignedDecimal::from_str(input),
+                "input should not place a sign inside a decimal component: {input}"
+            );
+        }
     }
 
     // TODO: more tests

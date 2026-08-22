@@ -123,6 +123,12 @@
 //! assert_eq!(f - f, Fraction::zero());
 //! ```
 //!
+//! Text parsers accept at most one optional sign at the beginning of the complete value. Numeric
+//! components are unsigned, so forms such as `1/-2`, `1/+2`, and `1.-2` are rejected. Ordinary
+//! and Unicode fraction parsing map zero denominators to infinity or NaN; `from_str_radix` accepts
+//! bases 2 through 36, returns [`error::ParseError::UnsupportedBase`] for other bases, and returns
+//! [`error::ParseError::ZeroDenominator`] for a zero denominator.
+//!
 //! Decimal:
 //! ```
 //! use std::str::FromStr;
@@ -231,7 +237,12 @@ extern crate num;
 #[cfg(feature = "with-bigint")]
 pub use num::bigint::{BigInt, BigUint};
 
-pub use num::rational::{ParseRatioError, Ratio};
+/// The upstream error returned by [`Ratio::from_str_radix`].
+///
+/// [`GenericFraction::from_str_radix`] uses this crate's [`error::ParseError`]
+/// instead, including its explicit zero-denominator and unsupported-base errors.
+pub use num::rational::ParseRatioError;
+pub use num::rational::Ratio;
 
 pub use num::{
     traits::{ConstOne, ConstZero},

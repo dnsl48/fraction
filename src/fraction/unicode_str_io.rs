@@ -1,4 +1,4 @@
-use crate::fraction::GenericFraction;
+use crate::fraction::{generic_fraction::parse_magnitude, GenericFraction};
 use crate::{error::ParseError, Sign};
 use num::rational::Ratio;
 use num::{CheckedAdd, CheckedMul, Zero};
@@ -10,7 +10,7 @@ pub struct SupSubDisplay<'a, T: Clone + Integer>(&'a UnicodeDisplay<'a, T>);
 
 fn checked_mixed_numerator<T>(trunc: &T, numer: &T, denom: &T) -> Result<T, ParseError>
 where
-    T: Clone + CheckedAdd + CheckedMul,
+    T: CheckedAdd + CheckedMul,
 {
     let scaled_trunc = trunc.checked_mul(denom).ok_or(ParseError::ParseIntError)?;
     scaled_trunc
@@ -219,6 +219,8 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     /// - A mixed super-subscript fraction  "1¹/₂"
     ///
     /// Focus is on being lenient towards input rather than being fast.
+    /// An optional leading sign applies to the complete value; numeric components
+    /// in ordinary, mixed, and super/subscript forms cannot carry their own sign.
     ///
     /// Mixed-number components are combined with checked arithmetic. If the
     /// raw combined numerator does not fit in `T`, parsing returns
@@ -342,13 +344,13 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 let trunc = if idx.is_zero() {
                     T::zero()
                 } else {
-                    let Ok(t) = T::from_str_radix(&first[..idx], 10) else {
+                    let Ok(t) = parse_magnitude::<T>(&first[..idx], 10) else {
                         return Err(ParseError::ParseIntError);
                     };
                     t
                 };
 
-                let Ok(numer) = T::from_str_radix(
+                let Ok(numer) = parse_magnitude::<T>(
                     &first[idx..]
                         .chars()
                         .map(|c| match c {
@@ -369,7 +371,7 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 ) else {
                     return Err(ParseError::ParseIntError);
                 };
-                let Ok(denom) = T::from_str_radix(
+                let Ok(denom) = parse_magnitude::<T>(
                     // let n =
                     &denom_str
                         .chars()
@@ -399,30 +401,30 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
                 // '+' is disallowed, bc it would be confusing with -1+1/2
                 first.split_once(&['\u{2064}', '\u{2063}'][..])
             {
-                let Ok(numer) = T::from_str_radix(numer_str, 10) else {
+                let Ok(numer) = parse_magnitude::<T>(numer_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
-                let Ok(trunc) = T::from_str_radix(trunc_str, 10) else {
+                let Ok(trunc) = parse_magnitude::<T>(trunc_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
-                let Ok(denom) = T::from_str_radix(denom_str, 10) else {
+                let Ok(denom) = parse_magnitude::<T>(denom_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
                 let numer = checked_mixed_numerator(&trunc, &numer, &denom)?;
                 Ok(Self::new_signed(sign, numer, denom))
             } else {
-                let Ok(numer) = T::from_str_radix(first, 10) else {
+                let Ok(numer) = parse_magnitude::<T>(first, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
 
-                let Ok(denom) = T::from_str_radix(denom_str, 10) else {
+                let Ok(denom) = parse_magnitude::<T>(denom_str, 10) else {
                     return Err(ParseError::ParseIntError);
                 };
 
                 Ok(Self::new_signed(sign, numer, denom))
             }
         } else {
-            let Ok(val) = T::from_str_radix(s, 10) else {
+            let Ok(val) = parse_magnitude::<T>(s, 10) else {
                 return Err(ParseError::ParseIntError);
             };
             Ok(GenericFraction::Rational(sign, Ratio::new(val, T::one())))
@@ -433,13 +435,13 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{error::ParseError, Fraction, GenericFraction};
+    use crate::{error::ParseError, Fraction, GenericFraction, Sign};
     use num::{One, Zero};
     #[cfg(feature = "with-bigint")]
     use std::str::FromStr;
 
     #[test]
-    fn from_unicode_str_mixed_rejects_reported_overflow() {
+    fn from_unicode_str_mixed_rejects_reported_u64_overflow() {
         let inputs = ["18446744073709551615¹/₂", "18446744073709551615\u{2064}1⁄2"];
 
         for input in inputs {
@@ -451,14 +453,8 @@ mod tests {
     }
 
     #[test]
-    fn from_unicode_str_mixed_rejects_component_overflow() {
-        let multiplication_overflow = ["128¹/₂", "128\u{2064}1/2"];
-        let addition_overflow = ["255¹/₁", "255\u{2064}1/1"];
-
-        for input in multiplication_overflow
-            .iter()
-            .chain(addition_overflow.iter())
-        {
+    fn from_unicode_str_mixed_rejects_whole_part_multiplication_overflow() {
+        for input in ["128¹/₂", "128\u{2064}1/2"] {
             assert_eq!(
                 GenericFraction::<u8>::from_unicode_str(input),
                 Err(ParseError::ParseIntError)
@@ -467,7 +463,17 @@ mod tests {
     }
 
     #[test]
-    fn from_unicode_str_mixed_accepts_fitting_signed_values() {
+    fn from_unicode_str_mixed_rejects_fractional_addition_overflow() {
+        for input in ["255¹/₁", "255\u{2064}1/1"] {
+            assert_eq!(
+                GenericFraction::<u8>::from_unicode_str(input),
+                Err(ParseError::ParseIntError)
+            );
+        }
+    }
+
+    #[test]
+    fn from_unicode_str_mixed_accepts_maximum_fitting_raw_numerator_with_outer_signs() {
         assert_eq!(
             GenericFraction::<u8>::from_unicode_str("127¹/₂"),
             Ok(GenericFraction::<u8>::new(255, 2))
@@ -503,6 +509,58 @@ mod tests {
             Fraction::from_unicode_str("0\u{2064}0/0"),
             Ok(Fraction::nan())
         );
+    }
+
+    #[test]
+    fn from_unicode_str_unsigned_rejects_component_sign() {
+        assert_eq!(
+            Fraction::from_unicode_str("1⁄+2"),
+            Err(ParseError::ParseIntError)
+        );
+    }
+
+    #[test]
+    fn from_unicode_str_component_sign_rejected_for_signed_storage() {
+        type SignedFrac = GenericFraction<i16>;
+
+        for (input, sign, numer, denom) in [
+            ("1⁄2", Sign::Plus, 1i16, 2i16),
+            ("+1⁄2", Sign::Plus, 1i16, 2i16),
+            ("-1⁄2", Sign::Minus, 1i16, 2i16),
+            ("-1⁤1⁄2", Sign::Minus, 3i16, 2i16),
+            ("-1¹/₂", Sign::Minus, 3i16, 2i16),
+        ] {
+            match SignedFrac::from_unicode_str(input).unwrap() {
+                SignedFrac::Rational(actual_sign, ratio) => {
+                    assert_eq!(sign, actual_sign);
+                    assert_eq!(&numer, ratio.numer());
+                    assert_eq!(&denom, ratio.denom());
+                    assert!(*ratio.numer() >= 0);
+                    assert!(*ratio.denom() >= 0);
+                }
+                other => panic!("expected rational, got {:?}", other),
+            }
+        }
+
+        for input in [
+            "1/-2",
+            "1/+2",
+            "--1⁄2",
+            "+-1⁄2",
+            "1⁤-1⁄2",
+            "1⁤+1⁄2",
+            "-32768",
+            "-32768⁄1",
+            "1⁄-32768",
+            "-1⁤1⁄-32768",
+            "1¹/-32768",
+        ] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                SignedFrac::from_unicode_str(input),
+                "input should not place a sign inside a Unicode component: {input}"
+            );
+        }
     }
 
     #[cfg(feature = "with-bigint")]

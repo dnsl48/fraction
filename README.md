@@ -55,6 +55,17 @@ fresh dependency resolution.
 Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes
 fractions usable in sets, hash maps, and B-trees.
 
+## Text parsing
+
+Ordinary, decimal, Unicode, and `GenericFraction` radix parsing accept at most one optional sign at the beginning
+of the complete value. Numeric components are unsigned: inputs such as `1/-2`, `1/+2`, and `1.-2` are rejected.
+This keeps the sign outside the stored ratio. Fraction Juniper input retains its required explicit leading sign;
+Decimal Juniper input retains its existing contract.
+
+`GenericFraction::from_str_radix` retains its fraction-only `numerator/denominator` grammar, accepts bases 2 through
+36, and reports unsupported bases as `ParseError::UnsupportedBase`. Its zero-denominator result is
+`ParseError::ZeroDenominator`; ordinary and Unicode parsing instead map zero denominators to infinity or NaN.
+
 ## Examples
 
 ### Fraction

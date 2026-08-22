@@ -1,7 +1,7 @@
 use crate::fraction::Sign;
 use crate::{
     display, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstOne, ConstZero,
-    FromPrimitive, Integer, Num, One, ParseRatioError, Ratio, Signed, ToPrimitive, Zero,
+    FromPrimitive, Integer, Num, One, Ratio, Signed, ToPrimitive, Zero,
 };
 #[cfg(feature = "with-bigint")]
 use crate::{BigInt, BigUint};
@@ -18,6 +18,21 @@ use std::ops::{Add, Mul, Neg};
 use std::f64;
 use std::fmt;
 use std::str::FromStr;
+
+/// Parses a non-negative integer component for a fraction text grammar.
+///
+/// `GenericFraction` stores the sign separately from its `Ratio`, so signs are
+/// only valid on the complete input and not on individual numeric components.
+#[inline]
+pub(super) fn parse_magnitude<T>(value: &str, radix: u32) -> Result<T, ParseError>
+where
+    T: Integer,
+{
+    if matches!(value.as_bytes().first(), Some(b'+' | b'-')) {
+        return Err(ParseError::ParseIntError);
+    }
+    T::from_str_radix(value, radix).map_err(|_| ParseError::ParseIntError)
+}
 
 /// Generic implementation of the fraction type
 ///
@@ -37,6 +52,9 @@ use std::str::FromStr;
 ///
 /// Since GenericFraction keeps its sign explicitly and independently of the numerics,
 /// it is not recommended to use signed types, although it's completely valid with the cost of target type capacity.
+/// Text parsers accept at most one optional sign at the beginning of the complete
+/// input. Signs inside a numerator, denominator, or other numeric component are
+/// rejected so that the stored `Ratio` remains non-negative.
 ///
 /// ```
 /// use fraction::GenericFraction;
@@ -78,85 +96,97 @@ where
     type Err = ParseError;
 
     fn from_str(src: &str) -> Result<Self, Self::Err> {
-        let (sign, start) = if src.starts_with('-') {
-            (Sign::Minus, 1)
-        } else if src.starts_with('+') {
-            (Sign::Plus, 1)
-        } else {
-            (Sign::Plus, 0)
+        let (sign, start) = match src.as_bytes().first() {
+            Some(b'-') => (Sign::Minus, 1),
+            Some(b'+') => (Sign::Plus, 1),
+            _ => (Sign::Plus, 0),
         };
-
-        if let Some(split_idx) = src.find('.') {
-            let who = &src[start..split_idx];
-
-            let mut num = match T::from_str_radix(who, 10) {
-                Err(_) => return Err(ParseError::ParseIntError),
-                Ok(value) => value,
-            };
-
-            // skip trailing zeros
-            let len = src[split_idx + 1..].trim_end_matches('0').len();
-            let fra = if len > 0 {
-                let p = T::from_str_radix(&src[split_idx + 1..split_idx + 1 + len], 10);
-                match p {
-                    Err(_) => return Err(ParseError::ParseIntError),
-                    Ok(value) => value,
-                }
-            } else {
-                T::zero()
-            };
-
-            let mut den = T::one();
-
-            if len > 0 {
-                let mut t10 = T::one();
-                for _ in 0..9 {
-                    t10 = if let Some(t10) = t10.checked_add(&den) {
-                        t10
-                    } else {
-                        return Err(ParseError::OverflowError);
-                    };
-                }
-
-                for _ in 0..len {
-                    num = if let Some(num) = num.checked_mul(&t10) {
-                        num
-                    } else {
-                        return Err(ParseError::OverflowError);
-                    };
-                    den = if let Some(den) = den.checked_mul(&t10) {
-                        den
-                    } else {
-                        return Err(ParseError::OverflowError);
-                    };
-                }
+        let mut dot = None;
+        let mut slash = None;
+        for (idx, byte) in src.as_bytes()[start..].iter().enumerate() {
+            match *byte {
+                b'+' | b'-' => return Err(ParseError::ParseIntError),
+                b'.' if dot.is_none() => dot = Some(idx + start),
+                b'/' if slash.is_none() => slash = Some(idx + start),
+                _ => {}
             }
+        }
+        // The scan above already rejects component-local signs, so these hot-path
+        // conversions deliberately avoid repeating parse_magnitude's sign check.
+        match (dot, slash) {
+            (None, Some(split_idx)) => {
+                let num = match T::from_str_radix(&src[start..split_idx], 10) {
+                    Ok(value) => value,
+                    Err(_) => return Err(ParseError::ParseIntError),
+                };
+                let den = match T::from_str_radix(&src[split_idx + 1..], 10) {
+                    Ok(value) => value,
+                    Err(_) => return Err(ParseError::ParseIntError),
+                };
 
-            let num = if let Some(num) = num.checked_add(&fra) {
-                num
-            } else {
-                return Err(ParseError::OverflowError);
-            };
+                Ok(Self::new_signed(sign, num, den))
+            }
+            (Some(split_idx), _) => {
+                let who = &src[start..split_idx];
 
-            Ok(Self::new_signed(sign, num, den))
-        } else if let Some(split_idx) = src.find('/') {
-            let num = match T::from_str_radix(&src[start..split_idx], 10) {
-                Ok(value) => value,
-                Err(_) => return Err(ParseError::ParseIntError),
-            };
-            let den = match T::from_str_radix(&src[split_idx + 1..], 10) {
-                Ok(value) => value,
-                Err(_) => return Err(ParseError::ParseIntError),
-            };
+                let mut num = match T::from_str_radix(who, 10) {
+                    Ok(value) => value,
+                    Err(_) => return Err(ParseError::ParseIntError),
+                };
 
-            Ok(Self::new_signed(sign, num, den))
-        } else {
-            let num = match T::from_str_radix(&src[start..], 10) {
-                Ok(value) => value,
-                Err(_) => return Err(ParseError::ParseIntError),
-            };
+                // skip trailing zeros
+                let len = src[split_idx + 1..].trim_end_matches('0').len();
+                let fra = if len > 0 {
+                    match T::from_str_radix(&src[split_idx + 1..split_idx + 1 + len], 10) {
+                        Ok(value) => value,
+                        Err(_) => return Err(ParseError::ParseIntError),
+                    }
+                } else {
+                    T::zero()
+                };
 
-            Ok(Self::new_signed(sign, num, T::one()))
+                let mut den = T::one();
+
+                if len > 0 {
+                    let mut t10 = T::one();
+                    for _ in 0..9 {
+                        t10 = if let Some(t10) = t10.checked_add(&den) {
+                            t10
+                        } else {
+                            return Err(ParseError::OverflowError);
+                        };
+                    }
+
+                    for _ in 0..len {
+                        num = if let Some(num) = num.checked_mul(&t10) {
+                            num
+                        } else {
+                            return Err(ParseError::OverflowError);
+                        };
+                        den = if let Some(den) = den.checked_mul(&t10) {
+                            den
+                        } else {
+                            return Err(ParseError::OverflowError);
+                        };
+                    }
+                }
+
+                let num = if let Some(num) = num.checked_add(&fra) {
+                    num
+                } else {
+                    return Err(ParseError::OverflowError);
+                };
+
+                Ok(Self::new_signed(sign, num, den))
+            }
+            (None, None) => {
+                let num = match T::from_str_radix(&src[start..], 10) {
+                    Ok(value) => value,
+                    Err(_) => return Err(ParseError::ParseIntError),
+                };
+
+                Ok(Self::new_signed(sign, num, T::one()))
+            }
         }
     }
 }
@@ -611,18 +641,30 @@ impl<T: ConstOne + Integer + Clone> ConstOne for GenericFraction<T> {
 }
 
 impl<T: Clone + Integer> Num for GenericFraction<T> {
-    type FromStrRadixErr = ParseRatioError;
+    /// Parsing errors use the crate's [`ParseError`] type.
+    type FromStrRadixErr = ParseError;
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        if let Some(rem) = str.strip_prefix('-') {
-            Ratio::from_str_radix(rem, radix)
-                .map(|ratio| GenericFraction::Rational(Sign::Minus, ratio))
+        if !(2..=36).contains(&radix) {
+            return Err(ParseError::UnsupportedBase);
+        }
+        let (sign, input) = if let Some(rem) = str.strip_prefix('-') {
+            (Sign::Minus, rem)
         } else if let Some(rem) = str.strip_prefix('+') {
-            Ratio::from_str_radix(rem, radix)
-                .map(|ratio| GenericFraction::Rational(Sign::Plus, ratio))
+            (Sign::Plus, rem)
         } else {
-            Ratio::from_str_radix(str, radix)
-                .map(|ratio| GenericFraction::Rational(Sign::Plus, ratio))
+            (Sign::Plus, str)
+        };
+        let (numerator, denominator) = input.split_once('/').ok_or(ParseError::ParseIntError)?;
+        let numerator = parse_magnitude::<T>(numerator, radix)?;
+        let denominator = parse_magnitude::<T>(denominator, radix)?;
+        if denominator.is_zero() {
+            Err(ParseError::ZeroDenominator)
+        } else {
+            Ok(GenericFraction::Rational(
+                sign,
+                Ratio::new(numerator, denominator),
+            ))
         }
     }
 }
@@ -1881,6 +1923,41 @@ mod tests {
     }
 
     #[test]
+    fn from_str_unsigned_rejects_component_signs() {
+        for input in ["1/+2", "1.+5", "-+1"] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                Frac::from_str(input),
+                "input should not place a sign inside a component: {input}"
+            );
+        }
+    }
+
+    #[test]
+    fn from_str_separator_contract() {
+        for (input, expected) in [
+            ("1", Ok(Frac::one())),
+            ("1/2", Ok(Frac::new(1, 2))),
+            ("1.25", Ok(Frac::new(125, 100))),
+            ("1.", Ok(Frac::one())),
+        ] {
+            assert_eq!(
+                Frac::from_str(input),
+                expected,
+                "input should parse: {input}"
+            );
+        }
+
+        for input in ["1/2.5", "1.2/3", "1..2", "1//2", "/2", "1/"] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                Frac::from_str(input),
+                "input should be rejected: {input}"
+            );
+        }
+    }
+
+    #[test]
     fn from_str_zero_denominator() {
         assert_eq!(Ok(Fraction::infinity()), Fraction::from_str("1/0"));
         assert_eq!(Ok(Fraction::neg_infinity()), Fraction::from_str("-1/0"));
@@ -1921,6 +1998,40 @@ mod tests {
             Ok(GenericFraction::<u8>::nan()),
             GenericFraction::<u8>::from_str("0/0")
         );
+    }
+
+    #[test]
+    fn from_str_component_sign_rejected_for_signed_storage() {
+        type SignedFrac = GenericFraction<i8>;
+
+        for (input, sign, numer, denom) in [
+            ("1/2", Sign::Plus, 1i8, 2i8),
+            ("+1/2", Sign::Plus, 1i8, 2i8),
+            ("-1/2", Sign::Minus, 1i8, 2i8),
+            ("-127", Sign::Minus, 127i8, 1i8),
+        ] {
+            match SignedFrac::from_str(input).unwrap() {
+                SignedFrac::Rational(actual_sign, ratio) => {
+                    assert_eq!(sign, actual_sign);
+                    assert_eq!(&numer, ratio.numer());
+                    assert_eq!(&denom, ratio.denom());
+                    assert!(*ratio.numer() >= 0);
+                    assert!(*ratio.denom() >= 0);
+                }
+                other => panic!("expected rational, got {:?}", other),
+            }
+        }
+
+        for input in [
+            "1/-2", "1/+2", "--1/2", "+-1/2", "+-1", "1.-2", "1/2.3", "1.2/3", "1/-0", "1/+0",
+            "-128", "-128/1", "1/-128", "-1/-128",
+        ] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                SignedFrac::from_str(input),
+                "input should not place a sign inside a component: {input}"
+            );
+        }
     }
 
     #[test]
@@ -2324,6 +2435,69 @@ mod tests {
             Frac::new_neg(4, 3),
             Frac::from_str_radix("-4/3", 10).unwrap()
         );
+    }
+
+    #[test]
+    fn from_str_radix_rejects_invalid_bases() {
+        for radix in [1, 37] {
+            assert_eq!(
+                Err(ParseError::UnsupportedBase),
+                Frac::from_str_radix("1/2", radix)
+            );
+        }
+        assert_eq!(Ok(Frac::one()), Frac::from_str_radix("10/10", 2));
+        assert_eq!(Ok(Frac::one()), Frac::from_str_radix("z/z", 36));
+    }
+
+    #[test]
+    fn from_str_radix_unsigned_rejects_component_sign() {
+        assert_eq!(
+            Err(ParseError::ParseIntError),
+            Frac::from_str_radix("1/+2", 10)
+        );
+    }
+
+    #[test]
+    fn from_str_radix_component_sign_rejected() {
+        type SignedFrac = GenericFraction<i8>;
+
+        for (input, radix, sign, numer, denom) in [
+            ("1/2", 10, Sign::Plus, 1i8, 2i8),
+            ("+1/2", 10, Sign::Plus, 1i8, 2i8),
+            ("-1/2", 10, Sign::Minus, 1i8, 2i8),
+            ("b/10", 16, Sign::Plus, 11i8, 16i8),
+            ("-b/10", 16, Sign::Minus, 11i8, 16i8),
+        ] {
+            match SignedFrac::from_str_radix(input, radix).unwrap() {
+                SignedFrac::Rational(actual_sign, ratio) => {
+                    assert_eq!(sign, actual_sign);
+                    assert_eq!(&numer, ratio.numer());
+                    assert_eq!(&denom, ratio.denom());
+                    assert!(*ratio.numer() >= 0);
+                    assert!(*ratio.denom() >= 0);
+                }
+                other => panic!("expected rational, got {:?}", other),
+            }
+        }
+
+        for input in [
+            "1/-2", "1/+2", "--1/2", "+-1/2", "1/-0", "1/+0", "-128/1", "1/-128", "1/2/3", "1",
+        ] {
+            assert_eq!(
+                Err(ParseError::ParseIntError),
+                SignedFrac::from_str_radix(input, 10),
+                "input should not place a sign inside a radix component: {input}"
+            );
+        }
+        assert_eq!(
+            Err(ParseError::ZeroDenominator),
+            SignedFrac::from_str_radix("1/0", 10)
+        );
+        assert_eq!(
+            Err(ParseError::ZeroDenominator),
+            SignedFrac::from_str_radix("b/0", 16)
+        );
+        assert_eq!("Zero denominator", ParseError::ZeroDenominator.to_string());
     }
 
     #[test]

@@ -6,7 +6,7 @@
 //! * Whole numbers: `+1`, `-2`
 //! * Fractions: `+1/2`, `-3/4`
 
-use super::{GenericFraction, Sign};
+use super::{generic_fraction::parse_magnitude, GenericFraction, Sign};
 use generic::GenericInteger;
 use juniper::{ParseScalarResult, ParseScalarValue, Value};
 
@@ -114,7 +114,7 @@ where
                 };
                 let (denom, split): (T, usize) = if let Some(idx) = val.find('/') {
                     let (_, denom) = val.split_at(idx + 1);
-                    match T::from_str_radix(denom, 10) {
+                    match parse_magnitude::<T>(denom, 10) {
                         Ok(val) => (val, idx),
                         Err(_) => return None,
                     }
@@ -123,7 +123,7 @@ where
                 };
                 let (snum, _) = val.split_at(split);
                 let (_, num) = snum.split_at(1);
-                match T::from_str_radix(num, 10) {
+                match parse_magnitude::<T>(num, 10) {
                     Ok(num) => match sign {
                         Sign::Plus => Some(GenericFraction::new(num, denom)),
                         Sign::Minus => Some(GenericFraction::new_neg(num, denom)),
@@ -233,6 +233,34 @@ mod tests {
                     <BigFraction as FromInputValue>::from_input_value(&InputValue::scalar(s));
                 assert_eq!(value, Some(v));
             }
+        }
+    }
+
+    #[test]
+    fn from_input_value_component_sign_rejected_for_signed_storage() {
+        type SignedFrac = GenericFraction<i8>;
+
+        for (input, expected) in [
+            ("+1/2", SignedFrac::new(1, 2)),
+            ("-1/2", SignedFrac::new_neg(1, 2)),
+        ] {
+            let value = <SignedFrac as FromInputValue>::from_input_value(&InputValue::scalar(
+                input.to_owned(),
+            ));
+            assert_eq!(value, Some(expected));
+        }
+
+        assert_eq!(
+            <SignedFrac as FromInputValue>::from_input_value(&InputValue::scalar("1/2")),
+            None
+        );
+
+        for input in ["+1/-2", "-1/+2", "+-1/2", "-1/-128"] {
+            assert_eq!(
+                <SignedFrac as FromInputValue>::from_input_value(&InputValue::scalar(input)),
+                None,
+                "input should not place a sign inside a Juniper component: {input}"
+            );
         }
     }
 }
