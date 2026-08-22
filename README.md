@@ -22,14 +22,14 @@ Lossless fractions and decimals for Rust; an aspirational drop-in replacement fo
 
 ```toml
 [dependencies]
-fraction = "0.16.0"
+fraction = "0.17.0"
 ```
 
 Enable optional integrations explicitly:
 
 ```toml
 [dependencies]
-fraction = { version = "0.16.0", features = ["with-postgres-support", "with-serde-support"] }
+fraction = { version = "0.17.0", features = ["with-postgres-support", "with-serde-support"] }
 ```
 
 ## Features

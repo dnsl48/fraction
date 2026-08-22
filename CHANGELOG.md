@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-23
+
 ### Changed
  - **Breaking:** `GenericFraction::<T>::from_unicode_str` now requires `T: CheckedAdd + CheckedMul`. Custom
    backing types must provide both operations for mixed-component combination; standard bounded, big-integer, and

@@ -1,6 +1,6 @@
 [package]
 name = "fraction"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["dnsl48 <dnsl48@gmail.com>"]
 edition = "2015"
 rust-version = "1.70"
