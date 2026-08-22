@@ -260,6 +260,7 @@ where
     T: Clone + GenericInteger,
     P: Copy + GenericInteger + Into<usize> + From<u8>,
 {
+    /// Converts a string to a Decimal, returning NaN when parsing fails.
     fn from(value: &'a str) -> Self {
         GenericDecimal::from_str(value).unwrap_or_else(|_| GenericDecimal::nan())
     }
@@ -661,6 +662,30 @@ where
 {
     type FromStrRadixErr = error::ParseError;
 
+    /// Parses ordinary integer, decimal, or fraction text using base 10.
+    ///
+    /// Base 10 is the only supported radix. An optional sign may prefix the
+    /// complete value, but signs inside numeric components are rejected. A
+    /// zero denominator follows Decimal's special-value semantics and produces
+    /// infinity or NaN rather than [`error::ParseError::ZeroDenominator`].
+    ///
+    /// # Errors
+    ///
+    /// Other radices return [`error::ParseError::UnsupportedBase`]. Other
+    /// failures use the same [`error::ParseError`] variants as ordinary
+    /// Decimal parsing.
+    ///
+    /// ```
+    /// use fraction::{error::ParseError, GenericDecimal, Num};
+    ///
+    /// type Decimal = GenericDecimal<u8, u8>;
+    /// assert!(Decimal::from_str_radix("1.25", 10).is_ok());
+    /// assert_eq!(Decimal::from_str_radix("1/0", 10), Ok(Decimal::infinity()));
+    /// assert!(matches!(
+    ///     Decimal::from_str_radix("1", 2),
+    ///     Err(ParseError::UnsupportedBase),
+    /// ));
+    /// ```
     fn from_str_radix(value: &str, base: u32) -> Result<Self, error::ParseError> {
         if base != 10 {
             return Err(error::ParseError::UnsupportedBase);

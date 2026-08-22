@@ -1,6 +1,8 @@
 //! Juniper values conversion for GenericFraction
-//! The format is case sensitive text representation of the sign and numbers.
-//! Those are:
+//! The format is a case-sensitive text representation of the sign and numbers.
+//! Finite and infinity inputs require an explicit outer `+` or `-` sign; signs
+//! inside numeric components are rejected. The `NaN` special value is the
+//! exception because it has no sign. Supported forms are:
 //! * Special cases: `NaN`, `+inf`, `-inf`
 //! * Zero: `+0`, `-0`
 //! * Whole numbers: `+1`, `-2`

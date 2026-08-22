@@ -877,9 +877,9 @@ where
     ///
     /// In-range parsing is delegated to the backing types, so custom backing
     /// types remain responsible for supporting the radix they receive. If
-    /// both backing types reject a value because it exceeds their capacity,
-    /// this method returns [`ParseError::ParseIntError`] rather than
-    /// [`ParseError::OverflowError`].
+    /// both backing types reject an input, whether its digits are malformed or
+    /// it cannot be represented, this method returns
+    /// [`ParseError::ParseIntError`].
     fn from_str_radix(s: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         if !(2..=36).contains(&radix) {
             return Err(ParseError::UnsupportedBase);

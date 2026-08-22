@@ -219,12 +219,14 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     /// - A mixed super-subscript fraction  "1¹/₂"
     ///
     /// Focus is on being lenient towards input rather than being fast.
-    /// An optional leading sign applies to the complete value; numeric components
-    /// in ordinary, mixed, and super/subscript forms cannot carry their own sign.
+    /// For Unicode numeric-component forms, an optional leading sign applies to
+    /// the complete value; numeric components in ordinary, mixed, and
+    /// super/subscript forms cannot carry their own sign.
     ///
-    /// Mixed-number components are combined with checked arithmetic. If the
-    /// raw combined numerator does not fit in `T`, parsing returns
-    /// [`ParseError::ParseIntError`].
+    /// Mixed-number components are combined with checked arithmetic before the
+    /// ratio is constructed. If the raw combined numerator does not fit in
+    /// `T`, parsing returns [`ParseError::ParseIntError`]. A zero denominator
+    /// still produces the corresponding infinity or NaN special value.
     ///
     /// ```
     /// use fraction::Fraction;
@@ -247,8 +249,9 @@ impl<T: Clone + Integer + From<u8>> GenericFraction<T> {
     ///   assert_eq!(Fraction::from_unicode_str(f_str), Ok(f))
     /// }
     /// ```
-    /// Slash and fraction-slash inputs keep the same zero-denominator semantics:
-    /// `1⁄0` yields positive infinity, `-1⁄0` yields negative infinity, and `0⁄0` yields NaN.
+    /// Slash and fraction-slash inputs, including mixed forms, keep the same
+    /// zero-denominator semantics: `1⁄0` yields positive infinity, `-1⁄0`
+    /// yields negative infinity, and `0⁄0` yields NaN.
     /// ```
     /// use fraction::Fraction;
     ///
