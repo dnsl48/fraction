@@ -38,6 +38,7 @@ use std::ops::{
 };
 
 use super::Sign;
+use crate::error::ParseError;
 
 #[cfg(feature = "with-bigint")]
 use num::BigUint;
@@ -868,12 +869,29 @@ where
     T: Copy + GenericInteger + Into<G> + TryToConvertFrom<G> + From<u8> + Num,
     G: Clone + GenericInteger,
 {
-    type FromStrRadixErr = <G as Num>::FromStrRadixErr;
+    /// Parsing errors use the crate's [`ParseError`] type.
+    type FromStrRadixErr = ParseError;
 
+    /// Parses `s` using a radix from 2 through 36. Other radices return
+    /// [`ParseError::UnsupportedBase`].
+    ///
+    /// In-range parsing is delegated to the backing types, so custom backing
+    /// types remain responsible for supporting the radix they receive. If
+    /// both backing types reject a value because it exceeds their capacity,
+    /// this method returns [`ParseError::ParseIntError`] rather than
+    /// [`ParseError::OverflowError`].
     fn from_str_radix(s: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        T::from_str_radix(s, radix)
-            .map(DynaInt::S)
-            .or_else(|_| G::from_str_radix(s, radix).map(DynaInt::h))
+        if !(2..=36).contains(&radix) {
+            return Err(ParseError::UnsupportedBase);
+        }
+
+        match T::from_str_radix(s, radix) {
+            Ok(value) => Ok(DynaInt::S(value)),
+            Err(_) => match G::from_str_radix(s, radix) {
+                Ok(value) => Ok(DynaInt::h(value)),
+                Err(_) => Err(ParseError::ParseIntError),
+            },
+        }
     }
 }
 
@@ -925,10 +943,13 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "with-bigint")]
+    use super::BigUint;
     use super::{
         CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, DynaInt, GenericInteger, Integer, Num, One,
         Sign, ToPrimitive, Zero,
     };
+    use crate::error::ParseError;
 
     type D = DynaInt<u8, u16>;
 
@@ -1269,8 +1290,37 @@ mod tests {
 
     #[test]
     fn from_str_radix() {
+        let parsed: Result<D, ParseError> = D::from_str_radix("256", 10);
+        assert_eq!(Ok(D::from(256u16)), parsed);
         assert_eq!(D::from(1u8), D::from_str_radix("1", 10).unwrap());
-        assert_eq!(D::from(256u16), D::from_str_radix("256", 10).unwrap());
+        assert_eq!(D::from(2u8), D::from_str_radix("10", 2).unwrap());
+        assert_eq!(D::from(35u8), D::from_str_radix("z", 36).unwrap());
+        assert_eq!(D::from(256u16), D::from_str_radix("100000000", 2).unwrap());
+        assert_eq!(Err(ParseError::ParseIntError), D::from_str_radix("z", 10));
+        assert_eq!(
+            Err(ParseError::ParseIntError),
+            D::from_str_radix("65536", 10)
+        );
+
+        for radix in [0, 1, 37, u32::MAX] {
+            assert_eq!(
+                Err(ParseError::UnsupportedBase),
+                D::from_str_radix("1", radix)
+            );
+        }
+    }
+
+    #[cfg(feature = "with-bigint")]
+    #[test]
+    fn from_str_radix_rejects_invalid_bases_for_biguint() {
+        type BigD = DynaInt<u8, BigUint>;
+
+        for radix in [0, 37] {
+            assert_eq!(
+                Err(ParseError::UnsupportedBase),
+                BigD::from_str_radix("1", radix)
+            );
+        }
     }
 
     #[test]

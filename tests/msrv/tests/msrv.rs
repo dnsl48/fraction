@@ -1,4 +1,5 @@
 use fraction::approx::Accuracy;
+use fraction::dynaint::DynaInt;
 use fraction::error::ParseError;
 use fraction::generic::GenericInteger;
 use fraction::BigInt;
@@ -123,5 +124,13 @@ fn msrv_parser_component_sign_contract_is_stable() {
     assert_eq!(
         GenericFraction::<i16>::from_str_radix("z/z", 36),
         Ok(GenericFraction::new(1i16, 1i16))
+    );
+
+    type Dynamic = DynaInt<u8, u16>;
+    let parsed: Result<Dynamic, ParseError> = Dynamic::from_str_radix("256", 10);
+    assert_eq!(parsed, Ok(Dynamic::from(256u16)));
+    assert_eq!(
+        Dynamic::from_str_radix("1", 0),
+        Err(ParseError::UnsupportedBase)
     );
 }

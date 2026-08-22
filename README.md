@@ -47,10 +47,9 @@ The `default` feature set enables the features marked **Yes** below.
 | `with-serde-support`    | No       | Adds Serde `Serialize`/`Deserialize` implementations for enabled fraction, decimal, sign, and dynamic-integer types. |
 | `with-unicode`          | No       | Adds Unicode fraction formatting and parsing helpers for `GenericFraction`.                                          |
 
-MSRV note: Rust 1.70 is the declared minimum and is CI-tested for the `with-bigint`/`with-approx`/`with-unicode`
-surface exercised by the MSRV smoke harness. Latest stable is tested with all features enabled. Optional integration
-dependency graphs, including `with-juniper-support` and `with-postgres-support`, may require a newer compiler under
-fresh dependency resolution.
+The Rust 1.70 MSRV smoke harness CI-tests the `with-bigint`/`with-approx`/`with-dynaint`/`with-unicode` feature
+surface. Latest stable is tested with all features enabled. Optional integration dependency graphs, including
+`with-juniper-support` and `with-postgres-support`, may require a newer compiler under fresh dependency resolution.
 
 Unlike primitive floats, `Fraction` treats `NaN` as equal to itself and orders it below negative infinity. That makes
 fractions usable in sets, hash maps, and B-trees.
@@ -62,9 +61,10 @@ of the complete value. Numeric components are unsigned: inputs such as `1/-2`, `
 This keeps the sign outside the stored ratio. Fraction Juniper input retains its required explicit leading sign;
 Decimal Juniper input retains its existing contract.
 
-`GenericFraction::from_str_radix` retains its fraction-only `numerator/denominator` grammar, accepts bases 2 through
-36, and reports unsupported bases as `ParseError::UnsupportedBase`. Its zero-denominator result is
-`ParseError::ZeroDenominator`; ordinary and Unicode parsing instead map zero denominators to infinity or NaN.
+`GenericFraction::from_str_radix` keeps its fraction-only `numerator/denominator` grammar and accepts bases 2
+through 36. It returns `ParseError::UnsupportedBase` for other bases and `ParseError::ZeroDenominator` for zero
+denominators; ordinary fraction, Decimal, and Unicode parsing instead map zero denominators to infinity or NaN.
+`GenericDecimal::from_str_radix` supports base 10 only and reports `ParseError::UnsupportedBase` for other bases.
 
 ## Examples
 

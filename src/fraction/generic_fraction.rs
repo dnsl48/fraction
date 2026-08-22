@@ -23,6 +23,7 @@ use std::str::FromStr;
 ///
 /// `GenericFraction` stores the sign separately from its `Ratio`, so signs are
 /// only valid on the complete input and not on individual numeric components.
+/// Callers must validate that `radix` is in `2..=36` before calling this helper.
 #[inline]
 pub(super) fn parse_magnitude<T>(value: &str, radix: u32) -> Result<T, ParseError>
 where
@@ -113,6 +114,8 @@ where
         }
         // The scan above already rejects component-local signs, so these hot-path
         // conversions deliberately avoid repeating parse_magnitude's sign check.
+        // A dot takes precedence over a slash: `1/2.5` therefore follows the
+        // decimal arm and is rejected when its whole component is parsed.
         match (dot, slash) {
             (None, Some(split_idx)) => {
                 let num = match T::from_str_radix(&src[start..split_idx], 10) {
@@ -1948,7 +1951,7 @@ mod tests {
             );
         }
 
-        for input in ["1/2.5", "1.2/3", "1..2", "1//2", "/2", "1/"] {
+        for input in ["1/2.5", "1.2/3", "1..2", "1//2", "/2", "1/", ".5"] {
             assert_eq!(
                 Err(ParseError::ParseIntError),
                 Frac::from_str(input),
@@ -2439,7 +2442,7 @@ mod tests {
 
     #[test]
     fn from_str_radix_rejects_invalid_bases() {
-        for radix in [1, 37] {
+        for radix in [0, 1, 37] {
             assert_eq!(
                 Err(ParseError::UnsupportedBase),
                 Frac::from_str_radix("1/2", radix)

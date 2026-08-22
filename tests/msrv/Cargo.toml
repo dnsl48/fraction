@@ -6,4 +6,4 @@ rust-version = "1.70"
 publish = false
 
 [dependencies]
-fraction = { path = "../..", default-features = false, features = ["with-approx", "with-unicode"] }
+fraction = { path = "../..", default-features = false, features = ["with-approx", "with-dynaint", "with-unicode"] }
