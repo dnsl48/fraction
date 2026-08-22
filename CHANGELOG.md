@@ -3,15 +3,28 @@
 ## [Unreleased]
 
 ### Changed
- - **Breaking:** Unicode mixed-number parsing now requires backing integer types to provide checked addition and multiplication operations. This source-contract tightening prevents bounded integer overflow.
- - **Breaking:** Text parsers now allow one leading sign on the complete value only; signs inside numeric components are rejected for both unsigned and signed backing types. `GenericDecimal::from(&str)` maps these invalid forms to NaN. `GenericFraction<T>` changes its `Num::FromStrRadixErr` associated type from `ParseRatioError` to `ParseError`. Radix parsing continues to require `numerator/denominator` and now reports zero denominators as `ParseError::ZeroDenominator`.
- - **Breaking:** `ParseError` is non-exhaustive; downstream matches must include a wildcard arm.
- - **Breaking:** `DynaInt<T, G>` changes its `Num::FromStrRadixErr` associated type from `<G as Num>::FromStrRadixErr` to the crate's `ParseError`, matching the parser error contract used by `GenericFraction` and `GenericDecimal`.
+ - **Breaking:** `GenericFraction::<T>::from_unicode_str` now requires `T: CheckedAdd + CheckedMul`. Custom
+   backing types must provide both operations for mixed-component combination; standard bounded, big-integer, and
+   dynamic backings satisfy these bounds.
+ - **Breaking:** Numeric-component forms in ordinary `Fraction`/`Decimal`, Unicode, `GenericFraction` radix, and
+   Juniper parsing reject component-local signs while retaining one sign for the complete value. Fraction Juniper
+   input still requires its explicit outer sign; Decimal Juniper input delegates to ordinary `Decimal` grammar.
+   `From<&str> for GenericDecimal` continues to map parse failures to NaN.
+ - **Breaking:** `GenericFraction` changes its `Num::FromStrRadixErr` associated type from `ParseRatioError` to
+   `ParseError`. Its fraction-only `numerator/denominator` grammar is unchanged, zero denominators return
+   `ParseError::ZeroDenominator`, and direct `Ratio` parsing still uses `ParseRatioError`.
+ - **Breaking:** `ParseError` is now non-exhaustive; downstream matches must include a wildcard arm.
+ - **Breaking:** `DynaInt` changes its `Num::FromStrRadixErr` associated type to `ParseError`; malformed inputs and
+   values that neither backing type can represent return `ParseError::ParseIntError`.
 
 ### Fixed
- - Unicode mixed-number parsing now returns `ParseIntError` when combining the whole and fractional parts would overflow the backing integer type, instead of panicking in debug builds or wrapping in release builds.
- - Signed backing types no longer allow component-local signs to create negative values inside stored ratios; signed-minimum parser inputs now fail deterministically.
- - `GenericFraction` and `DynaInt` radix parsing no longer panic for bases outside 2 through 36; they return `ParseError::UnsupportedBase` instead of forwarding invalid bases to their backing integer implementations.
+ - Unicode mixed-number parsing now returns `ParseIntError` when the raw combined numerator
+   (`whole × denominator + numerator`) is not representable by the backing integer type, instead of panicking in
+   debug builds or wrapping in release builds.
+ - Signed backing types no longer allow component-local signs to create negative magnitudes inside stored ratios;
+   component-local signed-minimum inputs now fail deterministically.
+ - `GenericFraction` and `DynaInt` radix parsing no longer panic for bases outside 2 through 36; they return
+   `ParseError::UnsupportedBase` instead of forwarding invalid bases to their backing integer implementations.
 
 ## [0.16.0] - 2026-08-09
 ### Changed

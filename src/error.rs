@@ -6,7 +6,7 @@ use std::error::Error;
 use std::fmt;
 use std::io;
 
-/// Happens when we parse stuff from strings
+/// Errors returned while parsing numeric strings in this crate.
 ///
 /// Consumers should include a wildcard arm when matching this error so that
 /// additions to the error set remain source-compatible.
@@ -31,7 +31,8 @@ pub enum ParseError {
     /// Not enough capacity in underlying integer to perform a math operation
     OverflowError,
 
-    /// Could not convert a character into a digit or a string into a number
+    /// A numeric component or parser-combined value could not be parsed or
+    /// represented by the selected integer type.
     ParseIntError,
 
     /// The requested base is outside the range supported by the parser.
@@ -41,7 +42,11 @@ pub enum ParseError {
     /// own additional requirements for an in-range base.
     UnsupportedBase,
 
-    /// A fraction denominator was zero where the parser requires a finite ratio.
+    /// A finite-ratio parser received a zero denominator.
+    ///
+    /// [`GenericFraction`](crate::GenericFraction)'s `from_str_radix` reports
+    /// this error. Ordinary and Unicode fraction parsing instead map a zero
+    /// denominator to infinity or NaN.
     ZeroDenominator,
 }
 

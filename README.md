@@ -56,10 +56,11 @@ fractions usable in sets, hash maps, and B-trees.
 
 ## Text parsing
 
-Ordinary, decimal, Unicode, and `GenericFraction` radix parsing accept at most one optional sign at the beginning
-of the complete value. Numeric components are unsigned: inputs such as `1/-2`, `1/+2`, and `1.-2` are rejected.
-This keeps the sign outside the stored ratio. Fraction Juniper input retains its required explicit leading sign;
-Decimal Juniper input retains its existing contract.
+For numeric-component forms, ordinary `Fraction`/`Decimal`, Unicode, and `GenericFraction` radix parsing accept at
+most one optional sign at the beginning of the complete value. Numeric components are unsigned: inputs such as `1/-2`,
+`1/+2`, and `1.-2` are rejected. This keeps the sign outside the stored ratio. Fraction Juniper input retains its
+required explicit leading sign and rejects component signs. Decimal Juniper input delegates to ordinary `Decimal`
+grammar and also rejects component signs.
 
 `GenericFraction::from_str_radix` keeps its fraction-only `numerator/denominator` grammar and accepts bases 2
 through 36. It returns `ParseError::UnsupportedBase` for other bases and `ParseError::ZeroDenominator` for zero
@@ -134,7 +135,7 @@ assert_eq!(format!("{:#.3}", result), "1.750");
 
 ### Unicode
 
-When `with-unicode` is enabled, Unicode display helpers are available.
+When `with-unicode` is enabled, Unicode parsing and display helpers are available.
 
 ```rust
 #[cfg(feature = "with-unicode")]
@@ -144,6 +145,7 @@ When `with-unicode` is enabled, Unicode display helpers are available.
     let res = F::from(0.7) / F::from(0.4);
     assert_eq!("7⁄4", format!("{}", res.get_unicode_display()));
     assert_eq!("⁷/₄", format!("{}", res.get_unicode_display().supsub()));
+    assert_eq!(F::from_unicode_str("-1¹/₂"), Ok(F::new_neg(3, 2)));
 }
 ```
 

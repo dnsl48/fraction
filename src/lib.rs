@@ -123,13 +123,16 @@
 //! assert_eq!(f - f, Fraction::zero());
 //! ```
 //!
-//! Text parsers accept at most one optional sign at the beginning of the complete value. Numeric
-//! components are unsigned, so forms such as `1/-2`, `1/+2`, and `1.-2` are rejected. Ordinary
-//! `Fraction` and `Decimal` parsing, together with Unicode fraction parsing, map zero denominators
-//! to infinity or NaN. [`GenericFraction::from_str_radix`] accepts bases 2 through 36, returns
-//! [`error::ParseError::UnsupportedBase`] for other bases, and returns
-//! [`error::ParseError::ZeroDenominator`] for a zero denominator. Decimal radix parsing is
-//! base-10-only and returns `UnsupportedBase` for other bases.
+//! For numeric-component forms, ordinary `Fraction`/`Decimal`, Unicode, and
+//! [`GenericFraction::from_str_radix`] parsing accept at most one optional sign at the beginning
+//! of the complete value. Numeric components are unsigned, so forms such as `1/-2`, `1/+2`, and
+//! `1.-2` are rejected. Fraction Juniper input retains its required explicit leading sign and
+//! rejects component signs. Decimal Juniper input delegates to ordinary Decimal grammar and also
+//! rejects component signs. Ordinary `Fraction` and `Decimal` parsing, together with Unicode
+//! fraction parsing, map zero denominators to infinity or NaN. [`GenericFraction::from_str_radix`]
+//! accepts bases 2 through 36, returns [`error::ParseError::UnsupportedBase`] for other bases,
+//! and returns [`error::ParseError::ZeroDenominator`] for a zero denominator. Decimal radix
+//! parsing is base-10-only and returns `UnsupportedBase` for other bases.
 //!
 //! Decimal:
 //! ```

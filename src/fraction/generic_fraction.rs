@@ -53,9 +53,10 @@ where
 ///
 /// Since GenericFraction keeps its sign explicitly and independently of the numerics,
 /// it is not recommended to use signed types, although it's completely valid with the cost of target type capacity.
-/// Text parsers accept at most one optional sign at the beginning of the complete
-/// input. Signs inside a numerator, denominator, or other numeric component are
-/// rejected so that the stored `Ratio` remains non-negative.
+/// For numeric-component forms, text parsers accept at most one optional sign
+/// at the beginning of the complete input. Signs inside a numerator,
+/// denominator, or other numeric component are rejected so that the stored
+/// `Ratio` remains non-negative.
 ///
 /// ```
 /// use fraction::GenericFraction;
@@ -647,6 +648,39 @@ impl<T: Clone + Integer> Num for GenericFraction<T> {
     /// Parsing errors use the crate's [`ParseError`] type.
     type FromStrRadixErr = ParseError;
 
+    /// Parses a fraction in `numerator/denominator` form using `radix`.
+    ///
+    /// The slash and both numeric components are mandatory. An optional `+`
+    /// or `-` may prefix the complete value, but signs inside either numeric
+    /// component are rejected. Bases from 2 through 36 are supported.
+    ///
+    /// # Errors
+    ///
+    /// [`ParseError::ParseIntError`] reports malformed or unrepresentable
+    /// components, [`ParseError::UnsupportedBase`] reports a radix outside
+    /// that range, and [`ParseError::ZeroDenominator`] reports a zero
+    /// denominator.
+    ///
+    /// ```
+    /// use fraction::{error::ParseError, GenericFraction, Num};
+    ///
+    /// assert_eq!(
+    ///     GenericFraction::<u8>::from_str_radix("101/10", 2).unwrap(),
+    ///     GenericFraction::new(5, 2),
+    /// );
+    /// assert!(matches!(
+    ///     GenericFraction::<u8>::from_str_radix("1/+10", 10),
+    ///     Err(ParseError::ParseIntError),
+    /// ));
+    /// assert!(matches!(
+    ///     GenericFraction::<u8>::from_str_radix("1/2", 1),
+    ///     Err(ParseError::UnsupportedBase),
+    /// ));
+    /// assert!(matches!(
+    ///     GenericFraction::<u8>::from_str_radix("1/0", 10),
+    ///     Err(ParseError::ZeroDenominator),
+    /// ));
+    /// ```
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         if !(2..=36).contains(&radix) {
             return Err(ParseError::UnsupportedBase);
